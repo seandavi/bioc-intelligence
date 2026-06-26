@@ -19,15 +19,18 @@ Marts are the *only* coupling. The frontend never touches the DuckDB file, the
 lake, or any API. New columns are additive; renames are breaking → keep mart
 column names stable once published (mirror the lake's versioned-view discipline).
 
-### Marts available now (Phase 1)
+### Marts available now
 
-| Mart | Grain | Live columns | Phase-gated (currently 0/NULL) |
+| Mart | Grain | Columns | Notes |
 |---|---|---|---|
-| `mart_package_impact` | package × repo | `total_downloads`, `total_distinct_ips`, `downloads_trailing_12mo`, `distinct_ips_trailing_12mo` | `n_primary_pubs`, `n_citing_works`, `sum_rcr`, `n_distinct_grants_citing` |
-| `mart_release_growth` | bioc_release | `n_packages` | `n_new_packages`, `net_downloads` |
+| `mart_package_impact` | package × repo | downloads/distinct-IPs (total + trailing-12mo), `n_primary_pubs`, `n_citing_works`, `sum_rcr`, `n_distinct_grants_citing` | pub/RCR/grant cols fill after lake enrichment runs; downloads after the stats endpoint returns |
+| `mart_grant_attribution` | grant | `agency`, `title`, `n_packages_supported`, `n_citing_works`, `package_names[]` | the grant-narrative payload; populated from RePORTER via lake |
+| `mart_package_directory` | package × repo | name, repo, maintainer, `biocviews[]`, `url[]`, `source_doi`, title | the explorer's backing data |
+| `mart_release_growth` | bioc_release | `n_packages` (+ `n_new_packages`/`net_downloads` pending history/downloads) | |
 
-Plus rich package metadata in `dim_package` (maintainer, biocViews[], URL[],
-`source_doi`) — exported as a mart when the explorer needs it.
+All four are exported every `build-marts` run and read directly by the SPA. The
+enrichment-sourced columns are present-but-empty until `enrich_from_lake` has run,
+so the frontend binds to a stable shape regardless.
 
 > Reality check: download columns are **0 until the Bioconductor stats endpoint
 > returns** (currently 404 site-wide). Build the download views now against the
