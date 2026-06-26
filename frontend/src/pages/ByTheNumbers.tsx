@@ -12,7 +12,6 @@ const ECOSYSTEM = `
     count(*)::INT AS n_packages,
     count(DISTINCT repo)::INT AS n_repos,
     count(DISTINCT maintainer)::INT AS n_maintainers,
-    (count(*) FILTER (WHERE source_doi IS NOT NULL))::INT AS n_with_doi,
     max(latest_release) AS current_release
   FROM 'mart_package_directory.parquet'`;
 
@@ -63,7 +62,6 @@ interface Eco {
   n_packages: number;
   n_repos: number;
   n_maintainers: number;
-  n_with_doi: number;
   current_release: string;
 }
 interface Impact {
@@ -195,7 +193,7 @@ export function ByTheNumbers() {
       </div>
 
       <Section title="Ecosystem">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Packages" value={fmtInt(e.n_packages)} sub={`${e.n_repos} repositories`}
             info="Distinct packages across all four Bioconductor repositories (software, experiment data, annotation, workflows)." />
           <StatCard label="Current release" value={e.current_release} sub="Bioconductor" />
@@ -203,8 +201,6 @@ export function ByTheNumbers() {
             info="Distinct package maintainers (by the DESCRIPTION Maintainer field)." />
           <StatCard label="biocViews terms" value={fmtInt(bvCount.data?.[0]?.n)} sub="distinct"
             info="Distinct terms in Bioconductor's controlled vocabulary that classifies what each package does." />
-          <StatCard label="With source DOI" value={fmtInt(e.n_with_doi)} sub="describing paper"
-            info="Packages whose DESCRIPTION embeds a DOI pointing to a describing paper." />
         </div>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-white p-4">
