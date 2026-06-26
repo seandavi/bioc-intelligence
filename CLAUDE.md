@@ -31,6 +31,19 @@ uv run pytest tests/test_dcf.py          # a single test file
 uv run ruff check src tests              # lint (must stay clean)
 ```
 
+Phase-2 enrichment reads the lake, so it needs the cdsci-lake client + the prod backend:
+
+```bash
+uv pip install -e ../cdsci-lake                                  # one-time, local sibling
+CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.link_works
+CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.link_works --title-fallback
+```
+
+`link_works` joins `dim_package.source_doi` to `lake.openalex.works.doi` (authoritative) and writes
+`bridge_package_pub`. The works scan over 114M rows takes ~80s; that's expected for a batch step.
+The lake dep is lazy (imported only inside `lake.connect_with_lake`), so the offline tests and CI
+never need it.
+
 HTTP responses are cached under `data/cache/` (set `BIOCINTEL_NO_CACHE=1` to bypass). The DuckDB
 file (`data/biocintel.duckdb`) and marts are gitignored and fully rebuildable. Inspect the store
 directly with `duckdb data/biocintel.duckdb`.
