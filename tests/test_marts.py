@@ -35,10 +35,20 @@ def test_package_impact_aggregates_enrichment():
     _fixture(con)
     con.execute(_MART_SQL)
     row = con.execute(
-        "SELECT n_primary_pubs, sum_rcr, n_distinct_grants_citing, n_citing_works "
-        "FROM mart_package_impact WHERE package_name='limma'"
+        "SELECT n_primary_pubs, median_rcr, total_citations, n_distinct_grants_citing, "
+        "n_citing_works FROM mart_package_impact WHERE package_name='limma'"
     ).fetchone()
-    assert row == (1, 5.0, 1, 0)  # citations not loaded → 0
+    assert row == (1, 5.0, 99, 1, 0)  # median of one RCR=5.0; citations summed; edges 0
+
+
+def test_mart_work_exports_linked_works():
+    con = db.connect(":memory:")
+    _fixture(con)
+    con.execute(_MART_SQL)
+    row = con.execute(
+        "SELECT work_id, icite_rcr, citation_count FROM mart_work WHERE work_id='W1'"
+    ).fetchone()
+    assert row == ("W1", 5.0, 99)
 
 
 def test_grant_attribution_rolls_up_packages():
