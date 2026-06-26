@@ -1,0 +1,18 @@
+# Data artifacts — the DuckDB working store and exported marts are rebuilt, not tracked.
+/data/*.duckdb
+/data/*.duckdb.wal
+/data/marts/
+/data/cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# uv
+uv.lock
