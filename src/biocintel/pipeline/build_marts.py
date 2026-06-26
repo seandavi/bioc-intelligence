@@ -47,8 +47,10 @@ pubs AS (
     SELECT package_name, repo, COUNT(DISTINCT work_id) AS n_primary_pubs
     FROM pw WHERE role = 'primary' GROUP BY package_name, repo
 ),
-rcr AS (
-    SELECT pw.package_name, pw.repo, SUM(w.icite_rcr) AS sum_rcr
+wm AS (  -- RCR is a normalized *rate* → median, not sum. Citations are counts → sum.
+    SELECT pw.package_name, pw.repo,
+           median(w.icite_rcr)     AS median_rcr,
+           SUM(w.citation_count)   AS total_citations
     FROM pw JOIN dim_work w USING (work_id) GROUP BY pw.package_name, pw.repo
 ),
 citing AS (
@@ -67,14 +69,15 @@ SELECT p.package_name, p.repo,
        COALESCE(r.downloads_trailing_12mo, 0)     AS downloads_trailing_12mo,
        COALESCE(r.distinct_ips_trailing_12mo, 0)  AS distinct_ips_trailing_12mo,
        COALESCE(pubs.n_primary_pubs, 0)           AS n_primary_pubs,
+       COALESCE(wm.total_citations, 0)            AS total_citations,
        COALESCE(citing.n_citing_works, 0)         AS n_citing_works,
-       rcr.sum_rcr                                AS sum_rcr,
+       wm.median_rcr                              AS median_rcr,
        COALESCE(grants.n_distinct_grants_citing, 0) AS n_distinct_grants_citing
 FROM dim_package p
 LEFT JOIN dl     USING (package_name, repo)
 LEFT JOIN recent r USING (package_name, repo)
 LEFT JOIN pubs   USING (package_name, repo)
-LEFT JOIN rcr    USING (package_name, repo)
+LEFT JOIN wm     USING (package_name, repo)
 LEFT JOIN citing USING (package_name, repo)
 LEFT JOIN grants USING (package_name, repo);
 
@@ -95,10 +98,16 @@ ORDER BY bioc_release;
 
 -- Grant-attribution narrative (the grant-submission use case, spec §8).
 CREATE OR REPLACE TABLE mart_grant_attribution AS
-WITH gp AS (
-    SELECT g.grant_id, b.package_name, b.work_id
+WITH pkg_work AS (  -- canonicalize package→work ids (same DOI/PMID reconciliation)
+    SELECT b.package_name, COALESCE(w.work_id, b.work_id) AS work_id
+    FROM bridge_package_pub b
+    LEFT JOIN dim_work w
+      ON b.work_id = w.work_id OR b.work_id = w.doi OR b.work_id = w.pmid
+),
+gp AS (
+    SELECT g.grant_id, pk.package_name, g.work_id
     FROM bridge_work_grant g
-    JOIN bridge_package_pub b USING (work_id)
+    JOIN pkg_work pk USING (work_id)
 )
 SELECT gp.grant_id,
        d.agency,
@@ -111,6 +120,12 @@ LEFT JOIN dim_grant d USING (grant_id)
 LEFT JOIN fact_citation_edge e ON e.cited_work_id = gp.work_id
 GROUP BY gp.grant_id, d.agency, d.title
 ORDER BY n_packages_supported DESC, gp.grant_id;
+
+-- Linked works (one row per describing/companion publication) — powers
+-- ecosystem-level citation stats and the citations-by-year plot.
+CREATE OR REPLACE TABLE mart_work AS
+SELECT work_id, pmid, doi, year, journal, icite_rcr, citation_count
+FROM dim_work;
 
 -- Flat package directory for the explorer view (frontend reads this directly).
 CREATE OR REPLACE TABLE mart_package_directory AS
@@ -125,6 +140,7 @@ _MARTS = [
     "mart_release_growth",
     "mart_grant_attribution",
     "mart_package_directory",
+    "mart_work",
 ]
 
 

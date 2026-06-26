@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ByTheNumbers } from "./pages/ByTheNumbers";
 import { Explorer } from "./pages/Explorer";
+import { ImpactLeaderboard } from "./pages/ImpactLeaderboard";
 import { fetchManifest, type Manifest } from "./db/duckdb";
 
 type ViewId = "numbers" | "explorer" | "biocviews" | "impact" | "grants" | "growth";
@@ -9,7 +10,7 @@ const NAV: { id: ViewId; label: string; ready: boolean }[] = [
   { id: "numbers", label: "By the Numbers", ready: true },
   { id: "explorer", label: "Explorer", ready: true },
   { id: "biocviews", label: "biocViews", ready: false },
-  { id: "impact", label: "Impact", ready: false },
+  { id: "impact", label: "Impact", ready: true },
   { id: "grants", label: "Grants", ready: false },
   { id: "growth", label: "Growth", ready: false },
 ];
@@ -68,6 +69,8 @@ export default function App() {
           <ByTheNumbers />
         ) : active.id === "explorer" ? (
           <Explorer />
+        ) : active.id === "impact" ? (
+          <ImpactLeaderboard />
         ) : (
           <ComingSoon label={active.label} />
         )}

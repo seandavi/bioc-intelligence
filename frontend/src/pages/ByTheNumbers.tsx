@@ -32,10 +32,6 @@ const BIOCVIEWS_COUNT = `
 const IMPACT = `
   SELECT
     (count(*) FILTER (WHERE n_primary_pubs > 0))::INT AS n_pkgs_with_pub,
-    (sum(n_primary_pubs))::INT AS n_links,
-    (sum(n_citing_works))::INT AS n_citing,
-    sum(sum_rcr) AS total_rcr,
-    (count(*) FILTER (WHERE n_distinct_grants_citing > 0))::INT AS n_pkgs_with_grant,
     (sum(total_distinct_ips))::BIGINT AS total_ips
   FROM 'mart_package_impact.parquet'`;
 
@@ -43,10 +39,25 @@ const GRANTS = `
   SELECT count(*)::INT AS n_grants, count(DISTINCT agency)::INT AS n_agencies
   FROM 'mart_grant_attribution.parquet'`;
 
+// RCR is a normalized rate → summarize by median + p10/p90, never a sum.
+const WORKS = `
+  SELECT median(icite_rcr) AS median_rcr,
+         quantile_cont(icite_rcr, 0.1) AS p10,
+         quantile_cont(icite_rcr, 0.9) AS p90,
+         (sum(citation_count))::BIGINT AS total_citations,
+         (count(*))::INT AS n_works
+  FROM 'mart_work.parquet'`;
+
+const CITES_BY_YEAR = `
+  SELECT year, (sum(citation_count))::BIGINT AS citations
+  FROM 'mart_work.parquet'
+  WHERE year IS NOT NULL AND year BETWEEN 2000 AND 2026
+  GROUP BY year ORDER BY year`;
+
 const TOP_RCR = `
-  SELECT package_name, sum_rcr
+  SELECT package_name, median_rcr
   FROM 'mart_package_impact.parquet'
-  WHERE sum_rcr IS NOT NULL ORDER BY sum_rcr DESC LIMIT 10`;
+  WHERE median_rcr IS NOT NULL ORDER BY median_rcr DESC LIMIT 10`;
 
 interface Eco {
   n_packages: number;
@@ -57,11 +68,14 @@ interface Eco {
 }
 interface Impact {
   n_pkgs_with_pub: number;
-  n_links: number;
-  n_citing: number;
-  total_rcr: number | null;
-  n_pkgs_with_grant: number;
   total_ips: number;
+}
+interface Works {
+  median_rcr: number | null;
+  p10: number | null;
+  p90: number | null;
+  total_citations: number;
+  n_works: number;
 }
 
 function barSpec(
@@ -89,6 +103,26 @@ function barSpec(
   } as VisualizationSpec;
 }
 
+function yearSpec(values: Record<string, unknown>[], title: string): VisualizationSpec {
+  return {
+    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+    title: { text: title, fontSize: 13, color: "#334155" },
+    data: { values },
+    mark: { type: "bar", color: ACCENT },
+    encoding: {
+      x: { field: "year", type: "ordinal", axis: { title: null, labelAngle: 0, labelOverlap: true } },
+      y: { field: "citations", type: "quantitative", axis: { title: null, grid: false } },
+      tooltip: [
+        { field: "year", type: "ordinal" },
+        { field: "citations", type: "quantitative" },
+      ],
+    },
+    width: "container",
+    height: 170,
+    config: { view: { stroke: null } },
+  } as VisualizationSpec;
+}
+
 function Section({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
   return (
     <section className="mt-8 first:mt-0">
@@ -108,6 +142,8 @@ export function ByTheNumbers() {
   const bvCount = useQuery<{ n: number }>(BIOCVIEWS_COUNT);
   const impact = useQuery<Impact>(IMPACT);
   const grants = useQuery<{ n_grants: number; n_agencies: number }>(GRANTS);
+  const works = useQuery<Works>(WORKS);
+  const byYear = useQuery<Record<string, unknown>>(CITES_BY_YEAR);
   const topRcr = useQuery<Record<string, unknown>>(TOP_RCR);
 
   const repoSpec = useMemo(
@@ -119,8 +155,15 @@ export function ByTheNumbers() {
     [bvTop.data],
   );
   const rcrSpec = useMemo(
-    () => (topRcr.data ? barSpec(topRcr.data, "sum_rcr", "package_name", "Top packages by RCR") : null),
+    () =>
+      topRcr.data
+        ? barSpec(topRcr.data, "median_rcr", "package_name", "Top packages by median RCR")
+        : null,
     [topRcr.data],
+  );
+  const yearChart = useMemo(
+    () => (byYear.data ? yearSpec(byYear.data, "Citations by publication year") : null),
+    [byYear.data],
   );
 
   if (eco.error) {
@@ -137,7 +180,10 @@ export function ByTheNumbers() {
   const e = eco.data[0];
   const im = impact.data?.[0];
   const g = grants.data?.[0];
+  const w = works.data?.[0];
   const downloadsLive = (im?.total_ips ?? 0) > 0;
+  const rcrSpread =
+    w?.p10 != null && w?.p90 != null ? `p10–p90 ${fmtFloat(w.p10)}–${fmtFloat(w.p90)}` : undefined;
 
   return (
     <div>
@@ -169,9 +215,9 @@ export function ByTheNumbers() {
       <Section title="Impact" note="linked so far — grows as enrichment fills in">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <StatCard label="Pkgs w/ publication" value={fmtInt(im?.n_pkgs_with_pub)} />
-          <StatCard label="Linked works" value={fmtInt(im?.n_links)} />
-          <StatCard label="Citing works" value={fmtInt(im?.n_citing)} />
-          <StatCard label="Total RCR" value={fmtFloat(im?.total_rcr ?? null)} sub="field-normalized" />
+          <StatCard label="Linked works" value={fmtInt(w?.n_works)} sub="describing papers" />
+          <StatCard label="Total citations" value={fmtCompact(w?.total_citations)} sub="OpenAlex" />
+          <StatCard label="Median RCR" value={fmtFloat(w?.median_rcr ?? null, 2)} sub={rcrSpread} />
           <StatCard label="NIH grants" value={fmtInt(g?.n_grants)} sub={`${g?.n_agencies ?? 0} agencies`} />
           <StatCard
             label="Distinct-IP downloads"
@@ -180,8 +226,13 @@ export function ByTheNumbers() {
             pending={!downloadsLive}
           />
         </div>
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-          {rcrSpec && <VegaChart spec={rcrSpec} className="w-full" />}
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            {yearChart && <VegaChart spec={yearChart} className="w-full" />}
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            {rcrSpec && <VegaChart spec={rcrSpec} className="w-full" />}
+          </div>
         </div>
       </Section>
     </div>
