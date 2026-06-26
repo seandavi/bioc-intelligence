@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { ByTheNumbers } from "./pages/ByTheNumbers";
 import { Explorer } from "./pages/Explorer";
 import { ImpactLeaderboard } from "./pages/ImpactLeaderboard";
+import { BiocViews } from "./pages/BiocViews";
+import { Grants } from "./pages/Grants";
+import { Growth } from "./pages/Growth";
 import { fetchManifest, type Manifest } from "./db/duckdb";
 
 type ViewId = "numbers" | "explorer" | "biocviews" | "impact" | "grants" | "growth";
@@ -9,10 +12,10 @@ type ViewId = "numbers" | "explorer" | "biocviews" | "impact" | "grants" | "grow
 const NAV: { id: ViewId; label: string; ready: boolean }[] = [
   { id: "numbers", label: "By the Numbers", ready: true },
   { id: "explorer", label: "Explorer", ready: true },
-  { id: "biocviews", label: "biocViews", ready: false },
+  { id: "biocviews", label: "biocViews", ready: true },
   { id: "impact", label: "Impact", ready: true },
-  { id: "grants", label: "Grants", ready: false },
-  { id: "growth", label: "Growth", ready: false },
+  { id: "grants", label: "Grants", ready: true },
+  { id: "growth", label: "Growth", ready: true },
 ];
 
 function ComingSoon({ label }: { label: string }) {
@@ -71,6 +74,12 @@ export default function App() {
           <Explorer />
         ) : active.id === "impact" ? (
           <ImpactLeaderboard />
+        ) : active.id === "biocviews" ? (
+          <BiocViews />
+        ) : active.id === "grants" ? (
+          <Grants />
+        ) : active.id === "growth" ? (
+          <Growth />
         ) : (
           <ComingSoon label={active.label} />
         )}
