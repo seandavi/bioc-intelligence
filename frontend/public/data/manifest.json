@@ -1,0 +1,4 @@
+{
+  "snapshot": "2026-06-26",
+  "marts": ["mart_grant_attribution.parquet", "mart_package_directory.parquet", "mart_package_impact.parquet", "mart_release_growth.parquet"]
+}
