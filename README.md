@@ -173,6 +173,13 @@ This is honest about what it does and doesn't yet cover:
 - **Upstream accuracy applies.** Figures are only as good as OpenAlex / iCite / RePORTER / Bioconductor;
   a few landmark papers carry very high RCRs, and metadata gaps propagate.
 
+## Roadmap
+
+Planned and possible future work — precision-filtered title→judge linkage, cited-by edges and
+full-text mention mining at scale, restoring download stats, git-tag version history for
+release-over-release growth, cross-view navigation, and scheduled refresh — is tracked in
+[**ROADMAP.md**](ROADMAP.md).
+
 ## Tech stack
 
 DuckDB · Parquet · Python ([uv](https://docs.astral.sh/uv/), ruff, pytest) · React · TypeScript ·
