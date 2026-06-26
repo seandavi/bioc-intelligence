@@ -10,6 +10,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useQuery } from "../db/useQuery";
+import { InfoDot } from "../components/InfoDot";
 import { fmtInt } from "../lib/format";
 import { downloadCsv } from "../lib/csv";
 
@@ -62,7 +63,12 @@ export function Grants() {
       },
       {
         accessorKey: "n_packages_supported",
-        header: "Packages",
+        header: () => (
+          <span className="inline-flex items-center">
+            Packages
+            <InfoDot tip="Distinct Bioconductor packages whose describing publication is linked to this grant via NIH RePORTER." />
+          </span>
+        ),
         cell: ({ getValue }) => <span className="tabular-nums">{fmtInt(getValue<number>())}</span>,
       },
       {
