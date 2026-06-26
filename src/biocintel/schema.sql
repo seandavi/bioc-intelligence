@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS bridge_package_pub (
     repo          VARCHAR NOT NULL,
     work_id       VARCHAR NOT NULL,
     role          VARCHAR,                -- 'primary' | 'companion'
-    match_method  VARCHAR,                -- 'doi' | 'title_search' | 'manual'
+    match_method  VARCHAR,                -- 'doi' | 'citation_file' | 'title_search' | 'manual'
     confidence    DOUBLE
 );
 

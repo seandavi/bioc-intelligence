@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 
 from . import db
-from .pipeline import build_marts, extract_downloads, extract_packages
+from .pipeline import build_marts, extract_citation_files, extract_downloads, extract_packages
 
 
 def _init_db(_args) -> None:
@@ -30,6 +30,11 @@ def main(argv: list[str] | None = None) -> None:
     p_dl = sub.add_parser("extract-downloads", help="stats tabs -> fact_download")
     p_dl.add_argument("--repos", nargs="*", choices=list(extract_downloads.REPOS))
 
+    p_cit = sub.add_parser(
+        "extract-citations", help="CITATION pages -> bridge_package_pub (bioc)"
+    )
+    p_cit.add_argument("--repos", nargs="*", choices=["bioc"])
+
     sub.add_parser("build-marts", help="derive mart_* and export Parquet")
     sub.add_parser("all", help="extract-packages + extract-downloads + build-marts")
 
@@ -41,6 +46,8 @@ def main(argv: list[str] | None = None) -> None:
         extract_packages.run(args.repos, devel=args.devel)
     elif args.cmd == "extract-downloads":
         extract_downloads.run(args.repos)
+    elif args.cmd == "extract-citations":
+        extract_citation_files.run(args.repos)
     elif args.cmd == "build-marts":
         build_marts.run()
     elif args.cmd == "all":
