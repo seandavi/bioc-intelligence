@@ -11,6 +11,7 @@ import {
 } from "@tanstack/react-table";
 import { useQuery } from "../db/useQuery";
 import { RepoBadge } from "../components/ui";
+import { InfoDot } from "../components/InfoDot";
 import { fmtCompact, fmtFloat, fmtInt } from "../lib/format";
 
 interface Row {
@@ -55,12 +56,22 @@ export function ImpactLeaderboard() {
 
   const downloadsLive = useMemo(() => all.some((r) => r.total_distinct_ips > 0), [all]);
 
-  const num = (key: keyof Row, fmt: (n: number | null) => string, header: string): ColumnDef<Row> => ({
+  const num = (
+    key: keyof Row,
+    fmt: (n: number | null) => string,
+    header: string,
+    info?: string,
+  ): ColumnDef<Row> => ({
     accessorKey: key as string,
-    header,
-    cell: ({ getValue }) => (
-      <span className="tabular-nums">{fmt(getValue<number | null>())}</span>
-    ),
+    header: info
+      ? () => (
+          <span className="inline-flex items-center">
+            {header}
+            <InfoDot tip={info} />
+          </span>
+        )
+      : header,
+    cell: ({ getValue }) => <span className="tabular-nums">{fmt(getValue<number | null>())}</span>,
     sortUndefined: "last",
     sortingFn: "basic",
   });
@@ -75,11 +86,16 @@ export function ImpactLeaderboard() {
         ),
       },
       { accessorKey: "repo", header: "Repo", cell: ({ getValue }) => <RepoBadge repo={getValue<string>()} /> },
-      num("median_rcr", (n) => fmtFloat(n, 2), "Median RCR"),
-      num("total_citations", (n) => fmtCompact(n), "Citations"),
-      num("n_primary_pubs", (n) => fmtInt(n), "Pubs"),
-      num("n_distinct_grants_citing", (n) => fmtInt(n), "Grants"),
-      num("total_distinct_ips", (n) => (downloadsLive ? fmtCompact(n) : "—"), "Distinct IPs"),
+      num("median_rcr", (n) => fmtFloat(n, 2), "Median RCR",
+        "Relative Citation Ratio (NIH iCite), field-normalized so 1.0 = average. Median across the package's describing papers."),
+      num("total_citations", (n) => fmtCompact(n), "Citations",
+        "Total OpenAlex citations of the package's describing papers."),
+      num("n_primary_pubs", (n) => fmtInt(n), "Pubs",
+        "Number of describing publications linked to the package."),
+      num("n_distinct_grants_citing", (n) => fmtInt(n), "Grants",
+        "Distinct NIH grants whose publications are described by this package (via RePORTER)."),
+      num("total_distinct_ips", (n) => (downloadsLive ? fmtCompact(n) : "—"), "Distinct IPs",
+        "Unique downloading IP addresses — the usage proxy. Pending while Bioconductor's stats endpoint is offline."),
     ],
     [downloadsLive],
   );
