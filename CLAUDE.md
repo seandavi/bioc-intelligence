@@ -40,9 +40,25 @@ CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.link_works
 ```
 
 `link_works` joins `dim_package.source_doi` to `lake.openalex.works.doi` (authoritative) and writes
-`bridge_package_pub`. The works scan over 114M rows takes ~80s; that's expected for a batch step.
-The lake dep is lazy (imported only inside `lake.connect_with_lake`), so the offline tests and CI
-never need it.
+`bridge_package_pub`. Then `enrich_from_lake` fills the rest:
+
+```bash
+CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_from_lake
+CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_from_lake --steps works,grants,citations
+```
+
+- `works` (default) — linked OpenAlex works + iCite RCR → `dim_work`.
+- `grants` (default) — `reporter.publink`/`projects` → `dim_grant` + `bridge_work_grant`.
+- `citations` (**opt-in**) — `openalex.work_references` cited-by → `fact_citation_edge`. Scans the
+  **1.29B-row** references table plus a second `works` pass; run deliberately for a full refresh.
+
+The works scan over 114M rows takes ~80s; that's expected for a batch step. The lake dep is lazy
+(imported only inside `lake.connect_with_lake`), so the offline tests and CI never need it.
+
+**Lake contract gotchas found as first consumer** (verified live; candidates for upstream
+versioned-view aliases): `openalex.works.doi` is bare-lowercase (no `doi.org/` prefix);
+`openalex.works.pmid` is a nullable BIGINT; **`reporter.publink.project_number` is a *core* project
+number — join `reporter.projects.core_project_num`, not `project_num`.**
 
 HTTP responses are cached under `data/cache/` (set `BIOCINTEL_NO_CACHE=1` to bypass). The DuckDB
 file (`data/biocintel.duckdb`) and marts are gitignored and fully rebuildable. Inspect the store
