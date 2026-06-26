@@ -23,6 +23,7 @@ uv run biocintel init-db                 # create DuckDB store + schema
 uv run biocintel extract-packages        # VIEWS -> dim_package(_version), all 4 repos (~25s live)
 uv run biocintel extract-packages --devel --repos bioc   # add devel channel / scope repos
 uv run biocintel extract-downloads       # stats tabs -> fact_download (currently skips: 404)
+uv run biocintel extract-citations       # CITATION pages -> bridge_package_pub (bioc; live, lake-free)
 uv run biocintel build-marts             # derive mart_* -> data/marts/*.parquet
 uv run biocintel all                     # the three extract/build steps in order
 
@@ -192,9 +193,13 @@ reopens the question:
 - **Package → manuscript linkage (`bridge_package_pub`).** Kept simple for now: join a DOI
   (from DESCRIPTION `URL`/`BugReports` or CITATION) to `lake.openalex.works.doi`
   (`match_method = 'doi'`, authoritative), else FTS the title against
-  `lake.openalex.works.title` and take the top hit (`match_method = 'title_search'`). Every edge
-  **must** carry `match_method` (`doi` | `title_search` | `manual`) and `confidence` so the
-  dashboard can filter to high-confidence (DOI) linkages for grant reporting. Scored fuzzy matching
+  `lake.openalex.works.title` and take the top hit (`match_method = 'title_search'`). A lake-free
+  `extract-citations` step also harvests DOIs from each package's rendered CITATION page
+  (`.../citations/<pkg>/citation.html`) as `match_method = 'citation_file'` (confidence 0.9),
+  expanding linkage beyond DESCRIPTION-embedded DOIs (bioc repo only for now). Every edge
+  **must** carry `match_method` (`doi` | `citation_file` | `title_search` | `manual`) and
+  `confidence` so the dashboard can filter to high-confidence linkages for grant reporting.
+  Scored fuzzy matching
   against Crossref and a human-curated override table are **deferred** — revisit only if title
   search is too noisy.
 - **Decoupled mention extract → judge.** The full-text corpus is already in the lake
