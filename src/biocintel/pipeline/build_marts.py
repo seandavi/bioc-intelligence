@@ -35,8 +35,13 @@ recent AS (  -- trailing 12 months relative to the latest (year, month) present
     WHERE ym > max_ym - 12
     GROUP BY package_name, repo
 ),
-pw AS (  -- package → its linked works (the join spine for pubs/citations/grants)
-    SELECT package_name, repo, work_id, role FROM bridge_package_pub
+pw AS (  -- package → its linked works, canonicalized to dim_work's work_id so a
+         -- DOI-keyed bridge row lines up with the PMID-keyed enriched work.
+    SELECT b.package_name, b.repo,
+           COALESCE(w.work_id, b.work_id) AS work_id, b.role
+    FROM bridge_package_pub b
+    LEFT JOIN dim_work w
+      ON b.work_id = w.work_id OR b.work_id = w.doi OR b.work_id = w.pmid
 ),
 pubs AS (
     SELECT package_name, repo, COUNT(DISTINCT work_id) AS n_primary_pubs

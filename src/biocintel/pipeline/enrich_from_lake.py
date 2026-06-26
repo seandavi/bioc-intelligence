@@ -35,8 +35,10 @@ SELECT DISTINCT
     COALESCE(CAST(w.pmid AS VARCHAR), w.doi) AS work_id,
     w.title, w.publication_year AS year, w.source_name AS journal, w.cited_by_count
 FROM lake.openalex.works w
+-- A bridge work_id is PMID-or-DOI; match EITHER side (a citation link stores the
+-- DOI even when the work also has a PMID, so a single COALESCE key would miss it).
 JOIN bi.bridge_package_pub b
-  ON b.work_id = COALESCE(CAST(w.pmid AS VARCHAR), w.doi);
+  ON b.work_id = CAST(w.pmid AS VARCHAR) OR b.work_id = w.doi;
 """
 
 _WORKS_SQL = """
