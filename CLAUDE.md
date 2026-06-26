@@ -52,6 +52,21 @@ CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_fro
 - `citations` (**opt-in**) — `openalex.work_references` cited-by → `fact_citation_edge`. Scans the
   **1.29B-row** references table plus a second `works` pass; run deliberately for a full refresh.
 
+Mention mining + judging (spec §6 — mine once, judge later, decoupled):
+
+```bash
+# Mine full-text mentions from lake.pmc.passages (~974M rows). Explicit packages required;
+# --passage-limit bounds the scan for a cheap smoke test (omit for the full corpus).
+CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.mine_mentions \
+    --packages limma,DESeq2 --passage-limit 200000
+# Judge stored candidates (LOCAL only, no lake). null judge by default — wire a real judge.
+uv run python -m biocintel.pipeline.judge_mentions
+```
+
+`judge_mentions` operates purely on the local store and takes a pluggable `judge(cands)->verdicts`
+callable; no model is wired yet (`null_judge` is a no-op for plumbing). Confirmed candidates get
+promoted into `fact_citation_edge` (`mention_type='fulltext'`).
+
 The works scan over 114M rows takes ~80s; that's expected for a batch step. The lake dep is lazy
 (imported only inside `lake.connect_with_lake`), so the offline tests and CI never need it.
 
