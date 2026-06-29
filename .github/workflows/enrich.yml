@@ -37,9 +37,12 @@ jobs:
           enable-cache: true
 
       - name: Install
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           uv venv --python 3.13
           uv pip install -e .
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
           uv pip install git+https://github.com/seandavi/cdsci-lake.git
 
       # WIF: exchange the GitHub OIDC token for a short-lived GCP token.
