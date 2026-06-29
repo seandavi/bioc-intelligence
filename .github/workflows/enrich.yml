@@ -6,6 +6,7 @@ name: Data Refresh
 #   GCP_WORKLOAD_IDENTITY_PROVIDER  — from `tofu output github_actions_workload_identity_provider`
 #   GCP_SERVICE_ACCOUNT             — from `tofu output github_actions_bioc_intelligence_gha_service_account_email`
 #   TS_AUTHKEY                      — Tailscale reusable+ephemeral auth key tagged tag:ci (90-day max; rotate before expiry)
+#   CDSCI_LAKE_TOKEN                — fine-grained PAT, Contents read-only on seandavi/cdsci-lake
 
 on:
   schedule:
@@ -38,11 +39,11 @@ jobs:
 
       - name: Install
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          CDSCI_LAKE_TOKEN: ${{ secrets.CDSCI_LAKE_TOKEN }}
         run: |
           uv venv --python 3.13
           uv pip install -e .
-          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${CDSCI_LAKE_TOKEN}@github.com/".insteadOf "https://github.com/"
           uv pip install git+https://github.com/seandavi/cdsci-lake.git
 
       # WIF: exchange the GitHub OIDC token for a short-lived GCP token.
