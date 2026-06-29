@@ -63,8 +63,7 @@ jobs:
       # The node is ephemeral and removed when the runner disconnects.
       - uses: tailscale/github-action@v3
         with:
-          authkey:   ${{ secrets.TS_AUTHKEY }}
-          ephemeral: true
+          authkey: ${{ secrets.TS_AUTHKEY }}
 
       - name: Run pipeline
         env:
@@ -74,7 +73,7 @@ jobs:
           uv run biocintel extract-packages
           uv run biocintel extract-citations
           uv run python -m biocintel.pipeline.link_works
-          uv run biocintel enrich-from-lake
+          uv run python -m biocintel.pipeline.enrich_from_lake
           uv run biocintel build-marts
 
       # Commit updated Parquet marts + manifest back to main.
