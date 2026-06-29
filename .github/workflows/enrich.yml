@@ -32,18 +32,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/checkout@v4
+        with:
+          repository: seandavi/cdsci-lake
+          token: ${{ secrets.CDSCI_LAKE_TOKEN }}
+          path: cdsci-lake
+
       # cdsci-lake requires Python >=3.13; use that for the whole job.
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
       - name: Install
-        env:
-          CDSCI_LAKE_TOKEN: ${{ secrets.CDSCI_LAKE_TOKEN }}
         run: |
           uv venv --python 3.13
           uv pip install -e .
-          uv pip install "git+https://x-access-token:${CDSCI_LAKE_TOKEN}@github.com/seandavi/cdsci-lake.git"
+          uv pip install -e ./cdsci-lake
 
       # WIF: exchange the GitHub OIDC token for a short-lived GCP token.
       # No SA key file — credentials are configured as ADC for gcloud + SDKs.
