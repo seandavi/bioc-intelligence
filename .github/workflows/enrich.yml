@@ -1,0 +1,85 @@
+name: Data Refresh
+
+# Monthly enrichment pipeline: extract → link → enrich → build-marts → deploy.
+#
+# Secrets required on the `production` environment:
+#   GCP_WORKLOAD_IDENTITY_PROVIDER  — from `tofu output github_actions_workload_identity_provider`
+#   GCP_SERVICE_ACCOUNT             — from `tofu output github_actions_bioc_intelligence_gha_service_account_email`
+#   TS_AUTHKEY                      — Tailscale reusable+ephemeral auth key tagged tag:ci (90-day max; rotate before expiry)
+
+on:
+  schedule:
+    - cron: '0 6 1 * *'   # monthly, 1st of the month at 06:00 UTC
+  workflow_dispatch:        # manual trigger from the Actions UI
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - '.github/workflows/enrich.yml'
+
+# contents:write  — to commit updated Parquet marts back to the repo
+# id-token:write  — to exchange the GitHub OIDC token for a GCP token (WIF)
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # cdsci-lake requires Python >=3.13; use that for the whole job.
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: |
+          uv venv --python 3.13
+          uv pip install -e .
+          uv pip install git+https://github.com/seandavi/cdsci-lake.git
+
+      # WIF: exchange the GitHub OIDC token for a short-lived GCP token.
+      # No SA key file — credentials are configured as ADC for gcloud + SDKs.
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account:            ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # Join the Tailscale network so the runner can reach the DuckLake
+      # Postgres catalog at 100.74.53.55:5432 (onclappc02, tailnet-only).
+      # The node is ephemeral and removed when the runner disconnects.
+      - uses: tailscale/github-action@v3
+        with:
+          authkey:   ${{ secrets.TS_AUTHKEY }}
+          ephemeral: true
+
+      - name: Run pipeline
+        env:
+          CU_OPENALEX_LAKE_BACKEND: postgres
+        run: |
+          uv run biocintel init-db
+          uv run biocintel extract-packages
+          uv run biocintel extract-citations
+          uv run python -m biocintel.pipeline.link_works
+          uv run biocintel enrich-from-lake
+          uv run biocintel build-marts
+
+      # Commit updated Parquet marts + manifest back to main.
+      # A push to frontend/public/data/ triggers deploy-pages.yml automatically.
+      # The paths filter on this workflow's push trigger excludes frontend/,
+      # so this commit does not re-trigger the enrichment job.
+      - name: Commit updated marts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add frontend/public/data/
+          git diff --cached --quiet && echo "No data changes." && exit 0
+          git commit -m "data: monthly mart refresh $(date -u +%Y-%m-%d)"
+          git pull --rebase
+          git push
