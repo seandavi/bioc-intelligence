@@ -1,0 +1,16 @@
+[Unit]
+Description=Monthly bioc-intelligence enrichment (was enrich.yml's '0 6 1 * *')
+
+[Timer]
+# Same instant the GitHub Actions cron used, kept in UTC rather than
+# translated to local so the cadence does not shift twice a year with DST.
+# systemd 252 is new enough to accept the timezone suffix (verified with
+# systemd-analyze calendar).
+OnCalendar=*-*-01 06:00:00 UTC
+# The box is not always up; catch up on the next boot instead of silently
+# skipping a month, which for a monthly job means a 2-month-old dashboard.
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

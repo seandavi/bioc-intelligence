@@ -130,6 +130,26 @@ npm run build                # production build → dist/
 
 The dashboard auto-deploys to GitHub Pages on every push to `main` that touches `frontend/`.
 
+### Scheduled refresh
+
+The monthly enrichment runs on **onclappc02**, as the `biocintel-refresh` systemd
+`--user` timer — see [`systemd/`](systemd/) and, for the platform-wide convention it
+follows (timer shape, `TimeoutStartSec`, ntfy failure alerting),
+`monode/infrastructure/SCHEDULING.md`.
+
+It used to be the `Data Refresh` GitHub Actions workflow, which failed all 16 of its
+scheduled runs: the pipeline reads the DuckLake metadata Postgres on the tailnet, and a
+GitHub-hosted runner could not reach it even after joining the tailnet. Running on the
+host that owns the database removes the hop rather than debugging ACLs. `sync-marts.sh`
+runs as part of the timer, so the marts the frontend reads are refreshed and pushed —
+a step the old workflow was also missing.
+
+```bash
+systemctl --user list-timers biocintel-refresh.timer   # when it next runs
+systemctl --user start biocintel-refresh.service       # run it now
+journalctl --user -u biocintel-refresh.service         # what happened
+```
+
 ## Repository layout
 
 ```

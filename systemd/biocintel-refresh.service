@@ -1,0 +1,71 @@
+# Monthly enrichment pipeline, moved off GitHub Actions on 2026-08-29.
+# See monode/infrastructure's SCHEDULING.md for the convention this is an
+# instance of, and .github/workflows/enrich.yml (now schedule-less) for what
+# this replaced.
+#
+# Why it moved: the pipeline reads the DuckLake metadata Postgres at
+# 100.74.53.55:5432, which is this host, reachable only on the tailnet. The
+# GitHub-hosted runner joined the tailnet with an ephemeral node and still
+# could not open the connection -- every one of the 16 scheduled runs since
+# 2026-06-29 failed in link_works with "Unable to connect ... Is the server
+# running on that host and accepting TCP/IP connections?", after ~6 minutes
+# of real ingestion work that was then thrown away. Running on the box that
+# owns the database removes the hop entirely rather than debugging ACLs.
+[Unit]
+Description=Monthly bioc-intelligence enrichment: extract -> link -> enrich -> marts
+Documentation=https://github.com/seandavi/bioc-intelligence
+After=network-online.target
+Wants=network-online.target
+OnFailure=ntfy-notify@%N.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/davsean/Documents/git/bioc-intelligence
+# cdsci-lake's .env carries the shared CU_OPENALEX_* settings -- notably the
+# DuckDB temp directory, which is what keeps a spill off the root partition
+# (see DUCKLAKE.md). pydantic resolves env_file=".env" relative to the CWD,
+# which is this repo and has no .env, so systemd has to inject it.
+EnvironmentFile=/home/davsean/Documents/git/cdsci-lake/.env
+# Prod: .env deliberately omits the backend var so a plain local run cannot
+# reach the shared lake by accident. The unit is the one place that means prod.
+Environment=CU_OPENALEX_LAKE_BACKEND=postgres
+
+# cdsci-lake is deliberately NOT a declared dependency of this project (see
+# the comment in pyproject.toml -- Phase-1 installs must not require the lake),
+# so the venv is built the same way enrich.yml built it: the project plus the
+# local sibling, both editable. Re-synced every run so a change in either repo
+# is picked up rather than silently running last month's code.
+#
+# NOT `/usr/bin/env uv` -- systemd --user runs with a minimal PATH that
+# excludes ~/.local/bin, so `env uv` exits 127 and systemd-analyze verify does
+# not catch it. SCHEDULING.md has the incident this rule came from.
+ExecStartPre=%h/.local/bin/uv venv --allow-existing --python 3.13
+ExecStartPre=%h/.local/bin/uv pip install -e . -e ../cdsci-lake
+
+ExecStart=%h/.local/bin/uv run --no-sync biocintel init-db
+ExecStart=%h/.local/bin/uv run --no-sync biocintel extract-packages
+ExecStart=%h/.local/bin/uv run --no-sync biocintel extract-citations
+ExecStart=%h/.local/bin/uv run --no-sync python -m biocintel.pipeline.link_works
+ExecStart=%h/.local/bin/uv run --no-sync python -m biocintel.pipeline.enrich_from_lake
+ExecStart=%h/.local/bin/uv run --no-sync biocintel build-marts
+# build-marts writes to data/marts/, which is GITIGNORED. sync-marts.sh is what
+# copies those into frontend/public/data/ and stamps the manifest -- without it
+# the publish step below finds nothing to commit and the site never changes.
+# enrich.yml omitted this step entirely, so even with a reachable lake it would
+# have committed nothing; the job never got far enough to expose that.
+ExecStart=/home/davsean/Documents/git/bioc-intelligence/frontend/scripts/sync-marts.sh
+ExecStart=/home/davsean/Documents/git/bioc-intelligence/systemd/publish-marts.sh
+
+# RuntimeMaxSec= silently no-ops on Type=oneshot; TimeoutStartSec is the
+# run-length ceiling and covers every ExecStart= step together.
+#
+# Measured, not guessed: the first successful end-to-end run (2026-08-29, the
+# first this job has ever had) took 968s -- extract 29s, link_works 178s,
+# enrich_from_lake 967s cumulative, marts 1s. enrich_from_lake is the long pole
+# by an order of magnitude. 3600 leaves ~3.7x headroom for a lake that keeps
+# growing, and matches the timeout-minutes: 60 the GitHub job carried. Revisit
+# once a few real runs exist rather than treating this as settled.
+TimeoutStartSec=3600
+
+[Install]
+WantedBy=default.target
