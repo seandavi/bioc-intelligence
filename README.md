@@ -103,7 +103,7 @@ uv venv && uv pip install -e '.[dev]'
 uv run biocintel init-db              # create the DuckDB store + schema
 uv run biocintel extract-packages     # VIEWS → dim_package(_version), all 4 repos
 uv run biocintel extract-citations    # CITATION pages → bridge_package_pub (authoritative)
-uv run biocintel extract-downloads    # download stats → fact_download (currently skips; see caveats)
+uv run biocintel extract-downloads    # download stats → fact_download
 uv run biocintel build-marts          # derive mart_* → data/marts/*.parquet
 
 uv run pytest                         # offline parser/aggregation tests
@@ -142,9 +142,17 @@ scheduled runs: the pipeline reads the DuckLake metadata Postgres on the tailnet
 GitHub-hosted runner could not reach it even after joining the tailnet. Running on the
 host that owns the database removes the hop rather than debugging ACLs. `sync-marts.sh`
 runs as part of the timer, so the marts the frontend reads are refreshed and pushed —
-a step the old workflow was also missing.
+a step the old workflow was also missing. It has run cleanly on 2026-08-29, 09-01, and
+10-01, each time pushing a `data: monthly mart refresh` commit that triggers Deploy Pages.
+
+The units in `~/.config/systemd/user/` are **copies**, not symlinks, so re-copy after
+editing them in the repo:
 
 ```bash
+cp systemd/biocintel-refresh.{service,timer} ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now biocintel-refresh.timer   # first install only
+
 systemctl --user list-timers biocintel-refresh.timer   # when it next runs
 systemctl --user start biocintel-refresh.service       # run it now
 journalctl --user -u biocintel-refresh.service         # what happened
@@ -170,10 +178,11 @@ CLAUDE.md                 # orientation for contributors / agents
 
 This is honest about what it does and doesn't yet cover:
 
-- **Download stats are currently unavailable.** Bioconductor's stats `.tab` endpoints have been
-  404ing since the BioC 3.23 site redesign, so the distinct-IP usage metric shows **pending**. The
-  extractor logs-and-skips (per `BiocPkgTools` convention) and will populate when the endpoints
-  return.
+- **Download stats are only just landing.** Bioconductor's stats `.tab` endpoints 404'd for a while
+  after the BioC 3.23 site redesign; they are back (2009–2026 history as of 2026-10-01), and
+  `extract-downloads` is being added to the monthly refresh. Until a refresh with it has run, the
+  distinct-IP usage metric shows **pending**. The extractor still logs-and-skips a 404 (per
+  `BiocPkgTools` convention).
 - **Linkage favors precision over recall.** Package→manuscript links come from DESCRIPTION DOIs and
   **CITATION files** (author-asserted, authoritative). Naive title-matching against OpenAlex is
   *deliberately not used* — many package names are common words (`muscle`, `gage`, `tuberculosis`),
@@ -196,15 +205,15 @@ This is honest about what it does and doesn't yet cover:
 ## Roadmap
 
 Planned and possible future work — precision-filtered title→judge linkage, cited-by edges and
-full-text mention mining at scale, restoring download stats, git-tag version history for
-release-over-release growth, cross-view navigation, and scheduled refresh — is tracked in
+full-text mention mining at scale, a download-trends view, git-tag version history for
+release-over-release growth, and cross-view navigation — is tracked in
 [**ROADMAP.md**](ROADMAP.md).
 
 ## Tech stack
 
 DuckDB · Parquet · Python ([uv](https://docs.astral.sh/uv/), ruff, pytest) · React · TypeScript ·
 Vite · Tailwind · [DuckDB-WASM](https://duckdb.org/docs/api/wasm/overview.html) · Vega-Lite ·
-[TanStack Table](https://tanstack.com/table) · GitHub Actions + Pages.
+[TanStack Table](https://tanstack.com/table) · GitHub Actions (CI) + Pages · systemd timer (refresh).
 
 ## Acknowledgments
 

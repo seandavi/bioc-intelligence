@@ -1,11 +1,11 @@
 # Roadmap
 
-Possible future work, grouped by theme. This is a backlog of ideas, not a commitment — the platform
-is functional and parked for review as of **2026-06-26**. Items marked _(built)_ exist in code but
+Possible future work, grouped by theme. This is a backlog of ideas, not a commitment. Items marked _(built)_ exist in code but
 are not yet run at scale; _(new)_ items are not started.
 
 Current state: pipeline (packages → CITATION/DOI linkage → lake enrichment → Parquet marts) and a
-6-view zero-backend dashboard, live at <https://seandavi.github.io/bioc-intelligence/>. See
+6-view zero-backend dashboard, live at <https://seandavi.github.io/bioc-intelligence/> and refreshed
+monthly by a systemd timer on onclappc02. See
 [`bioc-intelligence-spec.md`](bioc-intelligence-spec.md) for the design and the README for caveats.
 
 ## Linkage — push past 809 packages, keep precision
@@ -33,9 +33,10 @@ Current state: pipeline (packages → CITATION/DOI linkage → lake enrichment �
 
 ## Download stats — unblock the usage proxy
 
-- **Locate the relocated stats endpoint** _(new)_ — Bioconductor's `*_pkg_stats.tab` files 404 since
-  the BioC 3.23 redesign; the new site exposes a `/dashboard/`. Find the restored/relocated path,
-  then `fact_download` + the distinct-IP usage metric light up across the dashboard automatically.
+- **Locate the relocated stats endpoint** _(resolved)_ — the `*_pkg_stats.tab` files 404'd after the
+  BioC 3.23 redesign but are back at the original paths (2009–2026 history, verified 2026-10-01).
+  `extract-downloads` is being added to the monthly refresh, after which `fact_download` + the
+  distinct-IP usage metric light up across the dashboard.
 
 ## Versioning & growth
 
@@ -49,8 +50,8 @@ Current state: pipeline (packages → CITATION/DOI linkage → lake enrichment �
 
 - **Cross-view navigation** _(new)_ — click a biocViews term → Explorer filtered; a grant → its
   packages; a package → its papers/citations/grants.
-- **Download-trends view** _(new)_ — distinct-IP time series with a methodology-era band (spec §6),
-  once stats return.
+- **Download-trends view** _(new, unblocked)_ — distinct-IP time series with a methodology-era band
+  (spec §6); the stats endpoints are back.
 - **biocViews treemap / hierarchy** _(new)_ — the true hierarchical taxonomy, not the flat term list.
 - **"Cite this impact" deep-links** _(new)_ — stable per-package/grant permalinks + copyable figures
   for grant narratives (the headline use case). Likely needs `react-router`.
@@ -61,8 +62,10 @@ Current state: pipeline (packages → CITATION/DOI linkage → lake enrichment �
 
 ## Ops & infrastructure
 
-- **Scheduled orchestration** _(new, spec §7)_ — GitHub Actions: monthly cron for telemetry/
-  enrichment, on-release trigger for dimensions, judge on its own cadence; auto-refresh marts + deploy.
+- **Scheduled orchestration** _(partly built, spec §7)_ — the monthly refresh (extract → enrich →
+  marts → commit → Deploy Pages) runs as a systemd `--user` timer on onclappc02, not GitHub Actions,
+  whose runner couldn't reach the lake Postgres. Still open: an on-release trigger for dimensions
+  and the judge on its own cadence.
 - **Serve marts from R2** _(new)_ — decouple marts from git, enabling snapshots and larger data.
 - **Integration tests** _(new)_ — against a small local-backend lake fixture; frontend e2e once a
   usable headless browser is available in CI.
