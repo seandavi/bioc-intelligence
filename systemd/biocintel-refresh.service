@@ -1,7 +1,6 @@
 # Monthly enrichment pipeline, moved off GitHub Actions on 2026-08-29.
 # See monode/infrastructure's SCHEDULING.md for the convention this is an
-# instance of, and .github/workflows/enrich.yml (now schedule-less) for what
-# this replaced.
+# instance of; it replaced .github/workflows/enrich.yml (since deleted).
 #
 # Why it moved: the pipeline reads the DuckLake metadata Postgres at
 # 100.74.53.55:5432, which is this host, reachable only on the tailnet. The

@@ -178,11 +178,11 @@ CLAUDE.md                 # orientation for contributors / agents
 
 This is honest about what it does and doesn't yet cover:
 
-- **Download stats are only just landing.** Bioconductor's stats `.tab` endpoints 404'd for a while
-  after the BioC 3.23 site redesign; they are back (2009–2026 history as of 2026-10-01), and
-  `extract-downloads` is being added to the monthly refresh. Until a refresh with it has run, the
-  distinct-IP usage metric shows **pending**. The extractor still logs-and-skips a 404 (per
-  `BiocPkgTools` convention).
+- **Download stats measure distinct IPs per month, summed.** Bioconductor publishes monthly
+  distinct-IP counts, so an IP active in several months counts once per month — treat totals as a
+  usage proxy, not unique users. Only complete months load (the in-progress month and the source's
+  zero-fill rows are dropped), and collection methodology changed in Oct 2015 (`methodology_era`).
+  The extractor logs-and-skips a 404 (the endpoints were down for a while after BioC 3.23).
 - **Linkage favors precision over recall.** Package→manuscript links come from DESCRIPTION DOIs and
   **CITATION files** (author-asserted, authoritative). Naive title-matching against OpenAlex is
   *deliberately not used* — many package names are common words (`muscle`, `gage`, `tuberculosis`),

@@ -229,7 +229,7 @@ export function ByTheNumbers() {
             value={downloadsLive ? fmtCompact(im?.total_ips) : "pending"}
             sub={downloadsLive ? "all-time" : "stats endpoint offline"}
             pending={!downloadsLive}
-            info="Unique IP addresses that downloaded the package — the defensible usage proxy (less gameable than raw download counts). Currently pending: Bioconductor's download-stats endpoint is offline."
+            info="Sum of monthly distinct downloading IPs — the usage proxy (less gameable than raw downloads). An IP active in several months counts once per month."
           />
         </div>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
