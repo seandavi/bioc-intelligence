@@ -7,9 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Phase 1 (MVP) backend is implemented and live-verified.** `bioc-intelligence-spec.md` remains
 the source of truth (architecture + settled decisions below); `docs/frontend-spec.md` tracks
 frontend opportunities. Package extraction runs against `bioconductor.org` and loads 3,810
-packages across all four repos. Download extraction is built + unit-tested but the Bioconductor
-stats `.tab` endpoints currently **404 site-wide** (BioC 3.23 redesign), so it logs-and-skips per
-`BiocPkgTools` convention until they return. Phases 2–4 (lake enrichment, grants, mention mining)
+packages across all four repos. Download extraction is built + unit-tested; the Bioconductor stats
+`.tab` endpoints 404'd for a while after the BioC 3.23 redesign but are back (200, 2009–2026
+history, verified 2026-10-01), and `extract-downloads` is being added to the monthly refresh. A
+404 still logs-and-skips per `BiocPkgTools` convention. Phases 2–4 (lake enrichment, grants, mention mining)
 are designed and stubbed.
 
 ## Commands
@@ -22,7 +23,7 @@ uv venv && uv pip install -e '.[dev]'   # setup
 uv run biocintel init-db                 # create DuckDB store + schema
 uv run biocintel extract-packages        # VIEWS -> dim_package(_version), all 4 repos (~25s live)
 uv run biocintel extract-packages --devel --repos bioc   # add devel channel / scope repos
-uv run biocintel extract-downloads       # stats tabs -> fact_download (currently skips: 404)
+uv run biocintel extract-downloads       # stats tabs -> fact_download (skips a repo on 404)
 uv run biocintel extract-citations       # CITATION pages -> bridge_package_pub (bioc; live, lake-free)
 uv run biocintel build-marts             # derive mart_* -> data/marts/*.parquet
 uv run biocintel all                     # the three extract/build steps in order
@@ -76,6 +77,13 @@ versioned-view aliases): `openalex.works.doi` is bare-lowercase (no `doi.org/` p
 `openalex.works.pmid` is a nullable BIGINT; **`reporter.publink.project_number` is a *core* project
 number — join `reporter.projects.core_project_num`, not `project_num`.**
 
+The monthly refresh runs on **onclappc02** as a systemd `--user` timer, not GitHub Actions (the
+Actions runner couldn't reach the lake Postgres; see commit `8538472` and the README's *Scheduled
+refresh*). `systemd/biocintel-refresh.service` runs the extract → link → enrich → build-marts →
+`sync-marts.sh` → `systemd/publish-marts.sh` steps; the last commits `data: monthly mart refresh`
+and pushes, which triggers Deploy Pages. The units under `~/.config/systemd/user/` are **copies**,
+not symlinks — re-copy and `systemctl --user daemon-reload` after editing them here.
+
 HTTP responses are cached under `data/cache/` (set `BIOCINTEL_NO_CACHE=1` to bypass). The DuckDB
 file (`data/biocintel.duckdb`) and marts are gitignored and fully rebuildable. Inspect the store
 directly with `duckdb data/biocintel.duckdb`.
@@ -97,7 +105,7 @@ tests/           # parser unit tests (fixture-based; runnable offline)
 ```
 
 Each pipeline module is runnable standalone (`python -m biocintel.pipeline.extract_packages`) and
-exposes a `run()` callable the CLI and (future) GitHub Actions orchestrator both call.
+exposes a `run()` callable the CLI and the systemd refresh unit both call.
 
 ## What this is
 
@@ -152,7 +160,7 @@ DESCRIPTION, download-stats tabs, CITATION parsing, git tags.
 Three layers, single direction of data flow:
 
 1. **Extract/enrich pipeline** — a thin orchestrator (the "omicidx pattern": framework-free
-   extract modules) over GitHub Actions. Two kinds of module: *bespoke extracts* of
+   extract modules) run monthly by a systemd `--user` timer on onclappc02. Two kinds of module: *bespoke extracts* of
    Bioconductor-native sources (`extract_packages.py`, `extract_downloads.py`) that fetch over
    HTTP/parse, and *lake-sourced* steps that `ATTACH` cdsci-lake read-only and enrich via
    **cross-catalog SQL** rather than API clients (`link_works.py`, `enrich_from_lake.py`,

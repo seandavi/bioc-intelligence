@@ -23,7 +23,7 @@ column names stable once published (mirror the lake's versioned-view discipline)
 
 | Mart | Grain | Columns | Notes |
 |---|---|---|---|
-| `mart_package_impact` | package × repo | downloads/distinct-IPs (total + trailing-12mo), `n_primary_pubs`, `n_citing_works`, `sum_rcr`, `n_distinct_grants_citing` | pub/RCR/grant cols fill after lake enrichment runs; downloads after the stats endpoint returns |
+| `mart_package_impact` | package × repo | downloads/distinct-IPs (total + trailing-12mo), `n_primary_pubs`, `n_citing_works`, `sum_rcr`, `n_distinct_grants_citing` | pub/RCR/grant cols fill after lake enrichment runs; downloads once `extract-downloads` runs in the refresh |
 | `mart_grant_attribution` | grant | `agency`, `title`, `n_packages_supported`, `n_citing_works`, `package_names[]` | the grant-narrative payload; populated from RePORTER via lake |
 | `mart_package_directory` | package × repo | name, repo, maintainer, `biocviews[]`, `url[]`, `source_doi`, title | the explorer's backing data |
 | `mart_release_growth` | bioc_release | `n_packages` (+ `n_new_packages`/`net_downloads` pending history/downloads) | |
@@ -32,9 +32,10 @@ All four are exported every `build-marts` run and read directly by the SPA. The
 enrichment-sourced columns are present-but-empty until `enrich_from_lake` has run,
 so the frontend binds to a stable shape regardless.
 
-> Reality check: download columns are **0 until the Bioconductor stats endpoint
-> returns** (currently 404 site-wide). Build the download views now against the
-> schema; they light up when the extractor's data lands. Don't hardcode around
+> Reality check: download columns are **0 until `extract-downloads` runs in the
+> monthly refresh** (the stats endpoints 404'd after the BioC 3.23 redesign and
+> are back as of 2026-10-01). Build the download views now against the schema;
+> they light up when the extractor's data lands. Don't hardcode around
 > empty data — show an honest "stats unavailable" state.
 
 ## Views — buildable now vs phase-gated
@@ -50,7 +51,7 @@ description. *3,810 packages today — this is a complete, useful view on day on
 package counts per term (Vega-Lite). Pairs with the explorer as a drill-down.
 Cheap, high-signal, and needs nothing but Phase-1 data.
 
-### 3. Download trends — **schema now, data on endpoint return**
+### 3. Download trends — **schema now, data once downloads are in the refresh**
 Distinct-IP time series per package (the defensible proxy, spec §6), with a
 **methodology-era band** (pre-Oct-2015 shaded/annotated, never silently joined).
 Small-multiples for compare; repo-level rollups. Drives the impact leaderboard's
