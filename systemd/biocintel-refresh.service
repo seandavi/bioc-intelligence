@@ -28,6 +28,10 @@ EnvironmentFile=/home/davsean/Documents/git/cdsci-lake/.env
 # Prod: .env deliberately omits the backend var so a plain local run cannot
 # reach the shared lake by accident. The unit is the one place that means prod.
 Environment=CU_OPENALEX_LAKE_BACKEND=postgres
+# The on-disk HTTP cache never expires (it is for cheap dev re-runs). Without
+# this, VIEWS stayed frozen at 2026-06-26 across every monthly refresh, and the
+# stats tabs would freeze at their first fetch. Production always fetches fresh.
+Environment=BIOCINTEL_NO_CACHE=1
 
 # cdsci-lake is deliberately NOT a declared dependency of this project (see
 # the comment in pyproject.toml -- Phase-1 installs must not require the lake),
