@@ -35,8 +35,7 @@ monthly by a systemd timer on onclappc02. See
 
 - **Locate the relocated stats endpoint** _(resolved)_ — the `*_pkg_stats.tab` files 404'd after the
   BioC 3.23 redesign but are back at the original paths (2009–2026 history, verified 2026-10-01).
-  `extract-downloads` is being added to the monthly refresh, after which `fact_download` + the
-  distinct-IP usage metric light up across the dashboard.
+  `extract-downloads` runs in the monthly refresh (first loaded 2026-10-01).
 
 ## Versioning & growth
 

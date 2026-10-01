@@ -7,11 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Phase 1 (MVP) backend is implemented and live-verified.** `bioc-intelligence-spec.md` remains
 the source of truth (architecture + settled decisions below); `docs/frontend-spec.md` tracks
 frontend opportunities. Package extraction runs against `bioconductor.org` and loads 3,810
-packages across all four repos. Download extraction is built + unit-tested; the Bioconductor stats
-`.tab` endpoints 404'd for a while after the BioC 3.23 redesign but are back (200, 2009–2026
-history, verified 2026-10-01), and `extract-downloads` is being added to the monthly refresh. A
-404 still logs-and-skips per `BiocPkgTools` convention. Phases 2–4 (lake enrichment, grants, mention mining)
-are designed and stubbed.
+packages across all four repos. Download stats (2009–present, ~669k package-months across all four repos) load
+in the monthly refresh; the `.tab` endpoints 404'd for a while after the BioC 3.23 redesign and
+were back by 2026-10, and a 404 still logs-and-skips per `BiocPkgTools` convention. Phase 2–3 lake
+enrichment (works, RCR, grants) runs monthly; cited-by edges and Phase-4 mention mining/judging
+are built but opt-in and not yet run at scale.
 
 ## Commands
 

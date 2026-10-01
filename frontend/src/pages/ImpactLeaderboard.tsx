@@ -95,7 +95,7 @@ export function ImpactLeaderboard() {
       num("n_distinct_grants_citing", (n) => fmtInt(n), "Grants",
         "Distinct NIH grants whose publications are described by this package (via RePORTER)."),
       num("total_distinct_ips", (n) => (downloadsLive ? fmtCompact(n) : "—"), "Distinct IPs",
-        "Unique downloading IP addresses — the usage proxy. Pending while Bioconductor's stats endpoint is offline."),
+        "Sum of monthly distinct downloading IPs — the usage proxy (less gameable than raw downloads). An IP active in several months counts once per month."),
     ],
     [downloadsLive],
   );
