@@ -31,9 +31,9 @@ def main(argv: list[str] | None = None) -> None:
     p_dl.add_argument("--repos", nargs="*", choices=list(extract_downloads.REPOS))
 
     p_cit = sub.add_parser(
-        "extract-citations", help="CITATION pages -> bridge_package_pub (bioc)"
+        "extract-citations", help="CITATION/Description DOIs -> bridge_package_pub"
     )
-    p_cit.add_argument("--repos", nargs="*", choices=["bioc"])
+    p_cit.add_argument("--repos", nargs="*", choices=list(extract_packages.REPOS))
 
     sub.add_parser("build-marts", help="derive mart_* and export Parquet")
     sub.add_parser("all", help="extract-packages + extract-downloads + build-marts")
