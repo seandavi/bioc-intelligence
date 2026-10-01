@@ -4,16 +4,22 @@ The aggregate file (``<stats_file>_pkg_stats.tab``) has one row per
 (package, year, month) plus ``Month=all`` subtotals we drop. ``distinct IPs`` is
 the defensible usage proxy; rows are tagged with ``methodology_era`` (spec §6).
 
-NOTE (2026-06): every documented stats ``.tab`` URL currently 404s site-wide —
-collateral damage from the BioC 3.23 site redesign. This module mirrors
-``BiocPkgTools``' own ``.filter_http_error`` behaviour: a missing repo is logged
-and skipped, never fatal. The parser is exercised by unit tests against a fixture
-until the endpoint returns.
+The source zero-fills every month of every year a package appears in, including
+months that have not happened yet and months before the package existed. Months
+at or after the snapshot month (future + in-progress) are dropped so only complete
+months land, and ``0/0`` rows are dropped as missing — the source cannot tell
+"not in Bioconductor yet / removed" from "zero downloads", and sums are unaffected.
+
+The stats ``.tab`` URLs 404'd site-wide for months after the BioC 3.23 redesign
+and were back (with full 2009– history) by 2026-10. A missing repo is still logged
+and skipped, never fatal, mirroring ``BiocPkgTools``' ``.filter_http_error``.
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
+import tempfile
 from datetime import date
 
 import duckdb
@@ -34,7 +40,8 @@ _FACT_COLS = [
 def parse_stats_tab(text: str, repo_key: str, snapshot: date) -> list[dict]:
     """Parse a Bioconductor ``*_pkg_stats.tab`` into fact_download rows.
 
-    Pure (no IO) so it is unit-testable. Drops the ``Month=all`` subtotal rows.
+    Pure (no IO) so it is unit-testable. Drops the ``Month=all`` subtotal rows,
+    months at or after ``snapshot``'s month, and ``0/0`` placeholder rows.
     """
     lines = [ln for ln in text.splitlines() if ln.strip()]
     if not lines:
@@ -56,13 +63,18 @@ def parse_stats_tab(text: str, repo_key: str, snapshot: date) -> list[dict]:
         if month is None:  # 'all' subtotal or unknown
             continue
         year = int(f[i_year])
+        if (year, month) >= (snapshot.year, snapshot.month):  # future / in-progress
+            continue
+        ips, dl = int(f[i_ips]), int(f[i_dl])
+        if ips == 0 and dl == 0:  # zero-fill placeholder → missing
+            continue
         rows.append({
             "package_name": f[i_pkg],
             "repo": repo_key,
             "year": year,
             "month": month,
-            "distinct_ips": int(f[i_ips]),
-            "downloads": int(f[i_dl]),
+            "distinct_ips": ips,
+            "downloads": dl,
             "methodology_era": methodology_era(year, month),
             "_snapshot": snapshot,
         })
@@ -75,11 +87,18 @@ def _load(con: duckdb.DuckDBPyConnection, repo: Repo, snapshot: date) -> int:
     con.execute(
         "DELETE FROM fact_download WHERE repo = ? AND _snapshot = ?", [repo.key, snapshot]
     )
-    con.executemany(
-        f"INSERT INTO fact_download ({', '.join(_FACT_COLS)}) "
-        f"VALUES ({', '.join('?' for _ in _FACT_COLS)})",
-        [[r[c] for c in _FACT_COLS] for r in rows],
-    )
+    if not rows:
+        return 0
+    # Bulk-load via a temp CSV: executemany is row-at-a-time (~19 min for ~1M rows).
+    # All-varchar; the INSERT casts to the table's types.
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", newline="") as fh:
+        csv.writer(fh).writerows([r[c] for c in _FACT_COLS] for r in rows)
+        fh.flush()
+        con.execute(
+            f"INSERT INTO fact_download ({', '.join(_FACT_COLS)}) "
+            "SELECT * FROM read_csv(?, header = false, all_varchar = true)",
+            [fh.name],
+        )
     return len(rows)
 
 

@@ -69,3 +69,22 @@ def test_directory_mart_has_all_packages():
     _fixture(con)
     con.execute(_MART_SQL)
     assert con.execute("SELECT count(*) FROM mart_package_directory").fetchone()[0] == 1
+
+
+def test_package_impact_reads_only_latest_download_snapshot():
+    # fact_download is append-only per monthly snapshot; summing every snapshot
+    # would double totals on the second refresh.
+    con = db.connect(":memory:")
+    _fixture(con)
+    con.execute(
+        "INSERT INTO fact_download VALUES "
+        "('limma','bioc',2026,8,100,200,'modern','2026-09-01'),"
+        "('limma','bioc',2026,8,100,200,'modern','2026-10-01'),"
+        "('limma','bioc',2026,9,50,80,'modern','2026-10-01')"
+    )
+    con.execute(_MART_SQL)
+    row = con.execute(
+        "SELECT total_distinct_ips, total_downloads, distinct_ips_trailing_12mo "
+        "FROM mart_package_impact WHERE package_name='limma'"
+    ).fetchone()
+    assert row == (150, 280, 150)

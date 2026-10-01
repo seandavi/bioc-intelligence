@@ -33,3 +33,19 @@ def test_values_and_repo_tag():
     assert jan["distinct_ips"] == 5000
     assert jan["downloads"] == 12000
     assert jan["repo"] == "bioc"
+
+
+def test_drops_future_in_progress_and_zero_fill_months():
+    # The source zero-fills every month of the year (future months included) and
+    # months before a package existed; the snapshot month itself is in progress.
+    text = """\
+Package\tYear\tMonth\tNb_of_distinct_IPs\tNb_of_downloads
+a4\t2026\tAug\t2470\t4255
+a4\t2026\tSep\t2005\t5673
+a4\t2026\tOct\t3\t4
+a4\t2026\tNov\t0\t0
+a4\t2023\tJan\t0\t0
+a4\t2023\tApr\t18\t23
+"""
+    rows = parse_stats_tab(text, "bioc", date(2026, 10, 1))
+    assert {(r["year"], r["month"]) for r in rows} == {(2026, 8), (2026, 9), (2023, 4)}

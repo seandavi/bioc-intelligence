@@ -16,11 +16,15 @@ from ..config import MART_DIR
 # Downloads are usage-proxied by DISTINCT IPS (spec §6); raw downloads kept too.
 _MART_SQL = """
 CREATE OR REPLACE TABLE mart_package_impact AS
-WITH dl AS (
+WITH fd AS (  -- fact_download is append-only per snapshot: read each repo's latest
+    SELECT * FROM fact_download
+    QUALIFY _snapshot = MAX(_snapshot) OVER (PARTITION BY repo)
+),
+dl AS (
     SELECT package_name, repo,
            SUM(downloads)     AS total_downloads,
            SUM(distinct_ips)  AS total_distinct_ips
-    FROM fact_download
+    FROM fd
     GROUP BY package_name, repo
 ),
 recent AS (  -- trailing 12 months relative to the latest (year, month) present
@@ -30,7 +34,7 @@ recent AS (  -- trailing 12 months relative to the latest (year, month) present
     FROM (
         SELECT *, (year * 12 + month) AS ym,
                MAX(year * 12 + month) OVER () AS max_ym
-        FROM fact_download
+        FROM fd
     )
     WHERE ym > max_ym - 12
     GROUP BY package_name, repo
