@@ -86,7 +86,7 @@ design and [`docs/frontend-spec.md`](docs/frontend-spec.md) for the UI.
 | Domain | Source | Via |
 |--------|--------|-----|
 | Package metadata / versions | `bioconductor.org` VIEWS (all 4 repos) + `config.yaml` | HTTP |
-| Describing publication | DESCRIPTION DOI + per-package **CITATION** page | HTTP |
+| Describing publication | DESCRIPTION DOI + package **CITATION** / `CITATION.cff` (`bioconductor-source` GitHub org; rendered page as fallback) | HTTP |
 | Citing literature / cited-by | OpenAlex (`works`, `work_references`) | cdsci-lake |
 | Field-normalized impact (RCR) | NIH iCite | cdsci-lake |
 | Grants | NIH RePORTER | cdsci-lake |
@@ -102,7 +102,7 @@ uv venv && uv pip install -e '.[dev]'
 
 uv run biocintel init-db              # create the DuckDB store + schema
 uv run biocintel extract-packages     # VIEWS → dim_package(_version), all 4 repos
-uv run biocintel extract-citations    # CITATION pages → bridge_package_pub (authoritative)
+uv run biocintel extract-citations    # CITATION/Description DOIs → bridge_package_pub (authoritative)
 uv run biocintel extract-downloads    # download stats → fact_download
 uv run biocintel build-marts          # derive mart_* → data/marts/*.parquet
 
@@ -162,7 +162,7 @@ journalctl --user -u biocintel-refresh.service         # what happened
 
 ```
 src/biocintel/            # extract/enrich pipeline (framework-free modules)
-  config · http · dcf · db · schema.sql
+  config · http · dcf · doi · db · schema.sql
   pipeline/               # extract_packages, extract_downloads, extract_citation_files,
                           # link_works, enrich_from_lake, mine_mentions, judge_mentions, build_marts
   lake.py                 # attach cdsci-lake read-only for enrichment
@@ -184,7 +184,11 @@ This is honest about what it does and doesn't yet cover:
   zero-fill rows are dropped), and collection methodology changed in Oct 2015 (`methodology_era`).
   The extractor logs-and-skips a 404 (the endpoints were down for a while after BioC 3.23).
 - **Linkage favors precision over recall.** Package→manuscript links come from DESCRIPTION DOIs and
-  **CITATION files** (author-asserted, authoritative). Naive title-matching against OpenAlex is
+  **CITATION files** (author-asserted, authoritative), read from package source on the
+  `bioconductor-source` GitHub org's `devel` branch (a few packages with another default branch fall
+  back to the rendered release page). DOIs cited in the DESCRIPTION `Description:` field are kept
+  as a separate, lower-confidence `description_doi` method — they sometimes cite dependencies rather
+  than the package's own paper. Naive title-matching against OpenAlex is
   *deliberately not used* — many package names are common words (`muscle`, `gage`, `tuberculosis`),
   so it floods with false positives (empirically ~1,500 matches, mostly wrong). Consequently, some
   packages that *do* have a paper remain unlinked until they ship a DOI/CITATION; a precision-filtered

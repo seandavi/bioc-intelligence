@@ -24,7 +24,7 @@ uv run biocintel init-db                 # create DuckDB store + schema
 uv run biocintel extract-packages        # VIEWS -> dim_package(_version), all 4 repos (~25s live)
 uv run biocintel extract-packages --devel --repos bioc   # add devel channel / scope repos
 uv run biocintel extract-downloads       # stats tabs -> fact_download (skips a repo on 404)
-uv run biocintel extract-citations       # CITATION pages -> bridge_package_pub (bioc; live, lake-free)
+uv run biocintel extract-citations       # CITATION/Description DOIs -> bridge_package_pub (all 4 repos; lake-free)
 uv run biocintel build-marts             # derive mart_* -> data/marts/*.parquet
 uv run biocintel all                     # the three extract/build steps in order
 
@@ -96,6 +96,7 @@ src/biocintel/
                  # release metadata from config.yaml, methodology-era boundary
   http.py        # retrying GET + on-disk cache; HttpError(404) lets callers skip-not-fail
   dcf.py         # DCF parser for VIEWS/DESCRIPTION (+ list/maintainer helpers)
+  doi.py         # DOI regex + normalisation shared by every DOI-harvesting extractor
   db.py          # DuckDB connect + schema bootstrap
   schema.sql     # canonical DDL (all spec §5 tables)
   pipeline/      # framework-free, independently runnable modules
@@ -202,10 +203,15 @@ reopens the question:
   (from DESCRIPTION `URL`/`BugReports` or CITATION) to `lake.openalex.works.doi`
   (`match_method = 'doi'`, authoritative), else FTS the title against
   `lake.openalex.works.title` and take the top hit (`match_method = 'title_search'`). A lake-free
-  `extract-citations` step also harvests DOIs from each package's rendered CITATION page
-  (`.../citations/<pkg>/citation.html`) as `match_method = 'citation_file'` (confidence 0.9),
-  expanding linkage beyond DESCRIPTION-embedded DOIs (bioc repo only for now). Every edge
-  **must** carry `match_method` (`doi` | `citation_file` | `title_search` | `manual`) and
+  `extract-citations` step (all four repos) also harvests DOIs from package *source* on the
+  `bioconductor-source` GitHub org (raw fetches of `devel/inst/CITATION` and `CITATION.cff` —
+  CFF top-level/`preferred-citation` DOI only, never `references:`), falling back to the
+  rendered `.../citations/<pkg>/citation.html` when `inst/CITATION` isn't on the org, as
+  `match_method = 'citation_file'` (confidence 0.9); `<doi:…>` in DESCRIPTION `Description:`
+  becomes `description_doi` (0.8 — it sometimes cites dependencies/related work). DOI
+  harvesting + normalisation lives in `biocintel/doi.py`. Every edge
+  **must** carry `match_method` (`doi` | `citation_file` | `description_doi` | `title_search` |
+  `manual`) and
   `confidence` so the dashboard can filter to high-confidence linkages for grant reporting.
   Scored fuzzy matching
   against Crossref and a human-curated override table are **deferred** — revisit only if title

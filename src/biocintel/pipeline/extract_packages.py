@@ -17,22 +17,14 @@ import duckdb
 from .. import db
 from ..config import REPOS, ReleaseConfig, Repo, fetch_release_config, views_url
 from ..dcf import parse_dcf, parse_maintainer, split_list
+from ..doi import find_dois
 from ..http import get_text
-
-_DOI_RE = re.compile(r"10\.\d{4,9}/[^\s\"'<>,]+")
-# Bioconductor mints a self-DOI for every package's landing page; it is not a
-# describing manuscript, so we never record it as source_doi.
-_BIOC_SELF_DOI_PREFIX = "10.18129/"
 
 
 def _extract_doi(*fields: str | None) -> str | None:
     for f in fields:
-        if not f:
-            continue
-        for m in _DOI_RE.finditer(f):
-            doi = m.group(0).rstrip(".,;)")
-            if not doi.startswith(_BIOC_SELF_DOI_PREFIX):
-                return doi
+        if dois := find_dois(f):
+            return dois[0]
     return None
 
 

@@ -8,15 +8,17 @@ Current state: pipeline (packages → CITATION/DOI linkage → lake enrichment �
 monthly by a systemd timer on onclappc02. See
 [`bioc-intelligence-spec.md`](bioc-intelligence-spec.md) for the design and the README for caveats.
 
-## Linkage — push past 809 packages, keep precision
+## Linkage — push past 959 packages, keep precision
 
 - **Title-candidate → LLM judge** _(new)_ — generate title-match candidates against
   `lake.openalex.works`, store them like `fact_mention_candidate`, and have a multidimensional LLM
   judge confirm each against the package's description/abstract. Salvages the long tail without the
   false-positive flood that killed naive title matching (see README caveats). Confidence stays below
   DOI/CITATION; never auto-promoted for grant reporting.
-- **CITATION extraction for the other three repos** _(new)_ — `extract_citation_files` is currently
-  scoped to `bioc`; extend to data-experiment, data-annotation, workflows.
+- **CITATION extraction for the other three repos** _(done)_ — `extract_citation_files` reads
+  `inst/CITATION` + `CITATION.cff` from the `bioconductor-source` org for all four repos (#20).
+- **iCite DOI→PMID fallback** _(new)_ — ~110 harvested DOIs don't resolve in `openalex.works.doi`;
+  some (6 of a 10-DOI sample, e.g. Rbowtie, specL, twoddpcr) are in `icite.metadata` with a PMID.
 - **Human-curated override table** _(new)_ — `match_method='manual'` for authoritative corrections.
 - **Crossref fuzzy fallback** _(new, deferred from spec §6)_ — scored title/author/year matching for
   packages with neither a DOI nor a CITATION.
