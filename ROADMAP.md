@@ -17,8 +17,8 @@ monthly by a systemd timer on onclappc02. See
   DOI/CITATION; never auto-promoted for grant reporting.
 - **CITATION extraction for the other three repos** _(done)_ — `extract_citation_files` reads
   `inst/CITATION` + `CITATION.cff` from the `bioconductor-source` org for all four repos (#20).
-- **iCite DOI→PMID fallback** _(new)_ — ~110 harvested DOIs don't resolve in `openalex.works.doi`;
-  some (6 of a 10-DOI sample, e.g. Rbowtie, specL, twoddpcr) are in `icite.metadata` with a PMID.
+- **iCite DOI→PMID fallback** _(done, #24)_ — bridge DOIs missing from `openalex.works.doi` but in
+  `icite.metadata` (e.g. Rbowtie, specL, twoddpcr) get a `dim_work` row built from iCite.
 - **Human-curated override table** _(new)_ — `match_method='manual'` for authoritative corrections.
 - **Crossref fuzzy fallback** _(new, deferred from spec §6)_ — scored title/author/year matching for
   packages with neither a DOI nor a CITATION.

@@ -41,6 +41,26 @@ JOIN bi.bridge_package_pub b
   ON b.work_id = CAST(w.pmid AS VARCHAR) OR b.work_id = w.doi;
 """
 
+# iCite fallback (#24): bridge DOIs absent from openalex.works.doi but present in
+# icite.metadata (it carries a DOI + PMID). These get a dim_work row built from iCite
+# alone: oa_id is NULL, so the citations step (keyed on OpenAlex ids) skips them,
+# while grants still resolve through the PMID. citation_count is iCite's count here
+# (OpenAlex's for the main branch) — the only count available for these works.
+# One scan of the ~40M-row iCite table via IN-subqueries (semi-joins), not
+# `JOIN … ON a OR b`, which degrades to a nested loop.
+_LINKED_ICITE_SQL = """
+INSERT INTO linked
+SELECT DISTINCT
+    NULL AS oa_id, ic.pmid, ic.doi,
+    COALESCE(CAST(ic.pmid AS VARCHAR), ic.doi) AS work_id,
+    ic.title, ic.year, ic.journal, ic.citation_count
+FROM lake.icite.metadata ic
+WHERE (ic.doi IN (SELECT work_id FROM bi.bridge_package_pub)
+       OR CAST(ic.pmid AS VARCHAR) IN (SELECT work_id FROM bi.bridge_package_pub))
+  AND NOT EXISTS (SELECT 1 FROM linked l WHERE l.pmid = ic.pmid)
+  AND NOT EXISTS (SELECT 1 FROM linked l WHERE l.doi = ic.doi);
+"""
+
 _WORKS_SQL = """
 INSERT OR REPLACE INTO bi.dim_work
 SELECT l.work_id, CAST(l.pmid AS VARCHAR), l.doi, l.oa_id,
@@ -117,8 +137,10 @@ def run(steps: tuple[str, ...] = DEFAULT_STEPS) -> dict[str, int]:
     counts: dict[str, int] = {}
     try:
         con.execute(_LINKED_SQL)
+        n_oa = con.execute("SELECT count(*) FROM linked").fetchone()[0]
+        con.execute(_LINKED_ICITE_SQL)
         n_linked = con.execute("SELECT count(*) FROM linked").fetchone()[0]
-        print(f"  linked primary works: {n_linked}")
+        print(f"  linked primary works: {n_linked} ({n_linked - n_oa} via iCite fallback)")
         if "works" in steps:
             counts["dim_work"] = _enrich_works(con)
             print(f"  dim_work: {counts['dim_work']}")
