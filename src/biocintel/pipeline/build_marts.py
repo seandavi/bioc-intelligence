@@ -9,6 +9,11 @@ the mart *shape* is stable regardless, so the frontend can build against it now.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
+import json
+from pathlib import Path
+
+import duckdb
 
 from .. import db
 from ..config import MART_DIR
@@ -286,10 +291,357 @@ def run() -> dict[str, int]:
     return counts
 
 
+# --- Published views file + data dictionary (#51) -------------------------------------
+# The one place mart/column definitions live: written as COMMENT ON into the views file
+# and exported as datapackage.json, which the Data page renders.
+_PKG = {"package_name": "Bioconductor package name.",
+        "repo": "Repository: bioc (software), data-experiment, data-annotation or workflows."}
+_WORK = {
+    "work_id": "Work identifier: PMID when known, else DOI (OpenAlex ID is an enrichment handle).",
+    "pmid": "PubMed ID.",
+    "doi": "DOI, bare and lower-case (no https://doi.org/ prefix).",
+    "title": "Publication title.",
+    "year": "Publication year.",
+    "journal": "Journal or venue.",
+    "icite_rcr": "Relative Citation Ratio (NIH iCite): field- and time-normalized citation rate; "
+                 "1.0 = NIH-wide average.",
+    "citation_count": "OpenAlex citation count.",
+}
+_DL = {
+    "methodology_era": "Download-stats collection era: 'pre_2015_10' or 'modern'. Bioconductor "
+                       "changed its methodology in Oct 2015; do not add counts across eras.",
+    "distinct_ips": "Distinct downloading IP addresses, the usage proxy (less gameable than "
+                    "downloads). Summed over months: an IP active in several months counts once "
+                    "per month.",
+    "downloads": "Raw download count (kept for reference; prefer distinct_ips).",
+}
+DEFINITIONS: dict[str, dict] = {
+    "mart_package_impact": {
+        "description": "One row per package: downloads, linked publications, citations, RCR "
+                       "and grants.",
+        "columns": {
+            **_PKG,
+            "total_downloads": "All-time raw downloads (spans both methodology eras).",
+            "total_distinct_ips": "All-time sum of monthly distinct IPs (spans both eras).",
+            "downloads_trailing_12mo": "Raw downloads in the latest 12 months of stats.",
+            "distinct_ips_trailing_12mo": "Sum of monthly distinct IPs in the latest 12 months "
+                                          "of stats: the headline usage number.",
+            "distinct_ips_prior_12mo": "Sum of monthly distinct IPs in the 12 months before "
+                                       "the trailing window (for year-over-year change).",
+            "usage_rank_in_repo": "Rank within repo by distinct_ips_trailing_12mo (1 = most used).",
+            "n_primary_pubs": "Linked papers the package asks users to cite.",
+            "total_citations": "Sum of OpenAlex citation counts across linked papers.",
+            "n_citing_works": "Distinct works citing a linked paper (0 until the cited-by "
+                              "enrichment has run).",
+            "median_rcr": "Median iCite Relative Citation Ratio across linked papers (RCR is a "
+                          "rate, so the median, never the sum).",
+            "n_distinct_grants_citing": "Distinct NIH grants acknowledged by a linked paper "
+                                        "(NIH RePORTER publication links).",
+        },
+    },
+    "mart_release_growth": {
+        "description": "Package counts per Bioconductor release.",
+        "columns": {
+            "bioc_release": "Bioconductor release, e.g. 3.23.",
+            "n_packages": "Packages in the release.",
+            "n_new_packages": "Packages first seen in the release (0 until version history lands).",
+            "net_downloads": "Reserved: release-windowed downloads (NULL for now).",
+        },
+    },
+    "mart_grant_attribution": {
+        "description": "One row per NIH grant acknowledged by a paper linked to a package.",
+        "columns": {
+            "grant_id": "NIH core project number, e.g. U24CA289073.",
+            "agency": "NIH Institute/Center code.",
+            "title": "Grant title (NIH RePORTER).",
+            "n_packages_supported": "Distinct packages whose linked paper acknowledges the grant.",
+            "n_citing_works": "Distinct works citing those papers (0 until cited-by runs).",
+            "package_names": "The supported packages.",
+        },
+    },
+    "mart_package_directory": {
+        "description": "One row per package: DESCRIPTION metadata from the repository VIEWS file.",
+        "columns": {
+            **_PKG,
+            "latest_release": "Newest Bioconductor release carrying the package.",
+            "maintainer": "Maintainer name (no email).",
+            "title": "Package title.",
+            "description": "Package description.",
+            "biocviews": "biocViews terms (Bioconductor's controlled vocabulary).",
+            "url": "URLs from the DESCRIPTION URL field.",
+            "bug_reports": "DESCRIPTION BugReports URL.",
+            "source_doi": "The package's own DOI, when it has one.",
+            "n_reverse_deps": "Packages that depend on, import or link to this one.",
+            "n_deps": "Declared dependency count (from VIEWS).",
+            "git_last_commit_date": "Date of the last commit on the release branch.",
+            "package_status": "Status from VIEWS, e.g. Deprecated.",
+            "has_news": "Ships a NEWS file.",
+            "n_vignettes": "Number of vignettes.",
+            "license": "DESCRIPTION License.",
+            "bioc_url": "Package landing page on bioconductor.org.",
+        },
+    },
+    "mart_work": {
+        "description": "One row per linked publication, with iCite RCR and citations.",
+        "columns": _WORK,
+    },
+    "mart_package_work": {
+        "description": "One row per package x linked publication, with the link's provenance.",
+        "columns": {
+            **_PKG, **_WORK,
+            "match_method": "How the link was made: doi (the package's own DOI), citation_file "
+                            "(CITATION / CITATION.cff), description_doi (a DOI in Description, "
+                            "sometimes a dependency's paper), title_search, manual.",
+            "confidence": "Link confidence, 0-1 (doi 1.0, citation_file 0.9, description_doi 0.8).",
+            "role": "Role of the paper for the package, e.g. primary.",
+        },
+    },
+    "mart_package_person": {
+        "description": "One row per package x person, from Authors@R (no emails).",
+        "columns": {
+            **_PKG,
+            "person_id": "Person identifier (ORCID when declared, else a name key).",
+            "name": "Person name.",
+            "orcid": "ORCID iD, when declared.",
+            "roles": "Authors@R roles: cre (maintainer), aut, ctb, fnd, ...",
+            "is_maintainer": "Has the cre role.",
+            "source": "Where the person came from (Authors@R or Maintainer).",
+        },
+    },
+    "mart_person": {
+        "description": "One row per person: packages authored and maintained.",
+        "columns": {
+            "person_id": "Person identifier (ORCID when declared, else a name key).",
+            "name": "Person name.",
+            "orcid": "ORCID iD, when declared.",
+            "n_packages": "Packages the person appears on.",
+            "n_maintained": "Packages where the person has the cre role.",
+            "n_authored": "Packages where the person has the aut role.",
+            "package_names": "The packages.",
+        },
+    },
+    "mart_package_funder": {
+        "description": "One row per package x declared funder (the Authors@R fnd role).",
+        "columns": {
+            **_PKG,
+            "funder_id": "Normalized funder identifier.",
+            "funder_name": "Normalized funder name.",
+            "curated": "Funder name matched the curated alias list.",
+            "declared_name": "Funder name as written in Authors@R.",
+            "grant_number": "Grant number as declared, when present.",
+            "grant_id": "NIH core project number when the declared grant matches RePORTER.",
+        },
+    },
+    "mart_package_dependency": {
+        "description": "Forward dependency edges (Depends/Imports/Suggests/LinkingTo; R excluded).",
+        "columns": {
+            **_PKG,
+            "dep": "The package depended on.",
+            "kind": "depends, imports, suggests or linking_to.",
+        },
+    },
+    "mart_ecosystem_downloads_yearly": {
+        "description": "Downloads per year x repo x methodology era (2015 has a row per era).",
+        "columns": {
+            "year": "Calendar year.", "repo": _PKG["repo"], **_DL,
+            "n_packages_with_downloads": "Packages with at least one download that year.",
+        },
+    },
+    "mart_package_downloads_monthly": {
+        "description": "Downloads per package x month.",
+        "columns": {**_PKG, "year": "Calendar year.", "month": "Month, 1-12.", **_DL,
+                    "distinct_ips": "Distinct downloading IP addresses that month."},
+    },
+    "mart_work_institution": {
+        "description": "One row per linked publication x author institution x author position.",
+        "columns": {
+            "work_id": _WORK["work_id"],
+            "ror": "ROR identifier of the institution.",
+            "name": "Institution name.",
+            "country_code": "ISO country code.",
+            "country": "Country name.",
+            "author_position": "first, middle or last.",
+            "is_corresponding": "Corresponding-author affiliation.",
+            "latitude": "Institution latitude.",
+            "longitude": "Institution longitude.",
+        },
+    },
+}
+
+# Honest-default views: name -> (source mart, description, SQL with {src}). Every view
+# inlines read_parquet(url): DuckDB 1.0 clients can't resolve a sibling view or macro
+# when the file is attached under their own alias.
+HONEST_VIEWS = {
+    "package_pubs_confident": (
+        "mart_package_work",
+        "Package-paper links made by DOI or CITATION file only (drops description_doi and "
+        "title_search). Use for grant reporting.",
+        "SELECT * FROM {src} WHERE match_method IN ('doi', 'citation_file')",
+    ),
+    "downloads_modern_era": (
+        "mart_ecosystem_downloads_yearly",
+        "Yearly downloads per repo, modern collection methodology only (Oct 2015 on).",
+        "SELECT * FROM {src} WHERE methodology_era = 'modern'",
+    ),
+    "ecosystem_yearly": (
+        "mart_ecosystem_downloads_yearly",
+        "Downloads per year summed across repos, one row per methodology era (never mix eras).",
+        "SELECT year, methodology_era, SUM(distinct_ips) AS distinct_ips, "
+        "SUM(downloads) AS downloads, SUM(n_packages_with_downloads) AS n_packages_with_downloads "
+        "FROM {src} GROUP BY year, methodology_era ORDER BY year, methodology_era",
+    ),
+    "package_impact_ranked": (
+        "mart_package_impact",
+        "package_impact ordered by rank within repo on trailing-12-month distinct IPs.",
+        "SELECT * FROM {src} ORDER BY repo, usage_rank_in_repo",
+    ),
+}
+
+_FRICTIONLESS_TYPES = {"VARCHAR": "string", "DOUBLE": "number", "BOOLEAN": "boolean",
+                       "DATE": "date"}
+
+
+def _q(s: str) -> str:
+    return "'" + s.replace("'", "''") + "'"
+
+
+def write_views_db(
+    out: Path, public_base: str, marts_dir: Path = MART_DIR, snapshot: str | None = None
+) -> list[str]:
+    """Write a views-only DuckDB file over the marts at ``public_base`` + datapackage.json.
+
+    One view per mart in ``marts_dir`` (``mart_x`` -> ``x``) plus HONEST_VIEWS, all reading
+    ``<public_base>/mart_x.parquet``. CREATE VIEW binds, so the URLs must be readable now;
+    DuckDB 1.0 clients error if the published types later differ from bind time.
+    """
+    snapshot = snapshot or dt.datetime.now(dt.UTC).date().isoformat()
+    base = public_base.rstrip("/")
+    marts = sorted(p.stem for p in marts_dir.glob("mart_*.parquet"))
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.unlink(missing_ok=True)
+    con = duckdb.connect()
+    # STORAGE_VERSION v1.0.0 so DuckDB >= 1.0 clients (incl. the R package) can open it.
+    con.execute(f"ATTACH {_q(str(out))} AS pub (STORAGE_VERSION 'v1.0.0')")
+    con.execute("USE pub")
+    src: dict[str, str] = {}  # mart -> read_parquet(<public url>)
+    views: dict[str, tuple[str, str]] = {}  # view -> (source mart, description)
+    for m in marts:
+        read = f"read_parquet({_q(f'{base}/{m}.parquet')})"
+        try:
+            con.execute(f"CREATE VIEW {m.removeprefix('mart_')} AS SELECT * FROM {read}")
+        except duckdb.Error as e:  # a new mart is not published yet; next refresh picks it up
+            print(f"  WARNING: skipping {m}: {str(e).splitlines()[0]}")
+            continue
+        src[m] = read
+        views[m.removeprefix("mart_")] = (m, DEFINITIONS[m]["description"])
+    for name, (m, desc, sql) in HONEST_VIEWS.items():
+        if m in src:
+            views[name] = (m, desc)
+            con.execute(f"CREATE VIEW {name} AS {sql.format(src=src[m])}")
+    if {"mart_package_directory", "mart_package_impact"} <= src.keys():
+        con.execute(
+            "CREATE MACRO package(pkg) AS TABLE "
+            "SELECT d.*, i.* EXCLUDE (package_name, repo) "
+            f"FROM {src['mart_package_directory']} d "
+            f"LEFT JOIN {src['mart_package_impact']} i USING (package_name, repo) "
+            "WHERE d.package_name = pkg"
+        )
+    if {"mart_grant_attribution", "mart_package_impact"} <= src.keys():
+        con.execute(
+            "CREATE MACRO grant_report(gid) AS TABLE "
+            "SELECT g.grant_id, g.agency, g.title AS grant_title, i.* FROM ("
+            "SELECT grant_id, agency, title, unnest(package_names) AS package_name "
+            f"FROM {src['mart_grant_attribution']} WHERE grant_id = gid) g "
+            f"JOIN {src['mart_package_impact']} i USING (package_name) "
+            "ORDER BY i.distinct_ips_trailing_12mo DESC"
+        )
+
+    resources = []
+    for view, (m, desc) in views.items():
+        con.execute(f"COMMENT ON VIEW {view} IS {_q(f'{desc} Snapshot {snapshot}.')}")
+        cols = con.execute(
+            "SELECT column_name, data_type FROM duckdb_columns() "
+            "WHERE database_name = 'pub' AND table_name = ? ORDER BY column_index",
+            [view],
+        ).fetchall()
+        for col, _ in cols:  # KeyError = a new mart column without a definition
+            con.execute(f"COMMENT ON COLUMN {view}.{col} IS {_q(DEFINITIONS[m]['columns'][col])}")
+        if view != m.removeprefix("mart_"):
+            continue
+        local = con.execute(
+            f"SELECT column_name, column_type FROM (DESCRIBE SELECT * FROM "
+            f"read_parquet({_q(str(marts_dir / f'{m}.parquet'))}))"
+        ).fetchall()
+        if local != cols:
+            print(f"  WARNING: {view} bound against a different schema at {base} than "
+                  f"{marts_dir}; regenerate the views file once the new marts are published")
+        resources.append({
+            "name": m,
+            "path": f"{base}/{m}.parquet",
+            "format": "parquet",
+            "mediatype": "application/vnd.apache.parquet",
+            "bytes": (marts_dir / f"{m}.parquet").stat().st_size,
+            "description": desc,
+            "schema": {"fields": [
+                {"name": c,
+                 "type": "array" if t.endswith("[]") else
+                 _FRICTIONLESS_TYPES.get(t, "integer" if "INT" in t else "any"),
+                 "description": DEFINITIONS[m]["columns"][c]}
+                for c, t in cols
+            ]},
+        })
+    con.execute("USE memory")
+    con.execute("DETACH pub")  # checkpoints: no .wal beside the published file
+    con.close()
+
+    package = {
+        "name": "bioc-intelligence",
+        "title": "Bioconductor Intelligence marts",
+        "description": "Usage, publication, citation and grant metrics for Bioconductor packages. "
+                       f"Query in DuckDB: ATTACH '{base}/{out.name}' AS bi (READ_ONLY).",
+        "homepage": "https://github.com/seandavi/bioc-intelligence",
+        "version": snapshot,
+        "created": f"{snapshot}T00:00:00Z",
+        "sources": [{"title": t, "path": p} for t, p in [
+            ("Bioconductor", "https://bioconductor.org"),
+            ("OpenAlex", "https://openalex.org"),
+            ("NIH iCite", "https://icite.od.nih.gov"),
+            ("NIH RePORTER", "https://reporter.nih.gov"),
+        ]],
+        "resources": resources,
+        # Not Frictionless: the honest-default views in the DuckDB file, for the Data page.
+        "views": [{"name": n, "source": m, "description": d, "sql": s.format(src=m)}
+                  for n, (m, d, s) in HONEST_VIEWS.items() if m in src],
+    }
+    (out.parent / "datapackage.json").write_text(json.dumps(package, indent=2) + "\n")
+    print(f"  views file: {len(views)} views over {base} -> {out}")
+    return list(views)
+
+
+def add_arguments(ap: argparse.ArgumentParser) -> None:
+    ap.add_argument("--views-db", type=Path,
+                    help="also write a views-only DuckDB file (+ datapackage.json beside it)")
+    ap.add_argument("--public-base", default="https://seandavi.github.io/bioc-intelligence/data",
+                    help="URL the views read the marts from")
+    ap.add_argument("--marts-dir", type=Path,
+                    help="write only the views file, over these existing marts (no store)")
+    ap.add_argument("--snapshot", help="snapshot date for the comments (default: today, UTC)")
+
+
+def run_from_args(args: argparse.Namespace) -> None:
+    if args.marts_dir is None:
+        run()
+    if args.views_db is not None:
+        write_views_db(args.views_db, args.public_base, args.marts_dir or MART_DIR, args.snapshot)
+
+
 def main(argv: list[str] | None = None) -> None:
-    argparse.ArgumentParser(description="Build mart_* tables and export Parquet.").parse_args(argv)
+    ap = argparse.ArgumentParser(description="Build mart_* tables and export Parquet.")
+    add_arguments(ap)
+    args = ap.parse_args(argv)
     print("build_marts:")
-    run()
+    run_from_args(args)
 
 
 if __name__ == "__main__":

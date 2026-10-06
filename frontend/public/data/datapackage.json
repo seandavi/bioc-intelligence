@@ -1,0 +1,636 @@
+{
+  "name": "bioc-intelligence",
+  "title": "Bioconductor Intelligence marts",
+  "description": "Usage, publication, citation and grant metrics for Bioconductor packages. Query in DuckDB: ATTACH 'https://seandavi.github.io/bioc-intelligence/data/bioc-intelligence.duckdb' AS bi (READ_ONLY).",
+  "homepage": "https://github.com/seandavi/bioc-intelligence",
+  "version": "2026-10-06",
+  "created": "2026-10-06T00:00:00Z",
+  "sources": [
+    {
+      "title": "Bioconductor",
+      "path": "https://bioconductor.org"
+    },
+    {
+      "title": "OpenAlex",
+      "path": "https://openalex.org"
+    },
+    {
+      "title": "NIH iCite",
+      "path": "https://icite.od.nih.gov"
+    },
+    {
+      "title": "NIH RePORTER",
+      "path": "https://reporter.nih.gov"
+    }
+  ],
+  "resources": [
+    {
+      "name": "mart_ecosystem_downloads_yearly",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_ecosystem_downloads_yearly.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 2344,
+      "description": "Downloads per year x repo x methodology era (2015 has a row per era).",
+      "schema": {
+        "fields": [
+          {
+            "name": "year",
+            "type": "integer",
+            "description": "Calendar year."
+          },
+          {
+            "name": "repo",
+            "type": "string",
+            "description": "Repository: bioc (software), data-experiment, data-annotation or workflows."
+          },
+          {
+            "name": "methodology_era",
+            "type": "string",
+            "description": "Download-stats collection era: 'pre_2015_10' or 'modern'. Bioconductor changed its methodology in Oct 2015; do not add counts across eras."
+          },
+          {
+            "name": "distinct_ips",
+            "type": "number",
+            "description": "Distinct downloading IP addresses, the usage proxy (less gameable than downloads). Summed over months: an IP active in several months counts once per month."
+          },
+          {
+            "name": "downloads",
+            "type": "number",
+            "description": "Raw download count (kept for reference; prefer distinct_ips)."
+          },
+          {
+            "name": "n_packages_with_downloads",
+            "type": "integer",
+            "description": "Packages with at least one download that year."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_grant_attribution",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_grant_attribution.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 34655,
+      "description": "One row per NIH grant acknowledged by a paper linked to a package.",
+      "schema": {
+        "fields": [
+          {
+            "name": "grant_id",
+            "type": "string",
+            "description": "NIH core project number, e.g. U24CA289073."
+          },
+          {
+            "name": "agency",
+            "type": "string",
+            "description": "NIH Institute/Center code."
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "description": "Grant title (NIH RePORTER)."
+          },
+          {
+            "name": "n_packages_supported",
+            "type": "integer",
+            "description": "Distinct packages whose linked paper acknowledges the grant."
+          },
+          {
+            "name": "n_citing_works",
+            "type": "integer",
+            "description": "Distinct works citing those papers (0 until cited-by runs)."
+          },
+          {
+            "name": "package_names",
+            "type": "array",
+            "description": "The supported packages."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_package_directory",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_directory.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 935057,
+      "description": "One row per package: DESCRIPTION metadata from the repository VIEWS file.",
+      "schema": {
+        "fields": [
+          {
+            "name": "package_name",
+            "type": "string",
+            "description": "Bioconductor package name."
+          },
+          {
+            "name": "repo",
+            "type": "string",
+            "description": "Repository: bioc (software), data-experiment, data-annotation or workflows."
+          },
+          {
+            "name": "latest_release",
+            "type": "string",
+            "description": "Newest Bioconductor release carrying the package."
+          },
+          {
+            "name": "maintainer",
+            "type": "string",
+            "description": "Maintainer name (no email)."
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "description": "Package title."
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "description": "Package description."
+          },
+          {
+            "name": "biocviews",
+            "type": "array",
+            "description": "biocViews terms (Bioconductor's controlled vocabulary)."
+          },
+          {
+            "name": "url",
+            "type": "array",
+            "description": "URLs from the DESCRIPTION URL field."
+          },
+          {
+            "name": "bug_reports",
+            "type": "string",
+            "description": "DESCRIPTION BugReports URL."
+          },
+          {
+            "name": "source_doi",
+            "type": "string",
+            "description": "The package's own DOI, when it has one."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_package_downloads_monthly",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_downloads_monthly.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 4081096,
+      "description": "Downloads per package x month.",
+      "schema": {
+        "fields": [
+          {
+            "name": "package_name",
+            "type": "string",
+            "description": "Bioconductor package name."
+          },
+          {
+            "name": "repo",
+            "type": "string",
+            "description": "Repository: bioc (software), data-experiment, data-annotation or workflows."
+          },
+          {
+            "name": "year",
+            "type": "integer",
+            "description": "Calendar year."
+          },
+          {
+            "name": "month",
+            "type": "integer",
+            "description": "Month, 1-12."
+          },
+          {
+            "name": "distinct_ips",
+            "type": "integer",
+            "description": "Distinct downloading IP addresses that month."
+          },
+          {
+            "name": "downloads",
+            "type": "integer",
+            "description": "Raw download count (kept for reference; prefer distinct_ips)."
+          },
+          {
+            "name": "methodology_era",
+            "type": "string",
+            "description": "Download-stats collection era: 'pre_2015_10' or 'modern'. Bioconductor changed its methodology in Oct 2015; do not add counts across eras."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_package_funder",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_funder.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 10461,
+      "description": "One row per package x declared funder (the Authors@R fnd role).",
+      "schema": {
+        "fields": [
+          {
+            "name": "package_name",
+            "type": "string",
+            "description": "Bioconductor package name."
+          },
+          {
+            "name": "repo",
+            "type": "string",
+            "description": "Repository: bioc (software), data-experiment, data-annotation or workflows."
+          },
+          {
+            "name": "funder_id",
+            "type": "string",
+            "description": "Normalized funder identifier."
+          },
+          {
+            "name": "funder_name",
+            "type": "string",
+            "description": "Normalized funder name."
+          },
+          {
+            "name": "curated",
+            "type": "boolean",
+            "description": "Funder name matched the curated alias list."
+          },
+          {
+            "name": "declared_name",
+            "type": "string",
+            "description": "Funder name as written in Authors@R."
+          },
+          {
+            "name": "grant_number",
+            "type": "string",
+            "description": "Grant number as declared, when present."
+          },
+          {
+            "name": "grant_id",
+            "type": "string",
+            "description": "NIH core project number when the declared grant matches RePORTER."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_package_impact",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_impact.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 141563,
+      "description": "One row per package: downloads, linked publications, citations, RCR and grants.",
+      "schema": {
+        "fields": [
+          {
+            "name": "package_name",
+            "type": "string",
+            "description": "Bioconductor package name."
+          },
+          {
+            "name": "repo",
+            "type": "string",
+            "description": "Repository: bioc (software), data-experiment, data-annotation or workflows."
+          },
+          {
+            "name": "total_downloads",
+            "type": "number",
+            "description": "All-time raw downloads (spans both methodology eras)."
+          },
+          {
+            "name": "total_distinct_ips",
+            "type": "number",
+            "description": "All-time sum of monthly distinct IPs (spans both eras)."
+          },
+          {
+            "name": "downloads_trailing_12mo",
+            "type": "number",
+            "description": "Raw downloads in the latest 12 months of stats."
+          },
+          {
+            "name": "distinct_ips_trailing_12mo",
+            "type": "number",
+            "description": "Sum of monthly distinct IPs in the latest 12 months of stats: the headline usage number."
+          },
+          {
+            "name": "distinct_ips_prior_12mo",
+            "type": "number",
+            "description": "Sum of monthly distinct IPs in the 12 months before the trailing window (for year-over-year change)."
+          },
+          {
+            "name": "usage_rank_in_repo",
+            "type": "integer",
+            "description": "Rank within repo by distinct_ips_trailing_12mo (1 = most used)."
+          },
+          {
+            "name": "n_primary_pubs",
+            "type": "integer",
+            "description": "Linked papers the package asks users to cite."
+          },
+          {
+            "name": "total_citations",
+            "type": "number",
+            "description": "Sum of OpenAlex citation counts across linked papers."
+          },
+          {
+            "name": "n_citing_works",
+            "type": "integer",
+            "description": "Distinct works citing a linked paper (0 until the cited-by enrichment has run)."
+          },
+          {
+            "name": "median_rcr",
+            "type": "number",
+            "description": "Median iCite Relative Citation Ratio across linked papers (RCR is a rate, so the median, never the sum)."
+          },
+          {
+            "name": "n_distinct_grants_citing",
+            "type": "integer",
+            "description": "Distinct NIH grants acknowledged by a linked paper (NIH RePORTER publication links)."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_package_person",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_person.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 273152,
+      "description": "One row per package x person, from Authors@R (no emails).",
+      "schema": {
+        "fields": [
+          {
+            "name": "package_name",
+            "type": "string",
+            "description": "Bioconductor package name."
+          },
+          {
+            "name": "repo",
+            "type": "string",
+            "description": "Repository: bioc (software), data-experiment, data-annotation or workflows."
+          },
+          {
+            "name": "person_id",
+            "type": "string",
+            "description": "Person identifier (ORCID when declared, else a name key)."
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "description": "Person name."
+          },
+          {
+            "name": "orcid",
+            "type": "string",
+            "description": "ORCID iD, when declared."
+          },
+          {
+            "name": "roles",
+            "type": "array",
+            "description": "Authors@R roles: cre (maintainer), aut, ctb, fnd, ..."
+          },
+          {
+            "name": "is_maintainer",
+            "type": "boolean",
+            "description": "Has the cre role."
+          },
+          {
+            "name": "source",
+            "type": "string",
+            "description": "Where the person came from (Authors@R or Maintainer)."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_package_work",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_work.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 106475,
+      "description": "One row per package x linked publication, with the link's provenance.",
+      "schema": {
+        "fields": [
+          {
+            "name": "package_name",
+            "type": "string",
+            "description": "Bioconductor package name."
+          },
+          {
+            "name": "repo",
+            "type": "string",
+            "description": "Repository: bioc (software), data-experiment, data-annotation or workflows."
+          },
+          {
+            "name": "work_id",
+            "type": "string",
+            "description": "Work identifier: PMID when known, else DOI (OpenAlex ID is an enrichment handle)."
+          },
+          {
+            "name": "doi",
+            "type": "string",
+            "description": "DOI, bare and lower-case (no https://doi.org/ prefix)."
+          },
+          {
+            "name": "pmid",
+            "type": "string",
+            "description": "PubMed ID."
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "description": "Publication title."
+          },
+          {
+            "name": "year",
+            "type": "integer",
+            "description": "Publication year."
+          },
+          {
+            "name": "journal",
+            "type": "string",
+            "description": "Journal or venue."
+          },
+          {
+            "name": "citation_count",
+            "type": "integer",
+            "description": "OpenAlex citation count."
+          },
+          {
+            "name": "icite_rcr",
+            "type": "number",
+            "description": "Relative Citation Ratio (NIH iCite): field- and time-normalized citation rate; 1.0 = NIH-wide average."
+          },
+          {
+            "name": "match_method",
+            "type": "string",
+            "description": "How the link was made: doi (the package's own DOI), citation_file (CITATION / CITATION.cff), description_doi (a DOI in Description, sometimes a dependency's paper), title_search, manual."
+          },
+          {
+            "name": "confidence",
+            "type": "number",
+            "description": "Link confidence, 0-1 (doi 1.0, citation_file 0.9, description_doi 0.8)."
+          },
+          {
+            "name": "role",
+            "type": "string",
+            "description": "Role of the paper for the package, e.g. primary."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_person",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_person.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 213896,
+      "description": "One row per person: packages authored and maintained.",
+      "schema": {
+        "fields": [
+          {
+            "name": "person_id",
+            "type": "string",
+            "description": "Person identifier (ORCID when declared, else a name key)."
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "description": "Person name."
+          },
+          {
+            "name": "orcid",
+            "type": "string",
+            "description": "ORCID iD, when declared."
+          },
+          {
+            "name": "n_packages",
+            "type": "integer",
+            "description": "Packages the person appears on."
+          },
+          {
+            "name": "n_maintained",
+            "type": "integer",
+            "description": "Packages where the person has the cre role."
+          },
+          {
+            "name": "n_authored",
+            "type": "integer",
+            "description": "Packages where the person has the aut role."
+          },
+          {
+            "name": "package_names",
+            "type": "array",
+            "description": "The packages."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_release_growth",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_release_growth.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 588,
+      "description": "Package counts per Bioconductor release.",
+      "schema": {
+        "fields": [
+          {
+            "name": "bioc_release",
+            "type": "string",
+            "description": "Bioconductor release, e.g. 3.23."
+          },
+          {
+            "name": "n_packages",
+            "type": "integer",
+            "description": "Packages in the release."
+          },
+          {
+            "name": "n_new_packages",
+            "type": "integer",
+            "description": "Packages first seen in the release (0 until version history lands)."
+          },
+          {
+            "name": "net_downloads",
+            "type": "integer",
+            "description": "Reserved: release-windowed downloads (NULL for now)."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_work",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_work.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 88917,
+      "description": "One row per linked publication, with iCite RCR and citations.",
+      "schema": {
+        "fields": [
+          {
+            "name": "work_id",
+            "type": "string",
+            "description": "Work identifier: PMID when known, else DOI (OpenAlex ID is an enrichment handle)."
+          },
+          {
+            "name": "pmid",
+            "type": "string",
+            "description": "PubMed ID."
+          },
+          {
+            "name": "doi",
+            "type": "string",
+            "description": "DOI, bare and lower-case (no https://doi.org/ prefix)."
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "description": "Publication title."
+          },
+          {
+            "name": "year",
+            "type": "integer",
+            "description": "Publication year."
+          },
+          {
+            "name": "journal",
+            "type": "string",
+            "description": "Journal or venue."
+          },
+          {
+            "name": "icite_rcr",
+            "type": "number",
+            "description": "Relative Citation Ratio (NIH iCite): field- and time-normalized citation rate; 1.0 = NIH-wide average."
+          },
+          {
+            "name": "citation_count",
+            "type": "integer",
+            "description": "OpenAlex citation count."
+          }
+        ]
+      }
+    }
+  ],
+  "views": [
+    {
+      "name": "package_pubs_confident",
+      "source": "mart_package_work",
+      "description": "Package-paper links made by DOI or CITATION file only (drops description_doi and title_search). Use for grant reporting.",
+      "sql": "SELECT * FROM mart_package_work WHERE match_method IN ('doi', 'citation_file')"
+    },
+    {
+      "name": "downloads_modern_era",
+      "source": "mart_ecosystem_downloads_yearly",
+      "description": "Yearly downloads per repo, modern collection methodology only (Oct 2015 on).",
+      "sql": "SELECT * FROM mart_ecosystem_downloads_yearly WHERE methodology_era = 'modern'"
+    },
+    {
+      "name": "ecosystem_yearly",
+      "source": "mart_ecosystem_downloads_yearly",
+      "description": "Downloads per year summed across repos, one row per methodology era (never mix eras).",
+      "sql": "SELECT year, methodology_era, SUM(distinct_ips) AS distinct_ips, SUM(downloads) AS downloads, SUM(n_packages_with_downloads) AS n_packages_with_downloads FROM mart_ecosystem_downloads_yearly GROUP BY year, methodology_era ORDER BY year, methodology_era"
+    },
+    {
+      "name": "package_impact_ranked",
+      "source": "mart_package_impact",
+      "description": "package_impact ordered by rank within repo on trailing-12-month distinct IPs.",
+      "sql": "SELECT * FROM mart_package_impact ORDER BY repo, usage_rank_in_repo"
+    }
+  ]
+}

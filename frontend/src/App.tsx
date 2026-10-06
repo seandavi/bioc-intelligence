@@ -9,6 +9,7 @@ import { People } from "./pages/People";
 import { Growth } from "./pages/Growth";
 import { Trends } from "./pages/Trends";
 import { About } from "./pages/About";
+import { Data } from "./pages/Data";
 import { fetchManifest, type Manifest } from "./db/duckdb";
 
 const NAV = [
@@ -20,6 +21,7 @@ const NAV = [
   { id: "grants", label: "Grants" },
   { id: "people", label: "People" },
   { id: "growth", label: "Growth" },
+  { id: "data", label: "Data" },
   { id: "about", label: "About" },
 ];
 
@@ -95,6 +97,8 @@ export default function App() {
           <People />
         ) : route.view === "growth" ? (
           <Growth />
+        ) : route.view === "data" ? (
+          <Data manifest={manifest} />
         ) : route.view === "about" ? (
           <About manifest={manifest} />
         ) : (

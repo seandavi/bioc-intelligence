@@ -79,6 +79,19 @@ Exportable (CSV/PDF) narrative for CCSG / renewal: grant → packages supported 
 citing works. Gated on `mart_grant_attribution` (RePORTER via lake). Design the
 export format early since it's the grant-submission use case (req 1).
 
+### 7. Data page and published views file — **now** (#51)
+`#/data` shows the `ATTACH` one-liner first (SQL, R, Python), then each mart's
+Parquet URL with its size and a client-side CSV export (DuckDB-WASM casts every
+column to text, `lib/csv.ts` writes the file), the data dictionary, how to cite
+and the Pages hosting note. Sizes and the dictionary come from
+`data/datapackage.json`. It and `data/bioc-intelligence.duckdb` (a views-only
+file: one view per mart, the honest-default views `package_pubs_confident`,
+`downloads_modern_era`, `ecosystem_yearly` and `package_impact_ranked`, and the
+`package()`/`grant_report()` macros) are both written by
+`build_marts.write_views_db` from `build_marts.DEFINITIONS`, the one place mart
+and column definitions live. Add a definition there when a mart gains a column:
+the test fails, and so would the refresh.
+
 ## Cross-cutting ideas worth capturing
 
 - **Confidence-aware linkage UI.** `bridge_package_pub` carries `match_method` +
