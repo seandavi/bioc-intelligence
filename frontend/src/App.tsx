@@ -1,41 +1,33 @@
 import { useEffect, useState } from "react";
+import { Link, useRoute } from "./lib/router";
 import { ByTheNumbers } from "./pages/ByTheNumbers";
-import { Explorer } from "./pages/Explorer";
+import { Explorer, PackagePage } from "./pages/Explorer";
 import { ImpactLeaderboard } from "./pages/ImpactLeaderboard";
 import { BiocViews } from "./pages/BiocViews";
 import { Grants } from "./pages/Grants";
 import { Growth } from "./pages/Growth";
 import { fetchManifest, type Manifest } from "./db/duckdb";
 
-type ViewId = "numbers" | "explorer" | "biocviews" | "impact" | "grants" | "growth";
-
-const NAV: { id: ViewId; label: string; ready: boolean }[] = [
-  { id: "numbers", label: "By the Numbers", ready: true },
-  { id: "explorer", label: "Explorer", ready: true },
-  { id: "biocviews", label: "biocViews", ready: true },
-  { id: "impact", label: "Impact", ready: true },
-  { id: "grants", label: "Grants", ready: true },
-  { id: "growth", label: "Growth", ready: true },
+const NAV = [
+  { id: "numbers", label: "By the Numbers" },
+  { id: "explorer", label: "Explorer" },
+  { id: "biocviews", label: "biocViews" },
+  { id: "impact", label: "Impact" },
+  { id: "grants", label: "Grants" },
+  { id: "growth", label: "Growth" },
 ];
 
-function ComingSoon({ label }: { label: string }) {
-  return (
-    <div className="mx-auto max-w-2xl px-6 py-24 text-center text-slate-500">
-      <div className="text-lg font-medium text-slate-700">{label}</div>
-      <p className="mt-2 text-sm">This view is on the way.</p>
-    </div>
-  );
-}
-
 export default function App() {
-  const [view, setView] = useState<ViewId>("numbers");
+  const route = useRoute();
   const [manifest, setManifest] = useState<Manifest | null>(null);
 
   useEffect(() => {
     fetchManifest().then(setManifest).catch(() => setManifest(null));
   }, []);
 
-  const active = NAV.find((n) => n.id === view)!;
+  // Unknown or empty routes render By the Numbers; #/package/<name> highlights no tab.
+  const active =
+    route.view === "package" ? "" : NAV.some((n) => n.id === route.view) ? route.view : "numbers";
 
   return (
     <div className="min-h-full bg-slate-50">
@@ -47,18 +39,17 @@ export default function App() {
           </div>
           <nav className="flex flex-wrap gap-1 text-sm">
             {NAV.map((n) => (
-              <button
+              <Link
                 key={n.id}
-                onClick={() => setView(n.id)}
+                view={n.id}
                 className={`rounded-md px-3 py-1.5 font-medium transition ${
-                  view === n.id
+                  active === n.id
                     ? "bg-bioc-50 text-bioc-700"
                     : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                 }`}
               >
                 {n.label}
-                {!n.ready && <span className="ml-1 text-[10px] text-slate-400">soon</span>}
-              </button>
+              </Link>
             ))}
           </nav>
           <div className="ml-auto text-xs text-slate-400">
@@ -68,20 +59,20 @@ export default function App() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-8">
-        {active.id === "numbers" ? (
-          <ByTheNumbers />
-        ) : active.id === "explorer" ? (
+        {route.view === "explorer" ? (
           <Explorer />
-        ) : active.id === "impact" ? (
+        ) : route.view === "package" && route.arg ? (
+          <PackagePage name={route.arg} />
+        ) : route.view === "impact" ? (
           <ImpactLeaderboard />
-        ) : active.id === "biocviews" ? (
+        ) : route.view === "biocviews" ? (
           <BiocViews />
-        ) : active.id === "grants" ? (
+        ) : route.view === "grants" ? (
           <Grants />
-        ) : active.id === "growth" ? (
+        ) : route.view === "growth" ? (
           <Growth />
         ) : (
-          <ComingSoon label={active.label} />
+          <ByTheNumbers />
         )}
       </main>
 
