@@ -6,6 +6,7 @@ import { ImpactLeaderboard } from "./pages/ImpactLeaderboard";
 import { BiocViews } from "./pages/BiocViews";
 import { Grants } from "./pages/Grants";
 import { Growth } from "./pages/Growth";
+import { About } from "./pages/About";
 import { fetchManifest, type Manifest } from "./db/duckdb";
 
 const NAV = [
@@ -15,6 +16,7 @@ const NAV = [
   { id: "impact", label: "Impact" },
   { id: "grants", label: "Grants" },
   { id: "growth", label: "Growth" },
+  { id: "about", label: "About" },
 ];
 
 export default function App() {
@@ -71,6 +73,8 @@ export default function App() {
           <Grants />
         ) : route.view === "growth" ? (
           <Growth />
+        ) : route.view === "about" ? (
+          <About manifest={manifest} />
         ) : (
           <ByTheNumbers />
         )}
@@ -78,7 +82,11 @@ export default function App() {
 
       <footer className="mx-auto max-w-6xl px-6 py-8 text-xs text-slate-400">
         Zero-backend SPA — DuckDB-WASM over prebuilt Parquet marts. Enrichment sourced read-only
-        from cdsci-lake. Source:{" "}
+        from cdsci-lake.{" "}
+        <Link view="about" className="text-bioc-600 hover:underline">
+          About, methods and how to cite
+        </Link>
+        . Source:{" "}
         <a
           className="text-bioc-600 hover:underline"
           href="https://github.com/seandavi/bioc-intelligence"
