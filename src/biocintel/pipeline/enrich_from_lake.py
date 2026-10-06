@@ -8,6 +8,10 @@ first). Steps:
   114M ``works`` once to materialize a small ``linked`` temp table).
 - **grants** — ``reporter.publink``→``reporter.projects`` for those works'
   PMIDs → ``dim_grant`` + ``bridge_work_grant``.
+- **institutions** — author affiliations of every ``dim_work`` row with an
+  OpenAlex id, from ``openalex.works_authorships`` + ``openalex.institutions`` →
+  ``dim_institution`` + ``bridge_work_institution``. Best-effort (spec §3): a
+  failure is logged and the run continues.
 - **citations** — cited-by edges from ``openalex.work_references`` →
   ``fact_citation_edge``. **Heavy**: scans the 1.29B-row references table plus a
   second ``works`` pass for citing-side metadata, so it is **opt-in** (not in the
@@ -24,8 +28,8 @@ import duckdb
 
 from ..lake import connect_with_lake
 
-DEFAULT_STEPS = ("works", "grants")
-ALL_STEPS = ("works", "grants", "citations")
+DEFAULT_STEPS = ("works", "institutions", "grants")
+ALL_STEPS = ("works", "institutions", "grants", "citations")
 
 # Small driver table: the OpenAlex works linked to packages, with spine work_id.
 _LINKED_SQL = """
@@ -104,6 +108,39 @@ JOIN lake.openalex.works citing ON citing.id = wr.work_id;
 """
 
 
+# Affiliations of every enriched work (not just this run's `linked`), rebuilt whole.
+# The ~200s scan is the authorships join; institutions is small and keyed by the
+# authorship's institution_id. Duplicate author rows (two middle authors at one
+# institution) collapse under DISTINCT.
+_WORK_INSTITUTION_SQL = """
+CREATE OR REPLACE TEMP TABLE work_institution AS
+SELECT DISTINCT w.work_id, wa.institution_id, wa.institution_ror AS ror,
+       wa.institution_country, wa.author_position, wa.is_corresponding
+FROM bi.dim_work w
+JOIN lake.openalex.works_authorships wa ON wa.work_id = w.openalex_id
+WHERE wa.institution_ror IS NOT NULL;
+"""
+
+_INSTITUTION_DIM_SQL = """
+INSERT INTO bi.dim_institution
+SELECT ror, openalex_id, name, country_code, country, type, city, region, latitude, longitude
+FROM (
+    SELECT wi.ror, wi.institution_id AS openalex_id, i.display_name AS name,
+           COALESCE(i.country_code, wi.institution_country) AS country_code,
+           i.country, i.type, i.city, i.region, i.latitude, i.longitude
+    FROM work_institution wi
+    LEFT JOIN lake.openalex.institutions i ON i.id = wi.institution_id
+)
+QUALIFY row_number() OVER (PARTITION BY ror ORDER BY name NULLS LAST, openalex_id) = 1;
+"""
+
+_INSTITUTION_BRIDGE_SQL = """
+INSERT INTO bi.bridge_work_institution
+SELECT DISTINCT work_id, ror, author_position, is_corresponding, 'openalex'
+FROM work_institution;
+"""
+
+
 def _enrich_works(con: duckdb.DuckDBPyConnection) -> int:
     con.execute(_WORKS_SQL)
     return con.execute("SELECT count(*) FROM bi.dim_work").fetchone()[0]
@@ -119,6 +156,21 @@ def _enrich_grants(con: duckdb.DuckDBPyConnection) -> int:
     return con.execute(
         "SELECT count(*) FROM bi.bridge_work_grant WHERE source='reporter'"
     ).fetchone()[0]
+
+
+def _enrich_institutions(con: duckdb.DuckDBPyConnection) -> int:
+    con.execute(_WORK_INSTITUTION_SQL)
+    con.execute("BEGIN")
+    try:
+        con.execute("DELETE FROM bi.bridge_work_institution")
+        con.execute("DELETE FROM bi.dim_institution")
+        con.execute(_INSTITUTION_DIM_SQL)
+        con.execute(_INSTITUTION_BRIDGE_SQL)
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
+    return con.execute("SELECT count(*) FROM bi.dim_institution").fetchone()[0]
 
 
 def _enrich_citations(con: duckdb.DuckDBPyConnection) -> int:
@@ -144,6 +196,13 @@ def run(steps: tuple[str, ...] = DEFAULT_STEPS) -> dict[str, int]:
         if "works" in steps:
             counts["dim_work"] = _enrich_works(con)
             print(f"  dim_work: {counts['dim_work']}")
+        if "institutions" in steps:
+            # Best-effort (spec §3): never fail the refresh on affiliations.
+            try:
+                counts["dim_institution"] = _enrich_institutions(con)
+                print(f"  dim_institution: {counts['dim_institution']}")
+            except duckdb.Error as exc:
+                print(f"  institutions: skipped ({exc})")
         if "grants" in steps:
             counts["bridge_work_grant"] = _enrich_grants(con)
             print(f"  bridge_work_grant (reporter): {counts['bridge_work_grant']}")

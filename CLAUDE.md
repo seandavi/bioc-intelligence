@@ -51,6 +51,9 @@ CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_fro
 ```
 
 - `works` (default) — linked OpenAlex works + iCite RCR → `dim_work`.
+- `institutions` (default) — `openalex.works_authorships` + `openalex.institutions` for every
+  `dim_work` row with an OpenAlex id → `dim_institution` + `bridge_work_institution` (rebuilt each
+  run; ~12 min, the authorships scan). Best-effort: a failure is logged and the run continues.
 - `grants` (default) — `reporter.publink`/`projects` → `dim_grant` + `bridge_work_grant`.
 - `citations` (**opt-in**) — `openalex.work_references` cited-by → `fact_citation_edge`. Scans the
   **1.29B-row** references table plus a second `works` pass; run deliberately for a full refresh.

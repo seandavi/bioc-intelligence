@@ -11,7 +11,7 @@ from biocintel.pipeline import enrich_from_lake
 
 def test_imports_without_lake_client():
     assert callable(enrich_from_lake.run)
-    assert enrich_from_lake.DEFAULT_STEPS == ("works", "grants")
+    assert enrich_from_lake.DEFAULT_STEPS == ("works", "institutions", "grants")
     assert "citations" in enrich_from_lake.ALL_STEPS
 
 

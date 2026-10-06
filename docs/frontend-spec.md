@@ -33,6 +33,7 @@ column names stable once published (mirror the lake's versioned-view discipline)
 | `mart_ecosystem_downloads_yearly` | year × repo × methodology_era | `distinct_ips`, `downloads`, `n_packages_with_downloads` | latest `_snapshot` per repo; eras stay separate rows (2015 has one per era) — draw the boundary, don't join across it; `distinct_ips` is summed over months |
 | `mart_package_downloads_monthly` | package × repo × year × month | `distinct_ips`, `downloads`, `methodology_era` | sorted by `package_name, repo, year, month` and written with 2,048-row row groups so DuckDB-WASM can range-read one package; filter on `package_name` |
 | `mart_package_funder` | package × repo × funder | `funder_id`, `funder_name`, `curated`, `declared_name`, `grant_number`, `grant_id` | declared (`fnd`) funders only; `grant_id` set when the NIH grant matches a RePORTER core project in `dim_grant`; `curated=false` rows are as-written (many are PIs, not agencies) |
+| `mart_work_institution` | work × institution × author position | `ror`, `name`, `country_code`, `country`, `author_position`, `is_corresponding`, `latitude`, `longitude` | OpenAlex authorship affiliations of linked works (`dim_work` rows with an OpenAlex id); best-effort; `author_position='last'` gives senior-author countries; join `mart_package_work` on `work_id` for a package's institutions |
 
 The marts above are exported every `build-marts` run (the SPA registers its own subset in `frontend/src/db/duckdb.ts`). The
 enrichment-sourced columns are present-but-empty until `enrich_from_lake` has run,
