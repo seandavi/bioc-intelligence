@@ -22,7 +22,7 @@ export function StatCard({
       </div>
       <div
         className={`mt-1 text-3xl font-semibold tabular-nums ${
-          pending ? "text-slate-300" : "text-slate-900"
+          pending ? "italic text-slate-500" : "text-slate-900"
         }`}
       >
         {value}

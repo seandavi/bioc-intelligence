@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useQuery } from "../db/useQuery";
-import { BiocViewChip, Chip, REPO_LABEL, RepoBadge } from "../components/ui";
+import { BiocViewChip, Chip, INPUT_CLASS, REPO_LABEL, RepoBadge, SortableTh, SrLabel } from "../components/ui";
 import { fmtFloat, fmtInt } from "../lib/format";
 import { parseList, setParams, toggleInList, useRoute } from "../lib/router";
 import { normalise, searchKey } from "../lib/search";
@@ -100,7 +100,7 @@ function DetailPanel({ pkg, papers, onClose }: { pkg: Pkg; papers: Work[]; onClo
           <div className="text-lg font-semibold text-slate-900">{pkg.package_name}</div>
           <div className="mt-0.5 flex items-center gap-2">
             <RepoBadge repo={pkg.repo} />
-            <span className="text-xs text-slate-400">release {pkg.latest_release}</span>
+            <span className="text-xs text-slate-500">release {pkg.latest_release}</span>
           </div>
           <a
             className="mt-1 block text-xs text-bioc-600 hover:underline"
@@ -112,7 +112,7 @@ function DetailPanel({ pkg, papers, onClose }: { pkg: Pkg; papers: Work[]; onClo
           </a>
         </div>
         {onClose && (
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700" aria-label="close">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-700" aria-label="close">
             ✕
           </button>
         )}
@@ -121,13 +121,13 @@ function DetailPanel({ pkg, papers, onClose }: { pkg: Pkg; papers: Work[]; onClo
       <dl className="mt-3 space-y-2 text-sm">
         {pkg.maintainer && (
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">Maintainer</dt>
+            <dt className="text-xs uppercase tracking-wide text-slate-500">Maintainer</dt>
             <dd className="text-slate-700">{pkg.maintainer}</dd>
           </div>
         )}
         {papers.length > 0 ? (
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">
+            <dt className="text-xs uppercase tracking-wide text-slate-500">
               Papers the package asks users to cite
             </dt>
             <dd>
@@ -140,7 +140,7 @@ function DetailPanel({ pkg, papers, onClose }: { pkg: Pkg; papers: Work[]; onClo
           </div>
         ) : pkg.source_doi && (
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">Describing paper</dt>
+            <dt className="text-xs uppercase tracking-wide text-slate-500">Describing paper</dt>
             <dd>
               <a
                 className="text-bioc-600 hover:underline"
@@ -155,7 +155,7 @@ function DetailPanel({ pkg, papers, onClose }: { pkg: Pkg; papers: Work[]; onClo
         )}
         {(urls.length > 0 || pkg.bug_reports) && (
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">Links</dt>
+            <dt className="text-xs uppercase tracking-wide text-slate-500">Links</dt>
             <dd className="space-y-0.5">
               {urls.map((u) => (
                 <a
@@ -183,7 +183,7 @@ function DetailPanel({ pkg, papers, onClose }: { pkg: Pkg; papers: Work[]; onClo
         )}
         {views.length > 0 && (
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">biocViews</dt>
+            <dt className="text-xs uppercase tracking-wide text-slate-500">biocViews</dt>
             <dd className="mt-1 flex flex-wrap gap-1">
               {views.map((v) => (
                 <BiocViewChip key={v} term={v} />
@@ -299,7 +299,7 @@ export function Explorer() {
               {v.slice(0, 3).map((t) => (
                 <BiocViewChip key={t} term={t} />
               ))}
-              {v.length > 3 && <span className="text-xs text-slate-400">+{v.length - 3}</span>}
+              {v.length > 3 && <span className="text-xs text-slate-500">+{v.length - 3}</span>}
             </div>
           );
         },
@@ -310,7 +310,7 @@ export function Explorer() {
         sortDescFirst: true,
         cell: ({ getValue }) => {
           const n = getValue<number>();
-          return n > 0 ? n : <span className="text-slate-300">—</span>;
+          return n > 0 ? n : <span className="text-slate-500">—</span>;
         },
       },
     ],
@@ -352,12 +352,14 @@ export function Explorer() {
       <div className="flex flex-col gap-5 lg:flex-row">
         {/* Facets */}
         <div className="shrink-0 lg:w-48">
+          <SrLabel htmlFor="explorer-search">Search packages</SrLabel>
           <input
+            id="explorer-search"
             type="search"
             placeholder="Search…"
             value={q}
             onChange={(e) => setParams("explorer", { q: e.target.value })}
-            className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-bioc-500 focus:outline-none"
+            className={`w-full ${INPUT_CLASS}`}
           />
           <div className="mt-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Repo</div>
@@ -372,7 +374,7 @@ export function Explorer() {
                       onChange={() => setParams("explorer", { repo: toggleInList(repoParam, r) })}
                     />
                     {REPO_LABEL[r] ?? r}
-                    <span className="ml-auto text-xs text-slate-400">{n}</span>
+                    <span className="ml-auto text-xs text-slate-500">{n}</span>
                   </label>
                 ))}
             </div>
@@ -403,7 +405,7 @@ export function Explorer() {
               onChange={(e) => setParams("explorer", { paper: e.target.checked ? "1" : "", doi: "" })}
             />
             Has linked paper
-            <span className="ml-auto text-xs text-slate-400">{paperCount}</span>
+            <span className="ml-auto text-xs text-slate-500">{paperCount}</span>
           </label>
         </div>
 
@@ -415,19 +417,14 @@ export function Explorer() {
                 {table.getHeaderGroups().map((hg) => (
                   <tr key={hg.id}>
                     {hg.headers.map((h) => (
-                      <th
+                      <SortableTh
                         key={h.id}
-                        onClick={h.column.getToggleSortingHandler()}
-                        className={`px-3 py-2 ${
-                          h.column.getCanSort() ? "cursor-pointer select-none hover:text-slate-700" : ""
-                        }`}
+                        sorted={h.column.getIsSorted()}
+                        onToggle={h.column.getCanSort() ? h.column.getToggleSortingHandler() : undefined}
+                        info={h.column.columnDef.meta?.info}
                       >
                         {flexRender(h.column.columnDef.header, h.getContext())}
-                        {h.column.getCanSort() &&
-                          ({ asc: " ↑", desc: " ↓" }[h.column.getIsSorted() as string] ?? (
-                            <span className="text-slate-300"> ↕</span>
-                          ))}
-                      </th>
+                      </SortableTh>
                     ))}
                   </tr>
                 ))}
@@ -479,7 +476,7 @@ export function Explorer() {
               </span>
               <select
                 aria-label="Rows per page"
-                className="rounded border border-slate-300 px-1 py-1"
+                className="rounded border border-slate-300 bg-white px-1 py-1"
                 value={pageSize}
                 onChange={(e) => table.setPageSize(Number(e.target.value))}
               >

@@ -3,7 +3,7 @@ import type { VisualizationSpec } from "vega-embed";
 import { useQuery } from "../db/useQuery";
 import { VegaChart } from "../components/VegaChart";
 import { ERA_START, eraBand, monthlyIpsSpec, Sparkline, type MonthlyRow } from "../components/Sparkline";
-import { Chip, REPO_LABEL, RepoBadge } from "../components/ui";
+import { Chip, INPUT_CLASS, REPO_LABEL, RepoBadge, SrLabel } from "../components/ui";
 import { Link, parseList, setParams, useRoute } from "../lib/router";
 import { fmtFloat, fmtInt } from "../lib/format";
 
@@ -131,14 +131,16 @@ function Compare() {
         Monthly distinct IPs for up to {MAX_COMPARE} packages.
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
+        <SrLabel htmlFor="trends-package">Package name</SrLabel>
         <input
+          id="trends-package"
           list="trends-package-names"
           placeholder="Package name…"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
           disabled={picked.length >= MAX_COMPARE}
-          className="w-56 rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-bioc-500 focus:outline-none disabled:opacity-50"
+          className={`w-56 ${INPUT_CLASS} disabled:opacity-50`}
         />
         <datalist id="trends-package-names">
           {(names.data ?? []).map((r) => (
@@ -148,7 +150,7 @@ function Compare() {
         <button
           onClick={add}
           disabled={!known.has(draft.trim()) || picked.length >= MAX_COMPARE}
-          className="rounded-md bg-bioc-500 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+          className="rounded-md bg-bioc-500 px-3 py-1.5 text-sm font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bioc-700 focus-visible:ring-offset-2 disabled:opacity-40"
         >
           Add
         </button>
@@ -177,16 +179,16 @@ function Compare() {
         <p className="mt-3 text-sm text-red-700">Failed to load monthly data: {series.error.message}</p>
       )}
       {picked.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-400">Add a package to plot its monthly usage.</p>
+        <p className="mt-4 text-sm text-slate-500">Add a package to plot its monthly usage.</p>
       ) : series.loading ? (
-        <p className="mt-4 text-sm text-slate-400">Loading…</p>
+        <p className="mt-4 text-sm text-slate-500">Loading…</p>
       ) : spec ? (
         <div className="mt-4">
           <VegaChart spec={spec} className="w-full" />
           <EraCaption />
         </div>
       ) : (
-        <p className="mt-4 text-sm text-slate-400">No download history for these packages.</p>
+        <p className="mt-4 text-sm text-slate-500">No download history for these packages.</p>
       )}
     </section>
   );
@@ -216,17 +218,17 @@ function Trending() {
       {error ? (
         <p className="mt-3 text-sm text-red-700">Failed to load trending packages: {error.message}</p>
       ) : loading ? (
-        <p className="mt-3 text-sm text-slate-400">Loading…</p>
+        <p className="mt-3 text-sm text-slate-500">Loading…</p>
       ) : (
         <table className="mt-3 w-full text-left text-sm">
           <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-3 py-2">Package</th>
-              <th className="px-3 py-2">Repo</th>
-              <th className="px-3 py-2 text-right">Prior 12 mo</th>
-              <th className="px-3 py-2 text-right">Last 12 mo</th>
-              <th className="px-3 py-2 text-right">Growth</th>
-              <th className="px-3 py-2">Monthly distinct IPs</th>
+              <th scope="col" className="px-3 py-2">Package</th>
+              <th scope="col" className="px-3 py-2">Repo</th>
+              <th scope="col" className="px-3 py-2 text-right">Prior 12 mo</th>
+              <th scope="col" className="px-3 py-2 text-right">Last 12 mo</th>
+              <th scope="col" className="px-3 py-2 text-right">Growth</th>
+              <th scope="col" className="px-3 py-2">Monthly distinct IPs</th>
             </tr>
           </thead>
           <tbody>

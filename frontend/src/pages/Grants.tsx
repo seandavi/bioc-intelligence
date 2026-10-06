@@ -12,6 +12,7 @@ import {
 import { useQuery } from "../db/useQuery";
 import { InfoDot } from "../components/InfoDot";
 import { StatCard } from "../components/StatCard";
+import { INPUT_CLASS, SortableTh, SrLabel } from "../components/ui";
 import { VegaChart } from "../components/VegaChart";
 import { horizontalBar } from "../components/charts";
 import { GrantReport, type PackageImpact, type PackageWork } from "../components/GrantReport";
@@ -107,13 +108,13 @@ export function Grants() {
     () => [
       {
         id: "expand",
-        header: "",
+        header: () => <span className="sr-only">Show report</span>,
         enableSorting: false,
         cell: ({ row }) => (
           <button
             aria-label="Show grant report"
             aria-expanded={open === row.original.grant_id}
-            className="text-slate-400 hover:text-slate-700"
+            className="text-slate-500 hover:text-slate-700"
           >
             {open === row.original.grant_id ? "▾" : "▸"}
           </button>
@@ -164,12 +165,10 @@ export function Grants() {
       },
       {
         accessorKey: "n_packages_supported",
-        header: () => (
-          <span className="inline-flex items-center">
-            Packages
-            <InfoDot tip="Distinct Bioconductor packages whose cite-me paper acknowledges this grant in NIH RePORTER publication links." />
-          </span>
-        ),
+        header: "Packages",
+        meta: {
+          info: "Distinct Bioconductor packages whose cite-me paper acknowledges this grant in NIH RePORTER publication links.",
+        },
         cell: ({ getValue }) => <span className="tabular-nums">{fmtInt(getValue<number>())}</span>,
       },
       {
@@ -248,12 +247,14 @@ export function Grants() {
 
       <div className="flex flex-col gap-5 lg:flex-row">
         <div className="shrink-0 lg:w-56">
+          <SrLabel htmlFor="grants-search">Search grants</SrLabel>
           <input
+            id="grants-search"
             type="search"
             placeholder="Search…"
             value={globalFilter}
             onChange={(e) => setParams("grants", { q: e.target.value })}
-            className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-bioc-500 focus:outline-none"
+            className={`w-full ${INPUT_CLASS}`}
           />
           <label className="mt-4 flex items-start gap-2 text-sm text-slate-600">
             <input
@@ -275,7 +276,7 @@ export function Grants() {
                 <label key={a} className="flex items-center gap-2 text-sm text-slate-600" title={icLabel(a)}>
                   <input type="checkbox" checked={agencies.has(a)} onChange={() => setParams("grants", { agency: toggleInList(agencyParam, a) })} />
                   <span className="truncate">{icLabel(a)}</span>
-                  <span className="ml-auto text-xs text-slate-400">{n}</span>
+                  <span className="ml-auto text-xs text-slate-500">{n}</span>
                 </label>
               ))}
           </div>
@@ -288,14 +289,14 @@ export function Grants() {
                 {table.getHeaderGroups().map((hg) => (
                   <tr key={hg.id}>
                     {hg.headers.map((h) => (
-                      <th
+                      <SortableTh
                         key={h.id}
-                        onClick={h.column.getToggleSortingHandler()}
-                        className={`px-3 py-2 ${h.column.getCanSort() ? "cursor-pointer select-none hover:text-slate-700" : ""}`}
+                        sorted={h.column.getIsSorted()}
+                        onToggle={h.column.getCanSort() ? h.column.getToggleSortingHandler() : undefined}
+                        info={h.column.columnDef.meta?.info}
                       >
                         {flexRender(h.column.columnDef.header, h.getContext())}
-                        {{ asc: " ↑", desc: " ↓" }[h.column.getIsSorted() as string] ?? ""}
-                      </th>
+                      </SortableTh>
                     ))}
                   </tr>
                 ))}
