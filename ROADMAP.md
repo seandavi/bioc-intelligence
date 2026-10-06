@@ -32,6 +32,11 @@ monthly by a systemd timer on onclappc02. See
   the ~974M `pmc.passages` to recover informal package usage, then the LLM judge; promote confirmed
   mentions to `fact_citation_edge (mention_type='fulltext')`. Wire a real (Anthropic) judge.
 - **Maintainer → ROR** _(new, spec §3)_ — best-effort institution attribution.
+- **People, ORCIDs and declared funders** _(done, #23)_ — `extract-people` parses `Authors@R`
+  (never evaluated) into `dim_person`/`dim_funder` and the package bridges; marts expose people
+  per package, packages per person, and funders per package. Open: switch the source to the
+  bioc-registry index when it carries `Authors@R` (#27); non-NIH funders from OpenAlex funder
+  records on linked publications; frontend views over the new marts.
 
 ## Download stats — unblock the usage proxy
 

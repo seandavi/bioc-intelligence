@@ -1,0 +1,51 @@
+# Curated funder aliases for the `fnd` role in Authors@R (see biocintel/funders.py).
+#
+# First match wins, so list specific entries before general ones (NIH institutes
+# before NIH; ERC before the EU programmes). `match` entries are case-insensitive
+# regexes searched in the declared name (then in the person's comment text if the
+# name alone doesn't match). A declared name that matches nothing is kept as its
+# own funder, keyed by its normalized name; identical strings still merge.
+#
+# Add an entry when a new spelling of a known funder shows up; nothing else needs
+# to change.
+
+- id: czi
+  name: Chan Zuckerberg Initiative
+  match: ['\bczi\b', 'chan zuckerberg', 'silicon valley (community )?foundation', '\bczf\d{4}']
+
+# NIH institutes (the issue's "NIH NHGRI", "NCI", "NHGRI AnVIL Project", ...)
+- {id: nih-nhgri, name: NIH NHGRI, match: ['\bnhgri\b', 'national human genome research institute']}
+- {id: nih-nci, name: NIH NCI, match: ['\bnci\b', 'national cancer institute']}
+- {id: nih-nigms, name: NIH NIGMS, match: ['\bnigms\b', 'national institute of general medical sciences']}
+- {id: nih-niaid, name: NIH NIAID, match: ['\bniaid\b', 'national institute of allergy']}
+- {id: nih-nhlbi, name: NIH NHLBI, match: ['\bnhlbi\b', 'national heart, lung']}
+- {id: nih-niddk, name: NIH NIDDK, match: ['\bniddk\b', 'national institute of diabetes']}
+- {id: nih-nia, name: NIH NIA, match: ['\bnia\b', 'national institute on aging']}
+- {id: nih-nimh, name: NIH NIMH, match: ['\bnimh\b', 'national institute of mental health']}
+- {id: nih-ninds, name: NIH NINDS, match: ['\bninds\b', 'national institute of neurological']}
+- {id: nih-niehs, name: NIH NIEHS, match: ['\bniehs\b', 'national institute of environmental health']}
+- {id: nih-nibib, name: NIH NIBIB, match: ['\bnibib\b', 'national institute of biomedical imaging']}
+- {id: nih-nlm, name: NIH NLM, match: ['\bnlm\b', 'national library of medicine']}
+- {id: nih-nichd, name: NIH NICHD, match: ['\bnichd\b', 'eunice kennedy shriver']}
+- {id: nih-nei, name: NIH NEI, match: ['\bnei\b', 'national eye institute']}
+- {id: nih-nida, name: NIH NIDA, match: ['\bnida\b', 'national institute on drug abuse']}
+- {id: nih, name: NIH, match: ['\bnih\b', 'national institutes of health']}
+
+# EU programmes
+- {id: erc, name: European Research Council, match: ['european research council', '\berc\b']}
+- {id: eu-fp7, name: EU FP7, match: ['\bfp7\b', 'seventh framework']}
+- {id: eu-horizon-2020, name: EU Horizon 2020, match: ['horizon ?2020', '\bh2020\b']}
+- id: eu-horizon-europe
+  name: EU Horizon Europe
+  match: ['horizon europe', 'horizon-(msca|erc|cl\d|infra|miss|widera)']
+
+# National agencies
+- {id: dfg, name: Deutsche Forschungsgemeinschaft (DFG), match: ['\bdfg\b', 'deutsche forschungsgemeinschaft', '\bsfb ?\d']}
+- {id: nsf, name: US National Science Foundation, match: ['\bnsf\b', 'national science foundation']}
+- {id: nhmrc, name: NHMRC (Australia), match: ['\bnhmrc\b', 'national health and medical research council']}
+- {id: wellcome, name: Wellcome Trust, match: ['wellcome(?! fund)']}
+- {id: mciu-spain, name: Spanish Ministry of Science and Innovation (MCIU/AEI), match: ['\bmciu\b', 'ministerio de ciencia', 'ministry of science, innovation and universities']}
+
+# Companies that appear under several spellings
+- {id: genentech, name: Genentech, match: ['genentech']}
+- {id: roche, name: F. Hoffmann-La Roche, match: ['hoffmann-la roche', '\broche\b']}

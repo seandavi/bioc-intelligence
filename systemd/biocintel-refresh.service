@@ -49,6 +49,7 @@ ExecStart=%h/.local/bin/uv run --no-sync biocintel init-db
 ExecStart=%h/.local/bin/uv run --no-sync biocintel extract-packages
 ExecStart=%h/.local/bin/uv run --no-sync biocintel extract-downloads
 ExecStart=%h/.local/bin/uv run --no-sync biocintel extract-citations
+ExecStart=%h/.local/bin/uv run --no-sync biocintel extract-people
 ExecStart=%h/.local/bin/uv run --no-sync python -m biocintel.pipeline.link_works
 ExecStart=%h/.local/bin/uv run --no-sync python -m biocintel.pipeline.enrich_from_lake
 ExecStart=%h/.local/bin/uv run --no-sync biocintel build-marts
