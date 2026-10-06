@@ -54,6 +54,26 @@ def test_mart_work_exports_linked_works():
     assert row == ("W1", 5.0, 99)
 
 
+def test_mart_work_carries_icite_patents_and_preprint_flag():
+    con = db.connect(":memory:")
+    _fixture(con)
+    con.execute(
+        "UPDATE dim_work SET journal='bioRxiv', nih_percentile=95.0, apt=0.75, "
+        "is_clinical=false, citations_per_year=12.5, is_retracted=false, "
+        "n_patent_citations=3 WHERE work_id='W1'"
+    )
+    con.execute("INSERT INTO dim_work (work_id, journal) VALUES ('W2', 'Nature')")
+    con.execute(_MART_SQL)
+    rows = con.execute(
+        "SELECT work_id, nih_percentile, apt, is_clinical, citations_per_year, is_preprint, "
+        "is_retracted, n_patent_citations FROM mart_work ORDER BY work_id"
+    ).fetchall()
+    assert rows == [
+        ("W1", 95.0, 0.75, False, 12.5, True, False, 3),
+        ("W2", None, None, None, None, False, None, None),
+    ]
+
+
 def test_grant_attribution_rolls_up_packages():
     con = db.connect(":memory:")
     _fixture(con)
@@ -150,7 +170,9 @@ def test_package_work_keeps_highest_confidence_edge():
     cols = [r[0] for r in con.execute("DESCRIBE mart_package_work").fetchall()]
     assert cols == [
         "package_name", "repo", "work_id", "doi", "pmid", "title", "year", "journal",
-        "citation_count", "icite_rcr", "match_method", "confidence", "role",
+        "citation_count", "icite_rcr", "nih_percentile", "apt", "is_clinical",
+        "citations_per_year", "is_preprint", "is_retracted", "n_patent_citations",
+        "match_method", "confidence", "role",
     ]
     rows = con.execute(
         "SELECT work_id, doi, title, match_method, confidence FROM mart_package_work "
