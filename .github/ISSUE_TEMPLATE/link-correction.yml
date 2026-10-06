@@ -1,0 +1,32 @@
+name: Wrong or missing paper link
+description: Report a package linked to the wrong paper, or a package with no paper link.
+title: "Link correction: <package>"
+labels: ["data-quality"]
+body:
+  - type: input
+    id: package
+    attributes:
+      label: Package name
+      placeholder: limma
+    validations:
+      required: true
+  - type: input
+    id: wrong-doi
+    attributes:
+      label: Wrong or missing DOI
+      description: The DOI currently shown for the package, or leave blank if the package has no link.
+      placeholder: 10.1234/example
+  - type: input
+    id: correct-doi
+    attributes:
+      label: Correct DOI or paper
+      description: The DOI, or the title and authors if you do not have the DOI.
+    validations:
+      required: true
+  - type: input
+    id: evidence
+    attributes:
+      label: Evidence URL
+      description: A page showing the package asks users to cite this paper (CITATION file, package page or paper).
+    validations:
+      required: true
