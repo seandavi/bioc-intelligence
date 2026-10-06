@@ -134,3 +134,25 @@ CREATE TABLE IF NOT EXISTS bridge_package_funder (
     grant_number   VARCHAR,               -- NIH core project number → dim_grant.grant_id
     source         VARCHAR NOT NULL
 );
+
+-- ── Institutions of linked works, from OpenAlex authorships (#48). Best-effort. ──
+CREATE TABLE IF NOT EXISTS dim_institution (
+    ror           VARCHAR PRIMARY KEY,    -- as OpenAlex writes it: 'https://ror.org/…'
+    openalex_id   VARCHAR,
+    name          VARCHAR,
+    country_code  VARCHAR,
+    country       VARCHAR,
+    type          VARCHAR,
+    city          VARCHAR,
+    region        VARCHAR,
+    latitude      DOUBLE,
+    longitude     DOUBLE
+);
+
+CREATE TABLE IF NOT EXISTS bridge_work_institution (
+    work_id           VARCHAR NOT NULL,
+    ror               VARCHAR NOT NULL,
+    author_position   VARCHAR,            -- 'first' | 'middle' | 'last'
+    is_corresponding  BOOLEAN,
+    source            VARCHAR
+);

@@ -218,6 +218,15 @@ FROM bridge_package_funder bf
 JOIN dim_funder f USING (funder_id)
 LEFT JOIN dim_grant g ON g.grant_id = bf.grant_number
 ORDER BY bf.package_name, bf.repo, f.name;
+
+-- Institutions per linked work (one row per work × institution × author position);
+-- filter author_position = 'last' for senior-author countries.
+CREATE OR REPLACE TABLE mart_work_institution AS
+SELECT bw.work_id, bw.ror, i.name, i.country_code, i.country,
+       bw.author_position, bw.is_corresponding, i.latitude, i.longitude
+FROM bridge_work_institution bw
+JOIN dim_institution i USING (ror)
+ORDER BY bw.work_id, bw.author_position, i.name;
 """
 
 _MARTS = [
@@ -232,6 +241,7 @@ _MARTS = [
     "mart_package_funder",
     "mart_ecosystem_downloads_yearly",
     "mart_package_downloads_monthly",
+    "mart_work_institution",
 ]
 
 # Small row groups let DuckDB-WASM range-read one package from the sorted monthly mart.
