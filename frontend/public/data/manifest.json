@@ -1,4 +1,4 @@
 {
-  "snapshot": "2026-10-01",
-  "marts": ["mart_grant_attribution.parquet", "mart_package_directory.parquet", "mart_package_impact.parquet", "mart_release_growth.parquet", "mart_work.parquet"]
+  "snapshot": "2026-10-06",
+  "marts": ["mart_grant_attribution.parquet", "mart_package_directory.parquet", "mart_package_funder.parquet", "mart_package_impact.parquet", "mart_package_person.parquet", "mart_package_work.parquet", "mart_person.parquet", "mart_release_growth.parquet", "mart_work.parquet"]
 }

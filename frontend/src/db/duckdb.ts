@@ -11,6 +11,7 @@ export const MARTS = [
   "mart_grant_attribution.parquet",
   "mart_release_growth.parquet",
   "mart_work.parquet",
+  "mart_package_work.parquet",
 ] as const;
 
 export interface Manifest {
