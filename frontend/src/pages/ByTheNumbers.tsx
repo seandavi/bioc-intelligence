@@ -145,7 +145,7 @@ function Section({ title, note, children }: { title: string; note?: string; chil
     <section className="mt-8 first:mt-0">
       <div className="mb-3 flex items-baseline gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">{title}</h2>
-        {note && <span className="text-xs text-slate-400">{note}</span>}
+        {note && <span className="text-xs text-slate-500">{note}</span>}
       </div>
       {children}
     </section>

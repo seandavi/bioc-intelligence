@@ -3,7 +3,7 @@ import { fmtInt } from "../lib/format";
 
 export interface TreeNode {
   data: string;
-  attr: { id: string; packageList?: string };
+  attr?: { id: string; packageList?: string }; // absent on ~87 leaves with no packages
   children?: TreeNode[];
 }
 
@@ -16,7 +16,8 @@ interface Term {
 // "Term (123)" -> package count; the id lives in attr.id.
 function toTerm(node: TreeNode): Term {
   const n = Number(/\((\d+)\)\s*$/.exec(node.data)?.[1] ?? 0);
-  return { id: node.attr.id, n, children: (node.children ?? []).map(toTerm) };
+  const id = node.attr?.id ?? node.data.replace(/\s*\(\d+\)\s*$/, "");
+  return { id, n, children: (node.children ?? []).map(toTerm) };
 }
 
 // Keep a node when it or any descendant matches; matching branches render open.

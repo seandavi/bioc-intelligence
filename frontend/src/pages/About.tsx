@@ -52,7 +52,7 @@ const Term = ({ id, children }: { id: string; children: ReactNode }) => (
 );
 
 const A = ({ href, children }: { href: string; children: ReactNode }) => (
-  <a className="text-bioc-600 hover:underline" href={href}>
+  <a className="text-bioc-600 underline" href={href}>
     {children}
   </a>
 );
