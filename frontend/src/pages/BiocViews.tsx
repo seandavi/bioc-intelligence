@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "../db/useQuery";
 import { VegaChart } from "../components/VegaChart";
 import { horizontalBar } from "../components/charts";
+import { BiocViewChip } from "../components/ui";
 import { fmtInt } from "../lib/format";
 
 interface Term {
@@ -74,7 +75,9 @@ export function BiocViews() {
               <tbody>
                 {filtered.map((t) => (
                   <tr key={t.term} className="border-b border-slate-100 last:border-0">
-                    <td className="px-3 py-1.5 text-slate-700">{t.term}</td>
+                    <td className="px-3 py-1.5">
+                      <BiocViewChip term={t.term} />
+                    </td>
                     <td className="w-28 px-3 py-1.5">
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 flex-1 rounded bg-slate-100">

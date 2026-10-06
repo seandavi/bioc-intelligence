@@ -13,6 +13,7 @@ import { useQuery } from "../db/useQuery";
 import { InfoDot } from "../components/InfoDot";
 import { fmtInt } from "../lib/format";
 import { downloadCsv } from "../lib/csv";
+import { Link, parseList, setParams, toggleInList, useRoute } from "../lib/router";
 
 interface Grant {
   grant_id: string;
@@ -30,8 +31,10 @@ const SQL = `
 
 export function Grants() {
   const { data, loading, error } = useQuery<Grant>(SQL);
-  const [agencies, setAgencies] = useState<Set<string>>(new Set());
-  const [globalFilter, setGlobalFilter] = useState("");
+  const { params } = useRoute();
+  const globalFilter = params.q ?? "";
+  const agencyParam = params.agency;
+  const agencies = useMemo(() => new Set(parseList(agencyParam)), [agencyParam]);
   const [sorting, setSorting] = useState<SortingState>([{ id: "n_packages_supported", desc: true }]);
 
   const all = useMemo(() => data ?? [], [data]);
@@ -76,7 +79,19 @@ export function Grants() {
         header: "Supported packages",
         enableSorting: false,
         cell: ({ getValue }) => (
-          <span className="text-xs text-slate-500">{getValue<string>()}</span>
+          <span className="text-xs text-slate-500">
+            {getValue<string>()
+              .split(", ")
+              .filter(Boolean)
+              .map((name, i) => (
+                <span key={name}>
+                  {i > 0 && ", "}
+                  <Link view="package" arg={name} className="text-bioc-600 hover:underline">
+                    {name}
+                  </Link>
+                </span>
+              ))}
+          </span>
         ),
       },
     ],
@@ -88,7 +103,6 @@ export function Grants() {
     columns,
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -105,14 +119,6 @@ export function Grants() {
   }
 
   const exportRows = table.getFilteredRowModel().rows.map((r) => r.original as unknown as Record<string, unknown>);
-  const toggleAgency = (a: string) =>
-    setAgencies((prev) => {
-      const next = new Set(prev);
-      if (next.has(a)) next.delete(a);
-      else next.add(a);
-      return next;
-    });
-
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
@@ -137,7 +143,7 @@ export function Grants() {
             type="search"
             placeholder="Search…"
             value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
+            onChange={(e) => setParams("grants", { q: e.target.value })}
             className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-bioc-500 focus:outline-none"
           />
           <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">Agency</div>
@@ -146,7 +152,7 @@ export function Grants() {
               .sort((a, b) => b[1] - a[1])
               .map(([a, n]) => (
                 <label key={a} className="flex items-center gap-2 text-sm text-slate-600">
-                  <input type="checkbox" checked={agencies.has(a)} onChange={() => toggleAgency(a)} />
+                  <input type="checkbox" checked={agencies.has(a)} onChange={() => setParams("grants", { agency: toggleInList(agencyParam, a) })} />
                   {a}
                   <span className="ml-auto text-xs text-slate-400">{n}</span>
                 </label>

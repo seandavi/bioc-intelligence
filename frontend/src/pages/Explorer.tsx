@@ -10,6 +10,8 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useQuery } from "../db/useQuery";
+import { BiocViewChip, Chip, REPO_LABEL, RepoBadge } from "../components/ui";
+import { parseList, setParams, toggleInList, useRoute } from "../lib/router";
 
 interface Pkg {
   package_name: string;
@@ -25,40 +27,17 @@ interface Pkg {
 }
 
 // array_to_string keeps list columns simple across the WASM boundary.
-const DIR_SQL = `
+const DIR_SELECT = `
   SELECT package_name, repo, latest_release, maintainer, maintainer_email, title,
          array_to_string(biocviews, '|') AS biocviews,
          array_to_string(url, '|')       AS url,
          bug_reports, source_doi
-  FROM 'mart_package_directory.parquet'
-  ORDER BY package_name`;
+  FROM 'mart_package_directory.parquet'`;
+const DIR_SQL = `${DIR_SELECT} ORDER BY package_name`;
 
 const splitList = (s: string | null) => (s ? s.split("|").filter(Boolean) : []);
 
-const REPO_LABEL: Record<string, string> = {
-  bioc: "Software",
-  "data-experiment": "Experiment",
-  "data-annotation": "Annotation",
-  workflows: "Workflow",
-};
-
-function RepoBadge({ repo }: { repo: string }) {
-  return (
-    <span className="inline-block rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
-      {REPO_LABEL[repo] ?? repo}
-    </span>
-  );
-}
-
-function Chip({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-block rounded bg-bioc-50 px-1.5 py-0.5 text-xs text-bioc-700">
-      {children}
-    </span>
-  );
-}
-
-function DetailPanel({ pkg, onClose }: { pkg: Pkg; onClose: () => void }) {
+function DetailPanel({ pkg, onClose }: { pkg: Pkg; onClose?: () => void }) {
   const views = splitList(pkg.biocviews);
   const urls = splitList(pkg.url);
   return (
@@ -71,9 +50,11 @@ function DetailPanel({ pkg, onClose }: { pkg: Pkg; onClose: () => void }) {
             <span className="text-xs text-slate-400">release {pkg.latest_release}</span>
           </div>
         </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-700" aria-label="close">
-          ✕
-        </button>
+        {onClose && (
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700" aria-label="close">
+            ✕
+          </button>
+        )}
       </div>
       {pkg.title && <p className="mt-3 text-sm text-slate-700">{pkg.title}</p>}
       <dl className="mt-3 space-y-2 text-sm">
@@ -139,7 +120,7 @@ function DetailPanel({ pkg, onClose }: { pkg: Pkg; onClose: () => void }) {
             <dt className="text-xs uppercase tracking-wide text-slate-400">biocViews</dt>
             <dd className="mt-1 flex flex-wrap gap-1">
               {views.map((v) => (
-                <Chip key={v}>{v}</Chip>
+                <BiocViewChip key={v} term={v} />
               ))}
             </dd>
           </div>
@@ -149,11 +130,30 @@ function DetailPanel({ pkg, onClose }: { pkg: Pkg; onClose: () => void }) {
   );
 }
 
+// #/package/<name>: the drawer content as a page. The full profile is a later issue.
+export function PackagePage({ name }: { name: string }) {
+  const { data, loading, error } = useQuery<Pkg>(
+    `${DIR_SELECT} WHERE package_name = '${name.replaceAll("'", "''")}'`,
+  );
+  if (error) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+        Failed to load package: {error.message}
+      </div>
+    );
+  }
+  if (loading) return <p className="text-sm text-slate-500">Loading {name}…</p>;
+  if (!data?.length) return <p className="text-sm text-slate-500">No package named “{name}”.</p>;
+  return <DetailPanel pkg={data[0]} />;
+}
+
 export function Explorer() {
   const { data, loading, error } = useQuery<Pkg>(DIR_SQL);
-  const [repos, setRepos] = useState<Set<string>>(new Set());
-  const [doiOnly, setDoiOnly] = useState(false);
-  const [globalFilter, setGlobalFilter] = useState("");
+  const { params } = useRoute();
+  const { q: globalFilter = "", view: viewTerm = "" } = params;
+  const doiOnly = params.doi === "1";
+  const repoParam = params.repo;
+  const repos = useMemo(() => new Set(parseList(repoParam)), [repoParam]);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [selected, setSelected] = useState<Pkg | null>(null);
 
@@ -169,9 +169,11 @@ export function Explorer() {
     () =>
       all.filter(
         (p) =>
-          (repos.size === 0 || repos.has(p.repo)) && (!doiOnly || p.source_doi != null),
+          (repos.size === 0 || repos.has(p.repo)) &&
+          (!doiOnly || p.source_doi != null) &&
+          (!viewTerm || splitList(p.biocviews).includes(viewTerm)),
       ),
-    [all, repos, doiOnly],
+    [all, repos, doiOnly, viewTerm],
   );
 
   const columns = useMemo<ColumnDef<Pkg>[]>(
@@ -203,7 +205,7 @@ export function Explorer() {
           return (
             <div className="flex flex-wrap gap-1">
               {v.slice(0, 3).map((t) => (
-                <Chip key={t}>{t}</Chip>
+                <BiocViewChip key={t} term={t} />
               ))}
               {v.length > 3 && <span className="text-xs text-slate-400">+{v.length - 3}</span>}
             </div>
@@ -239,7 +241,6 @@ export function Explorer() {
     columns,
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -254,15 +255,6 @@ export function Explorer() {
       </div>
     );
   }
-
-  const toggleRepo = (r: string) => {
-    setRepos((prev) => {
-      const next = new Set(prev);
-      if (next.has(r)) next.delete(r);
-      else next.add(r);
-      return next;
-    });
-  };
 
   return (
     <div>
@@ -281,7 +273,7 @@ export function Explorer() {
             type="search"
             placeholder="Search…"
             value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
+            onChange={(e) => setParams("explorer", { q: e.target.value })}
             className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-bioc-500 focus:outline-none"
           />
           <div className="mt-4">
@@ -294,7 +286,7 @@ export function Explorer() {
                     <input
                       type="checkbox"
                       checked={repos.has(r)}
-                      onChange={() => toggleRepo(r)}
+                      onChange={() => setParams("explorer", { repo: toggleInList(repoParam, r) })}
                     />
                     {REPO_LABEL[r] ?? r}
                     <span className="ml-auto text-xs text-slate-400">{n}</span>
@@ -302,8 +294,27 @@ export function Explorer() {
                 ))}
             </div>
           </div>
+          {viewTerm && (
+            <div className="mt-4">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                biocViews
+              </div>
+              <div className="mt-2">
+                <Chip>
+                  {viewTerm}
+                  <button
+                    className="ml-1 text-bioc-700 hover:text-slate-900"
+                    aria-label={`remove ${viewTerm} filter`}
+                    onClick={() => setParams("explorer", { view: "" })}
+                  >
+                    ✕
+                  </button>
+                </Chip>
+              </div>
+            </div>
+          )}
           <label className="mt-4 flex items-center gap-2 text-sm text-slate-600">
-            <input type="checkbox" checked={doiOnly} onChange={(e) => setDoiOnly(e.target.checked)} />
+            <input type="checkbox" checked={doiOnly} onChange={(e) => setParams("explorer", { doi: e.target.checked ? "1" : "" })} />
             Has describing DOI
           </label>
         </div>

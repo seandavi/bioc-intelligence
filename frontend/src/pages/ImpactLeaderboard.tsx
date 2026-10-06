@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   type ColumnDef,
   type SortingState,
+  type Updater,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -11,6 +12,7 @@ import {
 } from "@tanstack/react-table";
 import { useQuery } from "../db/useQuery";
 import { RepoBadge } from "../components/ui";
+import { Link, parseList, setParams, toggleInList, useRoute } from "../lib/router";
 import { InfoDot } from "../components/InfoDot";
 import { fmtCompact, fmtFloat, fmtInt } from "../lib/format";
 
@@ -37,11 +39,25 @@ const PRESETS: { id: string; label: string; col: keyof Row }[] = [
   { id: "grants", label: "Grants", col: "n_distinct_grants_citing" },
 ];
 
+const DEFAULT_SORT = "median_rcr";
+const SORT_COLS = new Set(["package_name", "repo", ...PRESETS.map((p) => p.col as string), "total_distinct_ips"]);
+
+// URL form of the sort: "<col>" is descending, "<col>:asc" ascending.
+const parseSort = (s: string | undefined): SortingState => {
+  const [id, dir] = (s ?? "").split(":");
+  return SORT_COLS.has(id) ? [{ id, desc: dir !== "asc" }] : [{ id: DEFAULT_SORT, desc: true }];
+};
+const formatSort = (s: SortingState) => (s[0] ? `${s[0].id}${s[0].desc ? "" : ":asc"}` : "");
+
 export function ImpactLeaderboard() {
   const { data, loading, error } = useQuery<Row>(SQL);
-  const [repos, setRepos] = useState<Set<string>>(new Set());
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [sorting, setSorting] = useState<SortingState>([{ id: "median_rcr", desc: true }]);
+  const { params } = useRoute();
+  const { q: globalFilter = "", sort: sortParam } = params;
+  const repoParam = params.repo;
+  const repos = useMemo(() => new Set(parseList(repoParam)), [repoParam]);
+  const sorting = useMemo(() => parseSort(sortParam), [sortParam]);
+  const setSorting = (u: Updater<SortingState>) =>
+    setParams("impact", { sort: formatSort(typeof u === "function" ? u(sorting) : u) });
 
   const all = useMemo(() => data ?? [], [data]);
   const repoCounts = useMemo(() => {
@@ -82,7 +98,13 @@ export function ImpactLeaderboard() {
         accessorKey: "package_name",
         header: "Package",
         cell: ({ getValue }) => (
-          <span className="font-medium text-slate-800">{getValue<string>()}</span>
+          <Link
+            view="package"
+            arg={getValue<string>()}
+            className="font-medium text-bioc-700 hover:underline"
+          >
+            {getValue<string>()}
+          </Link>
         ),
       },
       { accessorKey: "repo", header: "Repo", cell: ({ getValue }) => <RepoBadge repo={getValue<string>()} /> },
@@ -105,7 +127,7 @@ export function ImpactLeaderboard() {
     columns,
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
+    enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -123,13 +145,6 @@ export function ImpactLeaderboard() {
 
   const applyPreset = (col: keyof Row) => setSorting([{ id: col as string, desc: true }]);
   const activeSort = sorting[0]?.id;
-  const toggleRepo = (r: string) =>
-    setRepos((prev) => {
-      const next = new Set(prev);
-      if (next.has(r)) next.delete(r);
-      else next.add(r);
-      return next;
-    });
 
   return (
     <div>
@@ -166,7 +181,7 @@ export function ImpactLeaderboard() {
             type="search"
             placeholder="Search…"
             value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
+            onChange={(e) => setParams("impact", { q: e.target.value })}
             className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-bioc-500 focus:outline-none"
           />
           <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">Repo</div>
@@ -175,7 +190,7 @@ export function ImpactLeaderboard() {
               .sort((a, b) => b[1] - a[1])
               .map(([r, n]) => (
                 <label key={r} className="flex items-center gap-2 text-sm text-slate-600">
-                  <input type="checkbox" checked={repos.has(r)} onChange={() => toggleRepo(r)} />
+                  <input type="checkbox" checked={repos.has(r)} onChange={() => setParams("impact", { repo: toggleInList(repoParam, r) })} />
                   <RepoBadge repo={r} />
                   <span className="ml-auto text-xs text-slate-400">{n}</span>
                 </label>
