@@ -39,7 +39,7 @@ def main(argv: list[str] | None = None) -> None:
     p_cit = sub.add_parser(
         "extract-citations", help="CITATION/Description DOIs -> bridge_package_pub"
     )
-    p_cit.add_argument("--repos", nargs="*", choices=list(extract_packages.REPOS))
+    extract_citation_files.add_arguments(p_cit)
 
     sub.add_parser(
         "extract-people", help="Authors@R -> dim_person/dim_funder + package bridges"
@@ -59,7 +59,7 @@ def main(argv: list[str] | None = None) -> None:
     elif args.cmd == "extract-people":
         extract_people.run()
     elif args.cmd == "extract-citations":
-        extract_citation_files.run(args.repos)
+        extract_citation_files.run(args.repos, args.packages, args.releases)
     elif args.cmd == "build-marts":
         build_marts.run()
     elif args.cmd == "all":
