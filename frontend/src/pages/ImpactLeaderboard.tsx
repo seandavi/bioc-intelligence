@@ -11,7 +11,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useQuery } from "../db/useQuery";
-import { RepoBadge } from "../components/ui";
+import { Chip, RepoBadge } from "../components/ui";
 import { Link, parseList, setParams, toggleInList, useRoute } from "../lib/router";
 import { InfoDot } from "../components/InfoDot";
 import { fmtCompact, fmtFloat, fmtInt } from "../lib/format";
@@ -20,6 +20,9 @@ interface Row {
   package_name: string;
   repo: string;
   total_distinct_ips: number;
+  distinct_ips_trailing_12mo: number;
+  usage_rank_in_repo: number;
+  biocviews: string; // '|'-joined
   n_primary_pubs: number;
   total_citations: number;
   median_rcr: number | null;
@@ -27,9 +30,11 @@ interface Row {
 }
 
 const SQL = `
-  SELECT package_name, repo, total_distinct_ips,
-         n_primary_pubs, total_citations, median_rcr, n_distinct_grants_citing
-  FROM 'mart_package_impact.parquet'`;
+  SELECT i.package_name, i.repo, i.total_distinct_ips, i.distinct_ips_trailing_12mo,
+         i.usage_rank_in_repo, array_to_string(d.biocviews, '|') AS biocviews,
+         i.n_primary_pubs, i.total_citations, i.median_rcr, i.n_distinct_grants_citing
+  FROM 'mart_package_impact.parquet' i
+  LEFT JOIN 'mart_package_directory.parquet' d USING (package_name, repo)`;
 
 // Quick-sort presets — the metrics a reviewer actually ranks by.
 const PRESETS: { id: string; label: string; col: keyof Row }[] = [
@@ -37,10 +42,11 @@ const PRESETS: { id: string; label: string; col: keyof Row }[] = [
   { id: "cites", label: "Total citations", col: "total_citations" },
   { id: "pubs", label: "Linked publications", col: "n_primary_pubs" },
   { id: "grants", label: "Grants", col: "n_distinct_grants_citing" },
+  { id: "recent", label: "Last 12 mo", col: "distinct_ips_trailing_12mo" },
 ];
 
 const DEFAULT_SORT = "median_rcr";
-const SORT_COLS = new Set(["package_name", "repo", ...PRESETS.map((p) => p.col as string), "total_distinct_ips"]);
+const SORT_COLS = new Set(["package_name", "repo", ...PRESETS.map((p) => p.col as string), "total_distinct_ips", "usage_rank_in_repo"]);
 
 // URL form of the sort: "<col>" is descending, "<col>:asc" ascending.
 const parseSort = (s: string | undefined): SortingState => {
@@ -52,7 +58,8 @@ const formatSort = (s: SortingState) => (s[0] ? `${s[0].id}${s[0].desc ? "" : ":
 export function ImpactLeaderboard() {
   const { data, loading, error } = useQuery<Row>(SQL);
   const { params } = useRoute();
-  const { q: globalFilter = "", sort: sortParam } = params;
+  const { q: globalFilter = "", sort: sortParam, view: viewTerm = "" } = params;
+  const noInfra = params.noinfra === "1";
   const repoParam = params.repo;
   const repos = useMemo(() => new Set(parseList(repoParam)), [repoParam]);
   const sorting = useMemo(() => parseSort(sortParam), [sortParam]);
@@ -65,9 +72,22 @@ export function ImpactLeaderboard() {
     for (const p of all) m.set(p.repo, (m.get(p.repo) ?? 0) + 1);
     return m;
   }, [all]);
+  const viewCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of all) for (const v of parseList(p.biocviews)) m.set(v, (m.get(v) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }, [all]);
   const filtered = useMemo(
-    () => all.filter((p) => repos.size === 0 || repos.has(p.repo)),
-    [all, repos],
+    () =>
+      all.filter((p) => {
+        const views = parseList(p.biocviews);
+        return (
+          (repos.size === 0 || repos.has(p.repo)) &&
+          (!noInfra || !views.includes("Infrastructure")) &&
+          (!viewTerm || views.includes(viewTerm))
+        );
+      }),
+    [all, repos, noInfra, viewTerm],
   );
 
   const downloadsLive = useMemo(() => all.some((r) => r.total_distinct_ips > 0), [all]);
@@ -118,6 +138,10 @@ export function ImpactLeaderboard() {
         "Distinct NIH grants whose publications are described by this package (via RePORTER)."),
       num("total_distinct_ips", (n) => (downloadsLive ? fmtCompact(n) : "—"), "Distinct IPs",
         "Sum of monthly distinct downloading IPs — the usage proxy (less gameable than raw downloads). An IP active in several months counts once per month."),
+      num("distinct_ips_trailing_12mo", (n) => (downloadsLive ? fmtCompact(n) : "—"), "Last 12 mo",
+        "Sum of monthly distinct IPs over the latest 12 months of download stats."),
+      num("usage_rank_in_repo", (n) => (downloadsLive && n != null ? `#${fmtInt(n)}` : "—"), "Repo rank",
+        "Rank by last-12-month distinct IPs within the package's repository (1 = most used)."),
     ],
     [downloadsLive],
   );
@@ -196,6 +220,42 @@ export function ImpactLeaderboard() {
                 </label>
               ))}
           </div>
+          <label className="mt-4 flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={noInfra}
+              onChange={(e) => setParams("impact", { noinfra: e.target.checked ? "1" : "" })}
+            />
+            Exclude Infrastructure
+          </label>
+          <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">biocViews</div>
+          {viewTerm ? (
+            <div className="mt-2">
+              <Chip>
+                {viewTerm}
+                <button
+                  className="ml-1 text-bioc-700 hover:text-slate-900"
+                  aria-label={`remove ${viewTerm} filter`}
+                  onClick={() => setParams("impact", { view: "" })}
+                >
+                  ✕
+                </button>
+              </Chip>
+            </div>
+          ) : (
+            <select
+              value=""
+              onChange={(e) => setParams("impact", { view: e.target.value })}
+              className="mt-2 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            >
+              <option value="">Any term</option>
+              {viewCounts.map(([v, n]) => (
+                <option key={v} value={v}>
+                  {v} ({n})
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div className="min-w-0 flex-1">
