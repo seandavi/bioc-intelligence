@@ -11,9 +11,8 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useQuery } from "../db/useQuery";
-import { Chip, RepoBadge } from "../components/ui";
+import { Chip, INPUT_CLASS, RepoBadge, SortableTh, SrLabel } from "../components/ui";
 import { Link, parseList, setParams, toggleInList, useRoute } from "../lib/router";
-import { InfoDot } from "../components/InfoDot";
 import { fmtCompact, fmtFloat, fmtInt } from "../lib/format";
 
 interface Row {
@@ -99,14 +98,8 @@ export function ImpactLeaderboard() {
     info?: string,
   ): ColumnDef<Row> => ({
     accessorKey: key as string,
-    header: info
-      ? () => (
-          <span className="inline-flex items-center">
-            {header}
-            <InfoDot tip={info} />
-          </span>
-        )
-      : header,
+    header,
+    meta: { info },
     cell: ({ getValue }) => <span className="tabular-nums">{fmt(getValue<number | null>())}</span>,
     sortUndefined: "last",
     sortingFn: "basic",
@@ -178,7 +171,7 @@ export function ImpactLeaderboard() {
           {loading ? "Loading…" : `${filtered.length.toLocaleString()} packages`} · rank by impact
           signal.{" "}
           {!downloadsLive && (
-            <span className="text-slate-400">Download stats pending (endpoint offline).</span>
+            <span className="text-slate-500">Download stats pending (endpoint offline).</span>
           )}
         </p>
       </div>
@@ -201,12 +194,14 @@ export function ImpactLeaderboard() {
 
       <div className="flex flex-col gap-5 lg:flex-row">
         <div className="shrink-0 lg:w-44">
+          <SrLabel htmlFor="impact-search">Search packages</SrLabel>
           <input
+            id="impact-search"
             type="search"
             placeholder="Search…"
             value={globalFilter}
             onChange={(e) => setParams("impact", { q: e.target.value })}
-            className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-bioc-500 focus:outline-none"
+            className={`w-full ${INPUT_CLASS}`}
           />
           <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">Repo</div>
           <div className="mt-2 space-y-1">
@@ -216,7 +211,7 @@ export function ImpactLeaderboard() {
                 <label key={r} className="flex items-center gap-2 text-sm text-slate-600">
                   <input type="checkbox" checked={repos.has(r)} onChange={() => setParams("impact", { repo: toggleInList(repoParam, r) })} />
                   <RepoBadge repo={r} />
-                  <span className="ml-auto text-xs text-slate-400">{n}</span>
+                  <span className="ml-auto text-xs text-slate-500">{n}</span>
                 </label>
               ))}
           </div>
@@ -244,9 +239,10 @@ export function ImpactLeaderboard() {
             </div>
           ) : (
             <select
+              aria-label="Filter by biocViews term"
               value=""
               onChange={(e) => setParams("impact", { view: e.target.value })}
-              className="mt-2 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              className="mt-2 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bioc-500"
             >
               <option value="">Any term</option>
               {viewCounts.map(([v, n]) => (
@@ -265,14 +261,14 @@ export function ImpactLeaderboard() {
                 {table.getHeaderGroups().map((hg) => (
                   <tr key={hg.id}>
                     {hg.headers.map((h) => (
-                      <th
+                      <SortableTh
                         key={h.id}
-                        onClick={h.column.getToggleSortingHandler()}
-                        className="cursor-pointer select-none px-3 py-2 hover:text-slate-700"
+                        sorted={h.column.getIsSorted()}
+                        onToggle={h.column.getCanSort() ? h.column.getToggleSortingHandler() : undefined}
+                        info={h.column.columnDef.meta?.info}
                       >
                         {flexRender(h.column.columnDef.header, h.getContext())}
-                        {{ asc: " ↑", desc: " ↓" }[h.column.getIsSorted() as string] ?? ""}
-                      </th>
+                      </SortableTh>
                     ))}
                   </tr>
                 ))}
@@ -283,7 +279,7 @@ export function ImpactLeaderboard() {
                     {row.getVisibleCells().map((cell, j) => (
                       <td key={cell.id} className="px-3 py-2">
                         {j === 0 && (
-                          <span className="mr-2 text-xs text-slate-400">
+                          <span className="mr-2 text-xs text-slate-500">
                             {table.getState().pagination.pageIndex * 25 + i + 1}
                           </span>
                         )}

@@ -3,7 +3,7 @@ import { useQuery } from "../db/useQuery";
 import { TermTree, type TreeNode } from "../components/TermTree";
 import { VegaChart } from "../components/VegaChart";
 import { horizontalBar } from "../components/charts";
-import { BiocViewChip } from "../components/ui";
+import { BiocViewChip, INPUT_CLASS, SrLabel } from "../components/ui";
 import { fmtInt } from "../lib/format";
 
 interface Term {
@@ -72,12 +72,14 @@ export function BiocViews() {
 
       <div className="flex flex-col gap-6 lg:flex-row">
         <div className="min-w-0 flex-1">
+          <SrLabel htmlFor="biocviews-tree-filter">Filter hierarchy</SrLabel>
           <input
+            id="biocviews-tree-filter"
             type="search"
             placeholder="Filter hierarchy…"
             value={treeQ}
             onChange={(e) => setTreeQ(e.target.value)}
-            className="mb-3 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-bioc-500 focus:outline-none"
+            className={`mb-3 w-full ${INPUT_CLASS}`}
           />
           <div className="max-h-[40rem] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3">
             {treeError ? (
@@ -85,7 +87,7 @@ export function BiocViews() {
             ) : tree ? (
               <TermTree roots={tree} filter={treeQ} />
             ) : (
-              <p className="text-sm text-slate-400">Loading…</p>
+              <p className="text-sm text-slate-500">Loading…</p>
             )}
           </div>
           {topSpec && (
@@ -96,12 +98,14 @@ export function BiocViews() {
         </div>
 
         <div className="lg:w-96">
+          <SrLabel htmlFor="biocviews-term-filter">Filter terms</SrLabel>
           <input
+            id="biocviews-term-filter"
             type="search"
             placeholder="Filter terms…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="mb-3 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-bioc-500 focus:outline-none"
+            className={`mb-3 w-full ${INPUT_CLASS}`}
           />
           <div className="max-h-[28rem] overflow-y-auto rounded-xl border border-slate-200 bg-white">
             <table className="w-full text-sm">
@@ -128,7 +132,7 @@ export function BiocViews() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td className="px-3 py-4 text-center text-sm text-slate-400">no matching terms</td>
+                    <td className="px-3 py-4 text-center text-sm text-slate-500">no matching terms</td>
                   </tr>
                 )}
               </tbody>

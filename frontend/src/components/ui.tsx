@@ -1,5 +1,71 @@
 // Small shared presentational bits used across views.
+import type { ReactNode } from "react";
 import { Link } from "../lib/router";
+import { InfoDot } from "./InfoDot";
+
+declare module "@tanstack/react-table" {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData, TValue> {
+    info?: string;
+  }
+}
+
+// Visible keyboard focus ring shared by every text input and select.
+export const INPUT_CLASS =
+  "rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-bioc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bioc-500";
+
+// Visually hidden text that screen readers still announce (input labels).
+export function SrLabel({ htmlFor, children }: { htmlFor: string; children: ReactNode }) {
+  return (
+    <label htmlFor={htmlFor} className="sr-only">
+      {children}
+    </label>
+  );
+}
+
+// Column header cell: a real <button> toggles sorting, aria-sort exposes the state.
+// `info` renders an InfoDot beside (not inside) the button, since buttons can't nest.
+export function SortableTh({
+  sorted,
+  onToggle,
+  info,
+  className = "",
+  children,
+}: {
+  sorted: false | "asc" | "desc";
+  onToggle?: (event: unknown) => void;
+  info?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  if (!onToggle) {
+    return (
+      <th scope="col" className={`px-3 py-2 ${className}`}>
+        {children}
+        {info && <InfoDot tip={info} />}
+      </th>
+    );
+  }
+  return (
+    <th
+      scope="col"
+      aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none"}
+      className={`px-3 py-2 ${className}`}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bioc-500"
+      >
+        {children}
+        <span aria-hidden className={sorted ? "" : "text-slate-500"}>
+          {sorted === "asc" ? "↑" : sorted === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+      {info && <InfoDot tip={info} />}
+    </th>
+  );
+}
 
 export const REPO_LABEL: Record<string, string> = {
   bioc: "Software",
