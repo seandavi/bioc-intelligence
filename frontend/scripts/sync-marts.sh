@@ -3,6 +3,10 @@
 # manifest. Run from anywhere; paths are resolved relative to this script.
 set -euo pipefail
 
+# Bioconductor release whose biocViews hierarchy (tree.json) the site shows.
+# Bump when a new release ships.
+RELEASE="${RELEASE:-3.23}"
+
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 src="$here/../../data/marts"
 dst="$here/../public/data"
@@ -16,6 +20,7 @@ if [ ${#marts[@]} -eq 0 ]; then
 fi
 
 cp "${marts[@]}" "$dst/"
+curl -fsS "https://bioconductor.org/packages/json/$RELEASE/tree.json" -o "$dst/tree.json"
 snapshot="$(date -u +%Y-%m-%d)"
 names=""
 for m in "${marts[@]}"; do
