@@ -23,7 +23,10 @@ def _fixture(con):
         "INSERT INTO dim_work (work_id, pmid, icite_rcr, citation_count) "
         "VALUES ('W1','123',5.0,99)"
     )
-    con.execute("INSERT INTO dim_grant (grant_id, agency, title) VALUES ('U24CA1','CA','Cancer x')")
+    con.execute(
+        "INSERT INTO dim_grant (grant_id, agency, title, ic_name, fy_first, fy_last, org_name) "
+        "VALUES ('U24CA1','CA','Cancer x','National Cancer Institute',2020,2024,'Org A')"
+    )
     con.execute(
         "INSERT INTO bridge_work_grant (work_id, grant_id, source) "
         "VALUES ('W1','U24CA1','reporter')"
@@ -56,12 +59,13 @@ def test_grant_attribution_rolls_up_packages():
     _fixture(con)
     con.execute(_MART_SQL)
     row = con.execute(
-        "SELECT agency, n_packages_supported, package_names FROM mart_grant_attribution "
-        "WHERE grant_id='U24CA1'"
+        "SELECT agency, n_packages_supported, package_names, ic_name, fy_first, fy_last, "
+        "org_name FROM mart_grant_attribution WHERE grant_id='U24CA1'"
     ).fetchone()
     assert row[0] == "CA"
     assert row[1] == 1
     assert row[2] == ["limma"]
+    assert row[3:] == ("National Cancer Institute", 2020, 2024, "Org A")
 
 
 def test_directory_mart_has_all_packages():

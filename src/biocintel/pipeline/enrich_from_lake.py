@@ -77,16 +77,40 @@ LEFT JOIN lake.icite.metadata ic ON ic.pmid = l.pmid;
 # it joins reporter.projects.core_project_num, NOT project_num. Verified against
 # the lake; worth a versioned-view alias upstream.
 _GRANT_DIM_SQL = """
-INSERT OR REPLACE INTO bi.dim_grant (grant_id, agency, project_num, fy, title)
-SELECT grant_id, agency, project_num, fy, title FROM (
+INSERT OR REPLACE INTO bi.dim_grant
+    (grant_id, agency, project_num, fy, title, ic_name, fy_first, fy_last,
+     org_name, org_country, pi_names)
+SELECT grant_id, agency, project_num, fy, title, ic_name, fy_first, fy_last,
+       org_name, org_country, pi_names
+FROM (
     SELECT pr.core_project_num AS grant_id, pr.admin_ic AS agency,
            pr.project_num AS project_num, pr.fiscal_year AS fy, pr.project_title AS title,
-           row_number() OVER (PARTITION BY pr.core_project_num ORDER BY pr.fiscal_year DESC) rn
-    FROM linked l
-    JOIN lake.reporter.publink pl ON pl.pmid = l.pmid
-    JOIN lake.reporter.projects pr ON pr.core_project_num = pl.project_number
-    WHERE pr.core_project_num IS NOT NULL
+           pr.ic_name AS ic_name,
+           min(pr.fiscal_year) OVER (PARTITION BY pr.core_project_num) AS fy_first,
+           max(pr.fiscal_year) OVER (PARTITION BY pr.core_project_num) AS fy_last,
+           pr.org_name AS org_name, pr.org_country AS org_country, pr.pi_names AS pi_names,
+           -- parent award rows (no subproject_id) first; sub-project titles such as
+           -- "Project-002" only when a core project has no parent row at all
+           row_number() OVER (
+               PARTITION BY pr.core_project_num
+               ORDER BY (pr.subproject_id IS NULL) DESC, pr.fiscal_year DESC NULLS LAST
+           ) rn
+    FROM lake.reporter.projects pr
+    WHERE pr.core_project_num IN (
+        SELECT pl.project_number
+        FROM linked l JOIN lake.reporter.publink pl ON pl.pmid = l.pmid
+    )
 ) WHERE rn = 1;
+"""
+
+# Bridged grants the lake has no projects row for: keep a dim_grant row (agency from
+# the core number's IC letters, e.g. U41HG004059 -> HG) so marts have no orphan grants.
+_GRANT_STUB_SQL = """
+INSERT INTO bi.dim_grant (grant_id, agency)
+SELECT DISTINCT grant_id,
+       NULLIF(regexp_extract(grant_id, '^[A-Z][0-9]{2}([A-Z]{2})[0-9]+', 1), '')
+FROM bi.bridge_work_grant
+WHERE grant_id NOT IN (SELECT grant_id FROM bi.dim_grant);
 """
 
 _GRANT_BRIDGE_SQL = """
@@ -153,6 +177,8 @@ def _enrich_grants(con: duckdb.DuckDBPyConnection) -> int:
     )
     con.execute(_GRANT_DIM_SQL)
     con.execute(_GRANT_BRIDGE_SQL)
+    n_stub = con.execute(_GRANT_STUB_SQL).fetchone()[0]
+    print(f"  dim_grant stubs (no RePORTER row): {n_stub}")
     return con.execute(
         "SELECT count(*) FROM bi.bridge_work_grant WHERE source='reporter'"
     ).fetchone()[0]
