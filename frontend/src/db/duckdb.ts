@@ -24,7 +24,10 @@ export const MARTS = [
 // Range to the gzipped stream (HEAD reports the compressed length, tail ranges 416), so
 // DuckDB-WASM would read the footer at the wrong offset. Revisit if the marts move to a host
 // that serves identity-encoded ranges.
-export const LAZY_MARTS = ["mart_package_downloads_monthly.parquet"] as const;
+export const LAZY_MARTS = [
+  "mart_package_downloads_monthly.parquet",
+  "mart_work_institution.parquet",
+] as const;
 
 export interface Manifest {
   snapshot: string;

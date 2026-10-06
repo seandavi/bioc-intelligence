@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { VisualizationSpec } from "vega-embed";
 import { useQuery } from "../db/useQuery";
 import { VegaChart } from "../components/VegaChart";
 import { eraBand, ERA_START } from "../components/Sparkline";
+import { horizontalBar } from "../components/charts";
 import { StatCard } from "../components/StatCard";
 import { REPO_LABEL } from "../components/ui";
 import { fmtInt } from "../lib/format";
@@ -46,6 +47,39 @@ const BY_REPO = `
 const YEARLY = `
   SELECT year, methodology_era, sum(distinct_ips)::BIGINT AS distinct_ips
   FROM 'mart_ecosystem_downloads_yearly.parquet' GROUP BY year, methodology_era ORDER BY year`;
+
+interface CountryRow {
+  country: string;
+  n_works: number;
+}
+
+interface InstitutionRow {
+  name: string;
+  country: string | null;
+  n_works: number;
+}
+
+interface Coverage {
+  with_institution: number;
+  total: number;
+}
+
+// Works are distinct: a paper with several authors at one institution or country counts once.
+const countryQuery = (seniorOnly: boolean) => `
+  SELECT country, count(DISTINCT work_id)::INT AS n_works
+  FROM 'mart_work_institution.parquet'
+  WHERE country IS NOT NULL ${seniorOnly ? "AND author_position = 'last'" : ""}
+  GROUP BY country ORDER BY n_works DESC, country LIMIT 15`;
+
+const INSTITUTIONS = `
+  SELECT name, any_value(country) AS country, count(DISTINCT work_id)::INT AS n_works
+  FROM 'mart_work_institution.parquet'
+  GROUP BY ror, name ORDER BY n_works DESC, name LIMIT 25`;
+
+const COVERAGE = `
+  SELECT (SELECT count(DISTINCT work_id) FROM 'mart_work_institution.parquet')::INT
+           AS with_institution,
+         (SELECT count(*) FROM 'mart_work.parquet')::INT AS total`;
 
 const VIEWS_SOURCE = "Release VIEWS";
 const ANNOUNCED_SOURCE = "Announced count only";
@@ -161,6 +195,77 @@ function usageSpec(rows: YearRow[]): VisualizationSpec {
   } as VisualizationSpec;
 }
 
+// Hidden until the institution mart is published, and if it fails to load.
+function PaperOrigins() {
+  const [seniorOnly, setSeniorOnly] = useState(true);
+  const countries = useQuery<CountryRow>(countryQuery(seniorOnly));
+  const institutions = useQuery<InstitutionRow>(INSTITUTIONS);
+  const coverage = useQuery<Coverage>(COVERAGE);
+
+  const chart = useMemo(
+    () =>
+      countries.data?.length
+        ? horizontalBar(
+            countries.data as unknown as Record<string, unknown>[],
+            "n_works",
+            "country",
+            seniorOnly
+              ? "Linked papers by senior-author country"
+              : "Linked papers by country of any author",
+          )
+        : null,
+    [countries.data, seniorOnly],
+  );
+
+  if (countries.error || institutions.error || coverage.error) return null;
+  const cov = coverage.data?.[0];
+
+  return (
+    <div className={PANEL}>
+      <h2 className="text-lg font-semibold text-slate-900">Where the papers come from</h2>
+      <p className="mt-1 text-sm text-slate-500">
+        {cov
+          ? `${fmtInt(cov.with_institution)} of ${fmtInt(cov.total)} linked papers have at least one institution. `
+          : ""}
+        Affiliations come from the OpenAlex authorships of the papers packages ask users to cite,
+        not from package maintainers.
+      </p>
+      <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          checked={!seniorOnly}
+          onChange={(e) => setSeniorOnly(!e.target.checked)}
+        />
+        Any author position (default: senior, i.e. last, author only)
+      </label>
+      <div className="mt-2">{chart && <VegaChart spec={chart} className="w-full" />}</div>
+      <p className="mt-2 text-xs text-slate-500">
+        Distinct papers per country; a paper with authors in several countries counts once in each.
+      </p>
+
+      <h3 className="mt-5 text-sm font-semibold text-slate-700">Top institutions</h3>
+      <table className="mt-2 w-full text-sm">
+        <thead className="text-xs uppercase tracking-wide text-slate-500">
+          <tr>
+            <th className="px-2 py-1 text-left">Institution</th>
+            <th className="px-2 py-1 text-left">Country</th>
+            <th className="px-2 py-1 text-right">Papers</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(institutions.data ?? []).map((r) => (
+            <tr key={`${r.name}|${r.country}`} className="border-t border-slate-200">
+              <td className="px-2 py-1">{r.name}</td>
+              <td className="px-2 py-1">{r.country ?? "—"}</td>
+              <td className="px-2 py-1 text-right tabular-nums">{fmtInt(r.n_works)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 const PANEL = "mt-4 rounded-xl border border-slate-200 bg-white p-4";
 
 export function Growth() {
@@ -239,6 +344,8 @@ export function Growth() {
           not comparable, so the line breaks at the boundary. The latest year is year-to-date.
         </p>
       </div>
+
+      <PaperOrigins />
     </div>
   );
 }
