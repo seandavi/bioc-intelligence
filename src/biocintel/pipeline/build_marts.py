@@ -117,20 +117,65 @@ SELECT package_name, repo, year, month, distinct_ips, downloads, methodology_era
 FROM fd
 ORDER BY package_name, repo, year, month;
 
-CREATE OR REPLACE TABLE mart_release_growth AS
-SELECT bioc_release,
-       COUNT(DISTINCT package_name) AS n_packages,
-       COUNT(DISTINCT package_name) FILTER (WHERE first_seen = bioc_release)
-                                    AS n_new_packages,  -- 0 until version history lands
-       CAST(NULL AS BIGINT) AS net_downloads  -- needs release-windowed downloads
-FROM (
-    SELECT v.package_name, v.bioc_release, p.first_seen_release AS first_seen
-    FROM dim_package_version v
-    LEFT JOIN dim_package p USING (package_name, repo)
-    WHERE NOT v.in_devel
+-- Release-over-release diffs from each release's VIEWS (dim_package_version, 1.8+), per
+-- repo and for all repos together (repo '*', where a package is one name across repos).
+-- Releases sort numerically (3.9 < 3.10). The earliest loaded release has no predecessor,
+-- so its new/removed are NULL rather than "everything is new"; a repo's first release
+-- after that (workflows) counts all its packages as new. Removed = in the repo's previous
+-- loaded release, absent from this one.
+CREATE OR REPLACE TEMP TABLE _release_diff AS
+WITH pv AS (
+    SELECT DISTINCT package_name, repo, bioc_release,
+           string_split(bioc_release, '.')::INT[] AS rk
+    FROM dim_package_version WHERE NOT in_devel
+    UNION
+    SELECT DISTINCT package_name, '*', bioc_release, string_split(bioc_release, '.')::INT[]
+    FROM dim_package_version WHERE NOT in_devel
+),
+first_seen AS (
+    SELECT package_name, repo, min(rk) AS first_rk FROM pv GROUP BY package_name, repo
+),
+rel AS (
+    SELECT repo, bioc_release, rk, lag(rk) OVER (PARTITION BY repo ORDER BY rk) AS prev_rk
+    FROM (SELECT DISTINCT repo, bioc_release, rk FROM pv)
+),
+cur AS (
+    SELECT r.repo, r.bioc_release, r.rk, r.prev_rk,
+           count(*)                                  AS n_packages,
+           count(*) FILTER (WHERE f.first_rk = r.rk) AS n_new
+    FROM rel r
+    JOIN pv USING (repo, bioc_release)
+    JOIN first_seen f USING (package_name, repo)
+    GROUP BY r.repo, r.bioc_release, r.rk, r.prev_rk
+),
+removed AS (
+    SELECT r.repo, r.bioc_release, count(*) AS n_removed
+    FROM rel r
+    JOIN pv prev ON prev.repo = r.repo AND prev.rk = r.prev_rk
+    ANTI JOIN pv c ON c.repo = r.repo AND c.rk = r.rk AND c.package_name = prev.package_name
+    GROUP BY r.repo, r.bioc_release
 )
-GROUP BY bioc_release
-ORDER BY bioc_release;
+SELECT c.bioc_release, c.repo, c.rk, c.n_packages,
+       CASE WHEN c.rk > min(c.rk) OVER () THEN c.n_new END                    AS n_new,
+       CASE WHEN c.rk > min(c.rk) OVER () THEN COALESCE(x.n_removed, 0) END   AS n_removed
+FROM cur c LEFT JOIN removed x USING (repo, bioc_release);
+
+CREATE OR REPLACE TABLE mart_release_history AS
+SELECT d.bioc_release, r.release_date, d.repo, d.n_packages, d.n_new, d.n_removed
+FROM _release_diff d
+LEFT JOIN dim_release r USING (bioc_release)
+WHERE d.repo <> '*'
+ORDER BY d.rk, d.repo;
+
+-- One row per announced release (1.0 onwards) plus any loaded release not announced.
+-- Releases before VIEWS (1.0-1.7) carry only n_software_announced (bioc repo only).
+CREATE OR REPLACE TABLE mart_release_growth AS
+SELECT bioc_release, r.release_date, r.n_software_announced,
+       d.n_packages, d.n_new AS n_new_packages, d.n_removed,
+       CAST(NULL AS BIGINT) AS net_downloads  -- needs release-windowed downloads
+FROM dim_release r
+FULL JOIN (SELECT * FROM _release_diff WHERE repo = '*') d USING (bioc_release)
+ORDER BY string_split(bioc_release, '.')::INT[];
 
 -- Grant-attribution narrative (the grant-submission use case, spec §8).
 CREATE OR REPLACE TABLE mart_grant_attribution AS
@@ -250,6 +295,7 @@ ORDER BY package_name, repo, kind, dep;
 _MARTS = [
     "mart_package_impact",
     "mart_release_growth",
+    "mart_release_history",
     "mart_grant_attribution",
     "mart_package_directory",
     "mart_work",
