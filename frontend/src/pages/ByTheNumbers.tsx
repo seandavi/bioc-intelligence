@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { VisualizationSpec } from "vega-embed";
+import { fetchManifest } from "../db/duckdb";
 import { useQuery } from "../db/useQuery";
 import { StatCard } from "../components/StatCard";
 import { VegaChart } from "../components/VegaChart";
 import { REPO_LABEL } from "../components/ui";
+import { Link } from "../lib/router";
 import { fmtCompact, fmtFloat, fmtInt } from "../lib/format";
 
 const ACCENT = "#1f7bbf";
@@ -152,7 +154,31 @@ function Section({ title, note, children }: { title: string; note?: string; chil
   );
 }
 
+const ENTRY_POINTS = [
+  {
+    view: "grants",
+    title: "Writing a grant renewal",
+    text: "Find the packages and papers your award produced, with citations and usage to quote.",
+  },
+  {
+    view: "explorer",
+    title: "Maintaining a package",
+    text: "See how your package is used and cited, and which grants and papers it is linked to.",
+  },
+  {
+    view: "explorer",
+    title: "Choosing a tool",
+    text: "Search and compare packages by topic, popularity and the papers behind them.",
+  },
+];
+
 export function ByTheNumbers() {
+  const [snapshot, setSnapshot] = useState<string | null>(null);
+  useEffect(() => {
+    fetchManifest().then((m) => setSnapshot(m.snapshot)).catch(() => setSnapshot(null));
+  }, []);
+  const snapshotNote = snapshot ? `Snapshot ${snapshot}` : undefined;
+
   const eco = useQuery<Eco>(ECOSYSTEM);
   const byRepo = useQuery<Record<string, unknown>>(BY_REPO);
   const bvTop = useQuery<Record<string, unknown>>(BIOCVIEWS_TOP);
@@ -233,6 +259,25 @@ export function ByTheNumbers() {
         </p>
       </div>
 
+      <div className="mb-8">
+        <p className="text-sm text-slate-600">
+          Impact analytics for the Bioconductor ecosystem: packages, usage, publications, grants.
+          Updated monthly.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          {ENTRY_POINTS.map((c) => (
+            <Link
+              key={c.title}
+              view={c.view}
+              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-bioc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bioc-500"
+            >
+              <div className="text-sm font-semibold text-slate-900">{c.title}</div>
+              <div className="mt-1 text-xs text-slate-500">{c.text}</div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
       <Section title="Ecosystem">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Packages" value={fmtInt(e.n_packages)} sub={`${e.n_repos} repositories`}
@@ -245,10 +290,10 @@ export function ByTheNumbers() {
         </div>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-white p-4">
-            {repoSpec && <VegaChart spec={repoSpec} className="w-full" />}
+            {repoSpec && <VegaChart spec={repoSpec} subtitle={snapshotNote} className="w-full" />}
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
-            {bvSpec && <VegaChart spec={bvSpec} className="w-full" />}
+            {bvSpec && <VegaChart spec={bvSpec} subtitle={snapshotNote} className="w-full" />}
           </div>
         </div>
       </Section>
@@ -275,13 +320,13 @@ export function ByTheNumbers() {
         </div>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-white p-4">
-            {papersChart && <VegaChart spec={papersChart} className="w-full" />}
+            {papersChart && <VegaChart spec={papersChart} subtitle={snapshotNote} className="w-full" />}
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
-            {yearChart && <VegaChart spec={yearChart} className="w-full" />}
+            {yearChart && <VegaChart spec={yearChart} subtitle={snapshotNote} className="w-full" />}
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
-            {rcrSpec && <VegaChart spec={rcrSpec} className="w-full" />}
+            {rcrSpec && <VegaChart spec={rcrSpec} subtitle={snapshotNote} className="w-full" />}
           </div>
         </div>
       </Section>

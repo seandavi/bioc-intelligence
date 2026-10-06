@@ -103,19 +103,21 @@ export default function App() {
       </main>
 
       <footer className="mx-auto max-w-6xl px-6 py-8 text-xs text-slate-500">
-        Zero-backend SPA — DuckDB-WASM over prebuilt Parquet marts. Enrichment sourced read-only
-        from cdsci-lake.{" "}
+        Built from Bioconductor, OpenAlex, NIH iCite and NIH RePORTER data; refreshed monthly.{" "}
         <Link view="about" className="text-bioc-600 underline">
-          About, methods and how to cite
+          About
         </Link>
-        . Source:{" "}
+        {" · "}
+        <Link view="data" className="text-bioc-600 underline">
+          Data
+        </Link>
+        {" · "}
         <a
           className="text-bioc-600 underline"
           href="https://github.com/seandavi/bioc-intelligence"
         >
-          seandavi/bioc-intelligence
+          Source on GitHub
         </a>
-        .
       </footer>
     </div>
   );
