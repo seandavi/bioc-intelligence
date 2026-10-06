@@ -27,16 +27,18 @@ dl AS (
     FROM fd
     GROUP BY package_name, repo
 ),
-recent AS (  -- trailing 12 months relative to the latest (year, month) present
+recent AS (  -- trailing 12 months relative to the latest (year, month) present,
+             -- plus the 12 months before that (for year-over-year change)
     SELECT package_name, repo,
-           SUM(downloads)    AS downloads_trailing_12mo,
-           SUM(distinct_ips) AS distinct_ips_trailing_12mo
+           SUM(downloads)    FILTER (WHERE ym > max_ym - 12)  AS downloads_trailing_12mo,
+           SUM(distinct_ips) FILTER (WHERE ym > max_ym - 12)  AS distinct_ips_trailing_12mo,
+           SUM(distinct_ips) FILTER (WHERE ym <= max_ym - 12) AS distinct_ips_prior_12mo
     FROM (
         SELECT *, (year * 12 + month) AS ym,
                MAX(year * 12 + month) OVER () AS max_ym
         FROM fd
     )
-    WHERE ym > max_ym - 12
+    WHERE ym > max_ym - 24
     GROUP BY package_name, repo
 ),
 pw AS (  -- package → its linked works, canonicalized to dim_work's work_id so a
@@ -72,6 +74,10 @@ SELECT p.package_name, p.repo,
        COALESCE(dl.total_distinct_ips, 0)         AS total_distinct_ips,
        COALESCE(r.downloads_trailing_12mo, 0)     AS downloads_trailing_12mo,
        COALESCE(r.distinct_ips_trailing_12mo, 0)  AS distinct_ips_trailing_12mo,
+       COALESCE(r.distinct_ips_prior_12mo, 0)     AS distinct_ips_prior_12mo,
+       rank() OVER (PARTITION BY p.repo
+                    ORDER BY COALESCE(r.distinct_ips_trailing_12mo, 0) DESC)
+                                                  AS usage_rank_in_repo,
        COALESCE(pubs.n_primary_pubs, 0)           AS n_primary_pubs,
        COALESCE(wm.total_citations, 0)            AS total_citations,
        COALESCE(citing.n_citing_works, 0)         AS n_citing_works,
@@ -84,6 +90,32 @@ LEFT JOIN pubs   USING (package_name, repo)
 LEFT JOIN wm     USING (package_name, repo)
 LEFT JOIN citing USING (package_name, repo)
 LEFT JOIN grants USING (package_name, repo);
+
+-- Ecosystem download series per year. Eras are separate rows (never silently concatenated);
+-- the methodology boundary falls inside 2015, so that year has one row per era.
+CREATE OR REPLACE TABLE mart_ecosystem_downloads_yearly AS
+WITH fd AS (
+    SELECT * FROM fact_download
+    QUALIFY _snapshot = MAX(_snapshot) OVER (PARTITION BY repo)
+)
+SELECT year, repo, methodology_era,
+       SUM(distinct_ips) AS distinct_ips,
+       SUM(downloads)    AS downloads,
+       COUNT(DISTINCT package_name) FILTER (WHERE downloads > 0) AS n_packages_with_downloads
+FROM fd
+GROUP BY year, repo, methodology_era
+ORDER BY repo, year, methodology_era;
+
+-- Per-package monthly series. Sorted so each package sits in a few row groups
+-- (exported with a small ROW_GROUP_SIZE) and the browser can range-read one package.
+CREATE OR REPLACE TABLE mart_package_downloads_monthly AS
+WITH fd AS (
+    SELECT * FROM fact_download
+    QUALIFY _snapshot = MAX(_snapshot) OVER (PARTITION BY repo)
+)
+SELECT package_name, repo, year, month, distinct_ips, downloads, methodology_era
+FROM fd
+ORDER BY package_name, repo, year, month;
 
 CREATE OR REPLACE TABLE mart_release_growth AS
 SELECT bioc_release,
@@ -198,7 +230,12 @@ _MARTS = [
     "mart_package_person",
     "mart_person",
     "mart_package_funder",
+    "mart_ecosystem_downloads_yearly",
+    "mart_package_downloads_monthly",
 ]
+
+# Small row groups let DuckDB-WASM range-read one package from the sorted monthly mart.
+_ROW_GROUP_SIZE = {"mart_package_downloads_monthly": 2048}
 
 
 def run() -> dict[str, int]:
@@ -210,7 +247,8 @@ def run() -> dict[str, int]:
         con.execute(_MART_SQL)
         for mart in _MARTS:
             out = MART_DIR / f"{mart}.parquet"
-            con.execute(f"COPY {mart} TO '{out}' (FORMAT parquet)")
+            opts = f", ROW_GROUP_SIZE {_ROW_GROUP_SIZE[mart]}" if mart in _ROW_GROUP_SIZE else ""
+            con.execute(f"COPY {mart} TO '{out}' (FORMAT parquet{opts})")
             n = con.execute(f"SELECT count(*) FROM {mart}").fetchone()[0]
             counts[mart] = n
             print(f"  {mart}: {n} rows -> {out}")

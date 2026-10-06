@@ -166,3 +166,65 @@ def test_directory_mart_has_description_not_email():
     assert "maintainer_email" not in cols
     work_cols = {r[0] for r in con.execute("DESCRIBE mart_work").fetchall()}
     assert "title" in work_cols
+
+
+def _download_fixture(con):
+    _fixture(con)
+    con.execute("INSERT INTO dim_package (package_name, repo) VALUES ('edgeR','bioc')")
+    # Inserted out of order; the 2026-09-01 snapshot is stale and must be ignored entirely.
+    con.execute(
+        "INSERT INTO fact_download VALUES "
+        "('limma','bioc',2026,9,40,80,'modern','2026-10-01'),"
+        "('edgeR','bioc',2026,9,100,200,'modern','2026-10-01'),"
+        "('limma','bioc',2015,10,30,60,'modern','2026-10-01'),"
+        "('limma','bioc',2015,9,10,20,'pre_2015_10','2026-10-01'),"
+        "('edgeR','bioc',2015,10,0,0,'modern','2026-10-01'),"
+        "('limma','bioc',2025,9,7,14,'modern','2026-10-01'),"
+        "('limma','bioc',2026,9,999,999,'modern','2026-09-01'),"
+        "('limma','bioc',2015,9,999,999,'pre_2015_10','2026-09-01')"
+    )
+
+
+def test_ecosystem_yearly_keeps_eras_separate():
+    con = db.connect(":memory:")
+    _download_fixture(con)
+    con.execute(_MART_SQL)
+    rows = con.execute(
+        "SELECT year, methodology_era, distinct_ips, downloads, n_packages_with_downloads "
+        "FROM mart_ecosystem_downloads_yearly WHERE repo='bioc' ORDER BY year, methodology_era"
+    ).fetchall()
+    assert rows == [
+        (2015, "modern", 30, 60, 1),  # edgeR's zero-download month is not counted
+        (2015, "pre_2015_10", 10, 20, 1),
+        (2025, "modern", 7, 14, 1),
+        (2026, "modern", 140, 280, 2),
+    ]
+
+
+def test_package_downloads_monthly_is_sorted_and_latest_snapshot_only():
+    con = db.connect(":memory:")
+    _download_fixture(con)
+    con.execute(_MART_SQL)
+    rows = con.execute(
+        "SELECT package_name, repo, year, month, distinct_ips FROM mart_package_downloads_monthly"
+    ).fetchall()  # no ORDER BY: the stored order is what the Parquet file inherits
+    assert rows == [
+        ("edgeR", "bioc", 2015, 10, 0),
+        ("edgeR", "bioc", 2026, 9, 100),
+        ("limma", "bioc", 2015, 9, 10),
+        ("limma", "bioc", 2015, 10, 30),
+        ("limma", "bioc", 2025, 9, 7),
+        ("limma", "bioc", 2026, 9, 40),
+    ]
+
+
+def test_package_impact_prior_12mo_and_usage_rank():
+    con = db.connect(":memory:")
+    _download_fixture(con)
+    con.execute(_MART_SQL)
+    rows = con.execute(
+        "SELECT package_name, distinct_ips_trailing_12mo, distinct_ips_prior_12mo, "
+        "usage_rank_in_repo FROM mart_package_impact ORDER BY package_name"
+    ).fetchall()
+    # trailing = 2025-10..2026-09; prior = 2024-10..2025-09 (2015 rows fall outside both)
+    assert rows == [("edgeR", 100, 0, 1), ("limma", 40, 7, 2)]

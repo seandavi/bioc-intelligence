@@ -23,13 +23,15 @@ column names stable once published (mirror the lake's versioned-view discipline)
 
 | Mart | Grain | Columns | Notes |
 |---|---|---|---|
-| `mart_package_impact` | package × repo | downloads/distinct-IPs (total + trailing-12mo), `n_primary_pubs`, `n_citing_works`, `sum_rcr`, `n_distinct_grants_citing` | pub/RCR/grant cols fill after lake enrichment runs; downloads once `extract-downloads` runs in the refresh |
+| `mart_package_impact` | package × repo | downloads/distinct-IPs (total + trailing-12mo), `distinct_ips_prior_12mo` (the 12 months before the trailing window), `usage_rank_in_repo` (rank by trailing-12mo distinct IPs within the repo), `n_primary_pubs`, `n_citing_works`, `sum_rcr`, `n_distinct_grants_citing` | pub/RCR/grant cols fill after lake enrichment runs; downloads once `extract-downloads` runs in the refresh |
 | `mart_grant_attribution` | grant | `agency`, `title`, `n_packages_supported`, `n_citing_works`, `package_names[]` | the grant-narrative payload; populated from RePORTER via lake |
 | `mart_package_directory` | package × repo | name, repo, maintainer, title, `description`, `biocviews[]`, `url[]`, `source_doi` | the explorer's backing data; no `maintainer_email` (privacy, #33) |
 | `mart_package_work` | package × repo × work | `work_id`, `doi`, `pmid`, `title`, `year`, `journal`, `citation_count`, `icite_rcr`, `match_method`, `confidence`, `role` | papers the package asks users to cite; highest-confidence edge per pair; metadata NULL until the work is enriched into `dim_work` |
 | `mart_release_growth` | bioc_release | `n_packages` (+ `n_new_packages`/`net_downloads` pending history/downloads) | |
 | `mart_package_person` | package × repo × person | `person_id`, name, `orcid`, `roles[]`, `is_maintainer`, `source` | people credited on a package; no emails (not stored upstream) |
 | `mart_person` | person | name, `orcid`, `n_packages`, `n_maintained`, `n_authored`, `package_names[]` | "developers with more than N packages"; identity = ORCID, else normalized name |
+| `mart_ecosystem_downloads_yearly` | year × repo × methodology_era | `distinct_ips`, `downloads`, `n_packages_with_downloads` | latest `_snapshot` per repo; eras stay separate rows (2015 has one per era) — draw the boundary, don't join across it; `distinct_ips` is summed over months |
+| `mart_package_downloads_monthly` | package × repo × year × month | `distinct_ips`, `downloads`, `methodology_era` | sorted by `package_name, repo, year, month` and written with 2,048-row row groups so DuckDB-WASM can range-read one package; filter on `package_name` |
 | `mart_package_funder` | package × repo × funder | `funder_id`, `funder_name`, `curated`, `declared_name`, `grant_number`, `grant_id` | declared (`fnd`) funders only; `grant_id` set when the NIH grant matches a RePORTER core project in `dim_grant`; `curated=false` rows are as-written (many are PIs, not agencies) |
 
 The marts above are exported every `build-marts` run (the SPA registers its own subset in `frontend/src/db/duckdb.ts`). The
