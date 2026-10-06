@@ -89,6 +89,16 @@ refresh*). `systemd/biocintel-refresh.service` runs the extract → link → enr
 and pushes, which triggers Deploy Pages. The units under `~/.config/systemd/user/` are **copies**,
 not symlinks — re-copy and `systemctl --user daemon-reload` after editing them here.
 
+`sync-marts.sh` also writes `frontend/public/data/bioc-intelligence.duckdb` and `datapackage.json`
+via `biocintel build-marts --marts-dir <marts> --views-db <out> --public-base <url>`
+(`build_marts.write_views_db`; #51). The views file holds no data: views over the absolute Parquet
+URLs, written with `STORAGE_VERSION 'v1.0.0'`. Every view inlines `read_parquet(url)` because DuckDB
+1.0 can't resolve a sibling view or macro under a client's alias. `CREATE VIEW` binds, so it reads
+the *published* Parquet at build time. 1.0 clients fail with "Contents of view were altered" if
+the published types later differ, so a mart schema change needs the views file regenerated after
+the new marts deploy (the generator warns when the bound schema differs from the local one). Column
+definitions live in `build_marts.DEFINITIONS`; a mart column without one fails the build.
+
 Release history (#44): `extract-packages --release 3.0,3.1` (or `--all-releases`) adds past
 releases' `packages/<ver>/<repo>/VIEWS` to `dim_package_version` only (`dim_package` stays the
 current release), force-cached since they're immutable; VIEWS exist from 1.8 (2006), older

@@ -46,7 +46,8 @@ def main(argv: list[str] | None = None) -> None:
         "extract-people", help="Authors@R -> dim_person/dim_funder + package bridges"
     )
 
-    sub.add_parser("build-marts", help="derive mart_* and export Parquet")
+    p_marts = sub.add_parser("build-marts", help="derive mart_* and export Parquet")
+    build_marts.add_arguments(p_marts)
     sub.add_parser("all", help="extract-packages + extract-downloads + build-marts")
 
     args = ap.parse_args(argv)
@@ -64,7 +65,7 @@ def main(argv: list[str] | None = None) -> None:
     elif args.cmd == "extract-citations":
         extract_citation_files.run(args.repos, args.packages, args.releases)
     elif args.cmd == "build-marts":
-        build_marts.run()
+        build_marts.run_from_args(args)
     elif args.cmd == "all":
         extract_packages.run(None, devel=False)
         extract_downloads.run(None)

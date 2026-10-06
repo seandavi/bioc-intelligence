@@ -124,7 +124,7 @@ CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_fro
 ```bash
 cd frontend
 npm install
-bash scripts/sync-marts.sh   # copy ../data/marts/*.parquet → public/data + a snapshot manifest
+bash scripts/sync-marts.sh   # copy ../data/marts/*.parquet → public/data + views file + manifest
 npm run dev                  # local dev server
 npm run build                # production build → dist/
 ```
@@ -158,6 +158,45 @@ systemctl --user list-timers biocintel-refresh.timer   # when it next runs
 systemctl --user start biocintel-refresh.service       # run it now
 journalctl --user -u biocintel-refresh.service         # what happened
 ```
+
+## Programmatic access
+
+Every mart is public Parquet under `https://seandavi.github.io/bioc-intelligence/data/`, and
+`bioc-intelligence.duckdb` there is a small views-only database over them: one view per mart
+(`package_impact`, `package_work`, ...), views with the methodology built in
+(`package_pubs_confident`, `downloads_modern_era`, `ecosystem_yearly`, `package_impact_ranked`), and
+a comment on every view and column. It opens in DuckDB 1.0 or newer. The site's
+[Data page](https://seandavi.github.io/bioc-intelligence/#/data) has the dictionary and CSV exports.
+
+```sql
+ATTACH 'https://seandavi.github.io/bioc-intelligence/data/bioc-intelligence.duckdb' AS bi (READ_ONLY);
+SELECT * FROM bi.package_impact WHERE package_name = 'limma';
+SELECT view_name, comment FROM duckdb_views() WHERE database_name = 'bi';
+```
+
+```r
+library(duckdb)
+con <- dbConnect(duckdb())
+dbExecute(con, "INSTALL httpfs")
+dbExecute(con, "LOAD httpfs")
+dbExecute(con, "ATTACH 'https://seandavi.github.io/bioc-intelligence/data/bioc-intelligence.duckdb' AS bi (READ_ONLY)")
+dbGetQuery(con, "SELECT * FROM bi.package_impact WHERE package_name = 'limma'")
+```
+
+```python
+import duckdb
+con = duckdb.connect()
+con.sql("INSTALL httpfs; LOAD httpfs")
+con.sql("ATTACH 'https://seandavi.github.io/bioc-intelligence/data/bioc-intelligence.duckdb' AS bi (READ_ONLY)")
+con.sql("SELECT * FROM bi.package_impact WHERE package_name = 'limma'").show()
+```
+
+Recent DuckDB (verified on 1.5) also has `bi.package('DESeq2')` and `bi.grant_report('<core project
+number>')` table macros; DuckDB 1.0 can't call macros in an attached file, so use the views there.
+GitHub Pages gzips these files for clients that ask for compression and applies Range requests to
+the compressed bytes, so browser readers (DuckDB-WASM) must fetch whole files; native DuckDB
+doesn't ask for compression and is unaffected. `datapackage.json` (Frictionless) describes the same
+files.
 
 ## Repository layout
 
