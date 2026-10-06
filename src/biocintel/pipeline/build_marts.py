@@ -184,7 +184,11 @@ ORDER BY b.package_name, b.repo, b.confidence DESC, w.year DESC NULLS LAST;
 -- Flat package directory for the explorer view (frontend reads this directly).
 CREATE OR REPLACE TABLE mart_package_directory AS
 SELECT package_name, repo, latest_release, maintainer,  -- no maintainer_email (#33)
-       title, description, biocviews, url, bug_reports, source_doi
+       title, description, biocviews, url, bug_reports, source_doi,
+       len(depends_on_me) + len(imports_me) + len(links_to_me) AS n_reverse_deps,
+       dependency_count AS n_deps, git_last_commit_date, package_status, has_news,
+       n_vignettes, license,
+       'https://bioconductor.org/packages/' || package_name || '/' AS bioc_url
 FROM dim_package
 ORDER BY package_name, repo;
 
@@ -227,6 +231,20 @@ SELECT bw.work_id, bw.ror, i.name, i.country_code, i.country,
 FROM bridge_work_institution bw
 JOIN dim_institution i USING (ror)
 ORDER BY bw.work_id, bw.author_position, i.name;
+
+-- Forward dependency edges (declared Depends/Imports/Suggests/LinkingTo; R excluded).
+CREATE OR REPLACE TABLE mart_package_dependency AS
+SELECT package_name, repo, dep, kind
+FROM (
+    SELECT package_name, repo, unnest(depends) AS dep, 'depends' AS kind FROM dim_package
+    UNION ALL
+    SELECT package_name, repo, unnest(imports), 'imports' FROM dim_package
+    UNION ALL
+    SELECT package_name, repo, unnest(suggests), 'suggests' FROM dim_package
+    UNION ALL
+    SELECT package_name, repo, unnest(linking_to), 'linking_to' FROM dim_package
+)
+ORDER BY package_name, repo, kind, dep;
 """
 
 _MARTS = [
@@ -239,6 +257,7 @@ _MARTS = [
     "mart_package_person",
     "mart_person",
     "mart_package_funder",
+    "mart_package_dependency",
     "mart_ecosystem_downloads_yearly",
     "mart_package_downloads_monthly",
     "mart_work_institution",

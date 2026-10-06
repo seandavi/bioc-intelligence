@@ -30,6 +30,10 @@ export const NIH_IC_NAME: Record<string, string> = {
   // Not among the 27 ICs, but appear as administering codes in RePORTER.
   OD: "NIH Office of the Director",
   RR: "National Center for Research Resources (discontinued 2012)",
+  // Non-NIH agencies RePORTER also carries (seen in mart_grant_attribution.agency).
+  DD: "CDC National Center on Birth Defects and Developmental Disabilities",
+  OH: "CDC National Institute for Occupational Safety and Health",
+  VA: "Department of Veterans Affairs",
 };
 
 export const nihIcName = (code: string): string => NIH_IC_NAME[code] ?? code;

@@ -6,6 +6,7 @@ import { ImpactLeaderboard } from "./pages/ImpactLeaderboard";
 import { BiocViews } from "./pages/BiocViews";
 import { Grants } from "./pages/Grants";
 import { Growth } from "./pages/Growth";
+import { Trends } from "./pages/Trends";
 import { About } from "./pages/About";
 import { fetchManifest, type Manifest } from "./db/duckdb";
 
@@ -14,6 +15,7 @@ const NAV = [
   { id: "explorer", label: "Explorer" },
   { id: "biocviews", label: "biocViews" },
   { id: "impact", label: "Impact" },
+  { id: "trends", label: "Trends" },
   { id: "grants", label: "Grants" },
   { id: "growth", label: "Growth" },
   { id: "about", label: "About" },
@@ -67,6 +69,8 @@ export default function App() {
           <PackagePage name={route.arg} />
         ) : route.view === "impact" ? (
           <ImpactLeaderboard />
+        ) : route.view === "trends" ? (
+          <Trends />
         ) : route.view === "biocviews" ? (
           <BiocViews />
         ) : route.view === "grants" ? (

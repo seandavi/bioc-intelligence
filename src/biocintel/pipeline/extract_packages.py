@@ -45,6 +45,55 @@ def _parse_release_date(raw: str | None) -> date | None:
     return None
 
 
+def _parse_date(raw: str | None) -> date | None:
+    """First whitespace token of ``raw`` as a date (VIEWS dates may carry a time)."""
+    return _parse_release_date(raw.split()[0]) if raw and raw.split() else None
+
+
+def _parse_bool(raw: str | None) -> bool | None:
+    return {"TRUE": True, "YES": True, "FALSE": False, "NO": False}.get((raw or "").strip().upper())
+
+
+def _parse_int(raw: str | None) -> int | None:
+    return int(raw) if raw and raw.strip().isdigit() else None
+
+
+def _dep_list(raw: str | None) -> list[str]:
+    """Package names from a Depends-style field; ``R`` is the interpreter, not a package."""
+    return [d for d in split_list(raw) if d != "R"]
+
+
+def _views_fields(rec: dict[str, str]) -> dict:
+    """The dependency, maintenance and docs fields VIEWS carries beyond DESCRIPTION basics."""
+    vignettes = [v.strip() for v in rec.get("vignettes", "").split(",") if v.strip()]
+    titles = [t.strip() for t in rec.get("vignetteTitles", "").split(",") if t.strip()]
+    if len(titles) != len(vignettes):
+        # Titles may contain commas; keep the raw string rather than guess a split.
+        titles = [rec["vignetteTitles"]] if rec.get("vignetteTitles") else []
+    return {
+        "depends": _dep_list(rec.get("Depends")),
+        "imports": _dep_list(rec.get("Imports")),
+        "suggests": _dep_list(rec.get("Suggests")),
+        "linking_to": _dep_list(rec.get("LinkingTo")),
+        "depends_on_me": split_list(rec.get("dependsOnMe")),
+        "imports_me": split_list(rec.get("importsMe")),
+        "suggests_me": split_list(rec.get("suggestsMe")),
+        "links_to_me": split_list(rec.get("linksToMe")),
+        "dependency_count": _parse_int(rec.get("dependencyCount")),
+        "git_last_commit_date": _parse_date(rec.get("git_last_commit_date")),
+        "date_publication": _parse_date(rec.get("Date/Publication")),
+        "package_status": rec.get("PackageStatus") or None,
+        "has_readme": _parse_bool(rec.get("hasREADME")),
+        "has_news": _parse_bool(rec.get("hasNEWS")),
+        "has_install": _parse_bool(rec.get("hasINSTALL")),
+        "has_license": _parse_bool(rec.get("hasLICENSE")),
+        "n_vignettes": len(vignettes),
+        "vignette_titles": titles,
+        "license": rec.get("License") or None,
+        "needs_compilation": _parse_bool(rec.get("NeedsCompilation")),
+    }
+
+
 def _records_for_repo(repo: Repo, *, devel: bool, cfg: ReleaseConfig):
     text = get_text(views_url(repo, devel=devel))
     # Release identity comes from which VIEWS we fetched, not a package's source
@@ -70,6 +119,7 @@ def _records_for_repo(repo: Repo, *, devel: bool, cfg: ReleaseConfig):
             "url": _split_urls(rec.get("URL")),
             "bug_reports": rec.get("BugReports"),
             "source_doi": _extract_doi(rec.get("URL"), rec.get("BugReports")),
+            **_views_fields(rec),
         }
         ver = {
             "package_name": name,
@@ -87,6 +137,10 @@ _PKG_COLS = [
     "package_name", "repo", "first_seen_release", "latest_release", "maintainer",
     "maintainer_email", "maintainer_ror", "title", "description", "biocviews",
     "url", "bug_reports", "source_doi",
+    "depends", "imports", "suggests", "linking_to", "depends_on_me", "imports_me",
+    "suggests_me", "links_to_me", "dependency_count", "git_last_commit_date",
+    "date_publication", "package_status", "has_readme", "has_news", "has_install",
+    "has_license", "n_vignettes", "vignette_titles", "license", "needs_compilation",
 ]
 _VER_COLS = [
     "package_name", "repo", "version", "bioc_release", "release_date", "r_version", "in_devel",
