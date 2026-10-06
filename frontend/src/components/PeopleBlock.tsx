@@ -3,7 +3,7 @@ import { useQuery } from "../db/useQuery";
 interface PackagePerson {
   name: string;
   orcid: string | null;
-  roles: string; // ','-joined MARC codes
+  roles: string | null; // ','-joined MARC codes
   is_maintainer: boolean;
 }
 
@@ -38,7 +38,7 @@ export function OrcidLink({ orcid }: { orcid: string }) {
 export function PeopleBlock({ name, repo }: { name: string; repo: string }) {
   const esc = (s: string) => s.replace(/'/g, "''");
   const { data, loading, error } = useQuery<PackagePerson>(`
-    SELECT name, orcid, array_to_string(roles, ',') AS roles, is_maintainer
+    SELECT name, orcid, COALESCE(array_to_string(roles, ','), '') AS roles, is_maintainer
     FROM 'mart_package_person.parquet'
     WHERE package_name = '${esc(name)}' AND repo = '${esc(repo)}'
     ORDER BY is_maintainer DESC, name`);
@@ -53,7 +53,7 @@ export function PeopleBlock({ name, repo }: { name: string; repo: string }) {
           <span className="font-medium text-slate-800">{p.name}</span>
           {p.orcid && <OrcidLink orcid={p.orcid} />}
           <span className="text-xs text-slate-500">
-            {p.roles
+            {(p.roles ?? "")
               .split(",")
               .filter(Boolean)
               .map(roleLabel)

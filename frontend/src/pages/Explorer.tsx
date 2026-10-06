@@ -60,8 +60,6 @@ const WORK_SELECT = `
   FROM 'mart_package_work.parquet'`;
 const WORK_ORDER = "ORDER BY package_name, year DESC NULLS LAST, doi";
 
-const sqlStr = (s: string) => `'${s.replaceAll("'", "''")}'`;
-
 const splitList = (s: string | null) => (s ? s.split("|").filter(Boolean) : []);
 
 function PaperItem({ w }: { w: Work }) {
@@ -194,25 +192,6 @@ function DetailPanel({ pkg, papers, onClose }: { pkg: Pkg; papers: Work[]; onClo
       </dl>
     </aside>
   );
-}
-
-// #/package/<name>: the drawer content as a page. The full profile is a later issue.
-export function PackagePage({ name }: { name: string }) {
-  const { data, loading, error: dirError } = useQuery<Pkg>(
-    `${DIR_SELECT} WHERE package_name = ${sqlStr(name)}`,
-  );
-  const works = useQuery<Work>(`${WORK_SELECT} WHERE package_name = ${sqlStr(name)} ${WORK_ORDER}`);
-  const error = dirError ?? works.error;
-  if (error) {
-    return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-        Failed to load package: {error.message}
-      </div>
-    );
-  }
-  if (loading || works.loading) return <p className="text-sm text-slate-500">Loading {name}…</p>;
-  if (!data?.length) return <p className="text-sm text-slate-500">No package named “{name}”.</p>;
-  return <DetailPanel pkg={data[0]} papers={works.data ?? []} />;
 }
 
 export function Explorer() {

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useRoute } from "./lib/router";
 import { ByTheNumbers } from "./pages/ByTheNumbers";
-import { Explorer, PackagePage } from "./pages/Explorer";
+import { Explorer } from "./pages/Explorer";
+import { PackagePage } from "./pages/Package";
 import { ImpactLeaderboard } from "./pages/ImpactLeaderboard";
 import { BiocViews } from "./pages/BiocViews";
 import { Grants } from "./pages/Grants";
