@@ -18,6 +18,8 @@ from .http import get_text
 
 BIOC_BASE = os.getenv("BIOCINTEL_BIOC_BASE", "https://bioconductor.org")
 CONFIG_YAML_URL = f"{BIOC_BASE}/config.yaml"
+# Table of every release: date, software-package count, R version.
+RELEASE_ANNOUNCEMENTS_URL = f"{BIOC_BASE}/about/release-announcements/"
 
 # Default on-disk locations (override via env for CI / alternate data roots).
 DATA_ROOT = Path(os.getenv("BIOCINTEL_DATA_ROOT", "data"))
@@ -52,8 +54,9 @@ REPOS: dict[str, Repo] = {
 }
 
 
-def views_url(repo: Repo, *, devel: bool = False) -> str:
-    channel = "devel" if devel else "release"
+def views_url(repo: Repo, *, devel: bool = False, release: str | None = None) -> str:
+    """VIEWS for the release/devel channel, or a numbered past ``release`` (e.g. "3.0")."""
+    channel = release or ("devel" if devel else "release")
     return f"{BIOC_BASE}/packages/{channel}/{repo.views_path}/VIEWS"
 
 

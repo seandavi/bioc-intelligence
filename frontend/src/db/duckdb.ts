@@ -10,6 +10,7 @@ export const MARTS = [
   "mart_package_impact.parquet",
   "mart_grant_attribution.parquet",
   "mart_release_growth.parquet",
+  "mart_release_history.parquet",
   "mart_work.parquet",
   "mart_package_work.parquet",
   "mart_ecosystem_downloads_yearly.parquet",
