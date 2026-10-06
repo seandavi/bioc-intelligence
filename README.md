@@ -198,6 +198,22 @@ the compressed bytes, so browser readers (DuckDB-WASM) must fetch whole files; n
 doesn't ask for compression and is unaffected. `datapackage.json` (Frictionless) describes the same
 files.
 
+For no SQL at all, the same marts are rendered to static JSON at each deploy (rebuilt from the
+current snapshot, not versioned):
+
+- `https://seandavi.github.io/bioc-intelligence/api/v1/index.json`: snapshot date, counts, URL
+  patterns, every package name and grant id.
+- `.../api/v1/package/<name>.json`: directory and impact row, linked papers, grants, people,
+  funders, `confident_citations` (doi + CITATION links) and the last 36 months of downloads.
+- `.../api/v1/grant/<core project number>.json`: the grant and its packages with their impact.
+- `.../badges/<name>/downloads.json` and `.../badges/<name>/citations.json`: shields.io endpoint
+  badges (average monthly distinct IPs over the trailing 12 months; confident citations):
+
+```markdown
+![usage](https://img.shields.io/endpoint?url=https://seandavi.github.io/bioc-intelligence/badges/limma/downloads.json)
+![citations](https://img.shields.io/endpoint?url=https://seandavi.github.io/bioc-intelligence/badges/limma/citations.json)
+```
+
 ## Repository layout
 
 ```
