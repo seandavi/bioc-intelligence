@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   type ColumnDef,
   type SortingState,
@@ -14,6 +14,7 @@ import { useQuery } from "../db/useQuery";
 import { Chip, INPUT_CLASS, RepoBadge, SortableTh, SrLabel } from "../components/ui";
 import { Link, parseList, setParams, toggleInList, useRoute } from "../lib/router";
 import { fmtCompact, fmtFloat, fmtInt } from "../lib/format";
+import { type PackageAgg, type WorkLink, aggregateByPackage, pkgKey } from "../lib/confidence";
 
 interface Row {
   package_name: string;
@@ -26,14 +27,28 @@ interface Row {
   total_citations: number;
   median_rcr: number | null;
   n_distinct_grants_citing: number;
+  agg: PackageAgg | undefined; // confidence-filtered paper links; undefined = none
 }
+
+type ImpactRow = Omit<Row, "n_primary_pubs" | "total_citations" | "median_rcr" | "agg">;
 
 const SQL = `
   SELECT i.package_name, i.repo, i.total_distinct_ips, i.distinct_ips_trailing_12mo,
          i.usage_rank_in_repo, array_to_string(d.biocviews, '|') AS biocviews,
-         i.n_primary_pubs, i.total_citations, i.median_rcr, i.n_distinct_grants_citing
+         i.n_distinct_grants_citing
   FROM 'mart_package_impact.parquet' i
   LEFT JOIN 'mart_package_directory.parquet' d USING (package_name, repo)`;
+
+// Paper-derived columns are recomputed from the links so low-confidence ones can be excluded.
+const WORK_SQL = `
+  SELECT package_name, repo, work_id, title, citation_count, icite_rcr, match_method
+  FROM 'mart_package_work.parquet'`;
+
+const METHOD_LABEL: Record<string, string> = {
+  doi: "DOI",
+  citation_file: "CITATION",
+  description_doi: "DESCRIPTION",
+};
 
 // Quick-sort presets — the metrics a reviewer actually ranks by.
 const PRESETS: { id: string; label: string; col: keyof Row }[] = [
@@ -54,18 +69,58 @@ const parseSort = (s: string | undefined): SortingState => {
 };
 const formatSort = (s: SortingState) => (s[0] ? `${s[0].id}${s[0].desc ? "" : ":asc"}` : "");
 
+function PaperLinks({ agg }: { agg: PackageAgg }) {
+  return (
+    <ul className="space-y-1.5 text-xs text-slate-600">
+      {agg.works.map((w) => (
+        <li key={w.work_id}>
+          <span className="font-medium text-slate-800">{w.title ?? w.work_id}</span>
+          <span className="ml-2 tabular-nums">
+            {fmtInt(w.citation_count)} citations · RCR {fmtFloat(w.icite_rcr, 2)}
+          </span>
+          {w.methods.map((m) => (
+            <span key={m} className="ml-1.5 rounded bg-slate-200 px-1.5 py-0.5 text-slate-600">
+              {METHOD_LABEL[m] ?? m}
+            </span>
+          ))}
+          {w.others.length > 0 && (
+            <span className="ml-2 text-amber-700">⇄ also linked to {w.others.join(", ")}</span>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function ImpactLeaderboard() {
-  const { data, loading, error } = useQuery<Row>(SQL);
+  const impact = useQuery<ImpactRow>(SQL);
+  const links = useQuery<WorkLink>(WORK_SQL);
   const { params } = useRoute();
   const { q: globalFilter = "", sort: sortParam, view: viewTerm = "" } = params;
   const noInfra = params.noinfra === "1";
+  const includeLow = params.conf === "1";
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const repoParam = params.repo;
   const repos = useMemo(() => new Set(parseList(repoParam)), [repoParam]);
   const sorting = useMemo(() => parseSort(sortParam), [sortParam]);
   const setSorting = (u: Updater<SortingState>) =>
     setParams("impact", { sort: formatSort(typeof u === "function" ? u(sorting) : u) });
 
-  const all = useMemo(() => data ?? [], [data]);
+  const loading = impact.loading || links.loading;
+  const error = impact.error ?? links.error;
+  const all = useMemo<Row[]>(() => {
+    const { byPackage } = aggregateByPackage(links.data ?? [], includeLow);
+    return (impact.data ?? []).map((r) => {
+      const agg = byPackage.get(pkgKey(r.repo, r.package_name));
+      return {
+        ...r,
+        agg,
+        n_primary_pubs: agg?.n_pubs ?? 0,
+        total_citations: agg?.total_citations ?? 0,
+        median_rcr: agg?.median_rcr ?? null,
+      };
+    });
+  }, [impact.data, links.data, includeLow]);
   const repoCounts = useMemo(() => {
     const m = new Map<string, number>();
     for (const p of all) m.set(p.repo, (m.get(p.repo) ?? 0) + 1);
@@ -110,19 +165,53 @@ export function ImpactLeaderboard() {
       {
         accessorKey: "package_name",
         header: "Package",
-        cell: ({ getValue }) => (
-          <Link
-            view="package"
-            arg={getValue<string>()}
-            className="font-medium text-bioc-700 hover:underline"
-          >
-            {getValue<string>()}
-          </Link>
-        ),
+        cell: ({ row, getValue }) => {
+          const key = pkgKey(row.original.repo, getValue<string>());
+          const agg = row.original.agg;
+          const open = expanded.has(key);
+          const others = [...new Set(agg?.works.flatMap((w) => w.others))].sort();
+          return (
+            <>
+              <Link
+                view="package"
+                arg={getValue<string>()}
+                className="font-medium text-bioc-700 hover:underline"
+              >
+                {getValue<string>()}
+              </Link>
+              {agg?.shared && (
+                <span
+                  className="ml-1.5 cursor-help text-xs text-amber-600"
+                  title={`Shared: a linked paper is also linked to ${others.join(", ")}`}
+                  aria-label={`Shared paper with ${others.join(", ")}`}
+                >
+                  ⇄
+                </span>
+              )}
+              {agg && (
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  aria-label={`${open ? "Hide" : "Show"} linked papers for ${getValue<string>()}`}
+                  onClick={() =>
+                    setExpanded((s) => {
+                      const n = new Set(s);
+                      if (!n.delete(key)) n.add(key);
+                      return n;
+                    })
+                  }
+                  className="ml-1.5 text-xs text-slate-500 hover:text-slate-900"
+                >
+                  {open ? "▾" : "▸"}
+                </button>
+              )}
+            </>
+          );
+        },
       },
       { accessorKey: "repo", header: "Repo", cell: ({ getValue }) => <RepoBadge repo={getValue<string>()} /> },
       num("median_rcr", (n) => fmtFloat(n, 2), "Median RCR",
-        "Relative Citation Ratio (NIH iCite), field-normalized so 1.0 = average. Median across the package's describing papers."),
+        "Relative Citation Ratio (NIH iCite), field-normalized so 1.0 = average. Median across the package's describing papers (distinct works)."),
       num("total_citations", (n) => fmtCompact(n), "Citations",
         "Total OpenAlex citations of the package's describing papers."),
       num("n_primary_pubs", (n) => fmtInt(n), "Pubs",
@@ -136,7 +225,7 @@ export function ImpactLeaderboard() {
       num("usage_rank_in_repo", (n) => (downloadsLive && n != null ? `#${fmtInt(n)}` : "—"), "Repo rank",
         "Rank by last-12-month distinct IPs within the package's repository (1 = most used)."),
     ],
-    [downloadsLive],
+    [downloadsLive, expanded],
   );
 
   const table = useReactTable({
@@ -169,7 +258,9 @@ export function ImpactLeaderboard() {
         <h1 className="text-2xl font-semibold text-slate-900">Impact leaderboard</h1>
         <p className="mt-1 text-sm text-slate-500">
           {loading ? "Loading…" : `${filtered.length.toLocaleString()} packages`} · rank by impact
-          signal.{" "}
+          signal. Paper columns use{" "}
+          {includeLow ? "all paper links" : "DOI and CITATION links only"}; ⇄ marks papers
+          shared with other packages.{" "}
           {!downloadsLive && (
             <span className="text-slate-500">Download stats pending (endpoint offline).</span>
           )}
@@ -216,6 +307,14 @@ export function ImpactLeaderboard() {
               ))}
           </div>
           <label className="mt-4 flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={includeLow}
+              onChange={(e) => setParams("impact", { conf: e.target.checked ? "1" : "" })}
+            />
+            Include lower-confidence paper links
+          </label>
+          <label className="mt-2 flex items-center gap-2 text-sm text-slate-600">
             <input
               type="checkbox"
               checked={noInfra}
@@ -275,18 +374,27 @@ export function ImpactLeaderboard() {
               </thead>
               <tbody>
                 {table.getRowModel().rows.map((row, i) => (
-                  <tr key={row.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                    {row.getVisibleCells().map((cell, j) => (
-                      <td key={cell.id} className="px-3 py-2">
-                        {j === 0 && (
-                          <span className="mr-2 text-xs text-slate-500">
-                            {table.getState().pagination.pageIndex * 25 + i + 1}
-                          </span>
-                        )}
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
+                  <Fragment key={row.id}>
+                    <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                      {row.getVisibleCells().map((cell, j) => (
+                        <td key={cell.id} className="px-3 py-2">
+                          {j === 0 && (
+                            <span className="mr-2 text-xs text-slate-500">
+                              {table.getState().pagination.pageIndex * 25 + i + 1}
+                            </span>
+                          )}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                    {row.original.agg && expanded.has(pkgKey(row.original.repo, row.original.package_name)) && (
+                      <tr className="border-b border-slate-100 bg-slate-50">
+                        <td colSpan={columns.length} className="px-3 py-2">
+                          <PaperLinks agg={row.original.agg} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
