@@ -1,0 +1,35 @@
+// NIH Institute/Center two-letter codes as found in RePORTER `admin_ic`.
+export const NIH_IC_NAME: Record<string, string> = {
+  AA: "National Institute on Alcohol Abuse and Alcoholism",
+  AG: "National Institute on Aging",
+  AI: "National Institute of Allergy and Infectious Diseases",
+  AR: "National Institute of Arthritis and Musculoskeletal and Skin Diseases",
+  AT: "National Center for Complementary and Integrative Health",
+  CA: "National Cancer Institute",
+  CL: "NIH Clinical Center",
+  CT: "Center for Information Technology",
+  DA: "National Institute on Drug Abuse",
+  DC: "National Institute on Deafness and Other Communication Disorders",
+  DE: "National Institute of Dental and Craniofacial Research",
+  DK: "National Institute of Diabetes and Digestive and Kidney Diseases",
+  EB: "National Institute of Biomedical Imaging and Bioengineering",
+  ES: "National Institute of Environmental Health Sciences",
+  EY: "National Eye Institute",
+  GM: "National Institute of General Medical Sciences",
+  HD: "Eunice Kennedy Shriver National Institute of Child Health and Human Development",
+  HG: "National Human Genome Research Institute",
+  HL: "National Heart, Lung, and Blood Institute",
+  LM: "National Library of Medicine",
+  MD: "National Institute on Minority Health and Health Disparities",
+  MH: "National Institute of Mental Health",
+  NR: "National Institute of Nursing Research",
+  NS: "National Institute of Neurological Disorders and Stroke",
+  RG: "Center for Scientific Review",
+  TR: "National Center for Advancing Translational Sciences",
+  TW: "Fogarty International Center",
+  // Not among the 27 ICs, but appear as administering codes in RePORTER.
+  OD: "NIH Office of the Director",
+  RR: "National Center for Research Resources (discontinued 2012)",
+};
+
+export const nihIcName = (code: string): string => NIH_IC_NAME[code] ?? code;

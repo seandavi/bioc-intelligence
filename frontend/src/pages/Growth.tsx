@@ -3,6 +3,7 @@ import { useQuery } from "../db/useQuery";
 import { VegaChart } from "../components/VegaChart";
 import { horizontalBar } from "../components/charts";
 import { StatCard } from "../components/StatCard";
+import { REPO_LABEL } from "../components/ui";
 import { fmtInt } from "../lib/format";
 
 interface Release {
@@ -23,7 +24,15 @@ export function Growth() {
   const byRepo = useQuery<Record<string, unknown>>(BY_REPO);
 
   const repoSpec = useMemo(
-    () => (byRepo.data ? horizontalBar(byRepo.data, "n", "repo", "Packages per repository") : null),
+    () =>
+      byRepo.data
+        ? horizontalBar(
+            byRepo.data.map((r) => ({ ...r, repo: REPO_LABEL[r.repo as string] ?? r.repo })),
+            "n",
+            "repo",
+            "Packages per repository",
+          )
+        : null,
     [byRepo.data],
   );
 
