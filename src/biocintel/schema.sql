@@ -51,6 +51,13 @@ CREATE TABLE IF NOT EXISTS dim_package_version (
     PRIMARY KEY (package_name, repo, version, bioc_release)
 );
 
+-- One row per release from the release-announcements page (1.0 onwards).
+CREATE TABLE IF NOT EXISTS dim_release (
+    bioc_release          VARCHAR PRIMARY KEY,
+    release_date          DATE,
+    n_software_announced  INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS dim_work (
     work_id         VARCHAR PRIMARY KEY,  -- PMID preferred, else DOI
     pmid            VARCHAR,

@@ -27,7 +27,8 @@ column names stable once published (mirror the lake's versioned-view discipline)
 | `mart_grant_attribution` | grant | `agency`, `title`, `n_packages_supported`, `n_citing_works`, `package_names[]` | the grant-narrative payload; populated from RePORTER via lake |
 | `mart_package_directory` | package × repo | name, repo, maintainer, title, `description`, `biocviews[]`, `url[]`, `source_doi`, `n_reverse_deps`, `n_deps`, `git_last_commit_date`, `package_status`, `has_news`, `n_vignettes`, `license`, `bioc_url` | the explorer's backing data; no `maintainer_email` (privacy, #33); VIEWS fields from #39 |
 | `mart_package_work` | package × repo × work | `work_id`, `doi`, `pmid`, `title`, `year`, `journal`, `citation_count`, `icite_rcr`, `match_method`, `confidence`, `role` | papers the package asks users to cite; highest-confidence edge per pair; metadata NULL until the work is enriched into `dim_work` |
-| `mart_release_growth` | bioc_release | `n_packages` (+ `n_new_packages`/`net_downloads` pending history/downloads) | |
+| `mart_release_growth` | bioc_release | `release_date`, `n_software_announced`, `n_packages`, `n_new_packages`, `n_removed`, `net_downloads` (NULL, needs release-windowed downloads) | one row per announced release (1.0 onwards); `n_*` from VIEWS (1.8 onwards, NULL before), all repos with a package counted once by name; new/removed NULL for the first loaded release; sort releases numerically (`string_split(bioc_release,'.')::INT[]`) |
+| `mart_release_history` | bioc_release × repo | `release_date`, `n_packages`, `n_new`, `n_removed` | per-repo VIEWS diffs; new = first release listing the package in that repo, removed = in the repo's previous loaded release and not this one; needs `extract-packages --all-releases` once, else current release only |
 | `mart_package_person` | package × repo × person | `person_id`, name, `orcid`, `roles[]`, `is_maintainer`, `source` | people credited on a package; no emails (not stored upstream) |
 | `mart_person` | person | name, `orcid`, `n_packages`, `n_maintained`, `n_authored`, `package_names[]` | "developers with more than N packages"; identity = ORCID, else normalized name |
 | `mart_ecosystem_downloads_yearly` | year × repo × methodology_era | `distinct_ips`, `downloads`, `n_packages_with_downloads` | latest `_snapshot` per repo; eras stay separate rows (2015 has one per era) — draw the boundary, don't join across it; `distinct_ips` is summed over months |
@@ -70,9 +71,11 @@ Sort/rank by `total_distinct_ips` and `downloads_trailing_12mo` now; add
 the column set up front so the table just gains columns, not a redesign.
 
 ### 5. Ecosystem growth (metaresearch) — **partial now**
-`mart_release_growth.n_packages` per release is plottable now (one point today —
-grows each release, and backfills when multi-release history lands). `net_downloads`
-and `n_new_packages` fill in with downloads + version history.
+Built (#44): packages per release by repo from `mart_release_history` (2002 onwards,
+with 1.0–1.7 drawn dashed from `n_software_announced`), new vs removed per release, and
+distinct IPs per year from `mart_ecosystem_downloads_yearly` with the era band.
+`net_downloads`, deprecated-per-release and maintainers-per-release are still open
+(VIEWS history keeps only package and version per release).
 
 ### 6. Grant-attribution report — **Phase 3**
 Exportable (CSV/PDF) narrative for CCSG / renewal: grant → packages supported →

@@ -23,6 +23,7 @@ uv venv && uv pip install -e '.[dev]'   # setup
 uv run biocintel init-db                 # create DuckDB store + schema
 uv run biocintel extract-packages        # VIEWS -> dim_package(_version), all 4 repos (~25s live)
 uv run biocintel extract-packages --devel --repos bioc   # add devel channel / scope repos
+uv run biocintel extract-packages --all-releases          # + every past release's VIEWS (~7 min cold)
 uv run biocintel extract-downloads       # stats tabs -> fact_download (skips a repo on 404)
 uv run biocintel extract-citations       # CITATION/Description DOIs -> bridge_package_pub (all 4 repos; lake-free)
 uv run biocintel extract-people          # Authors@R -> dim_person/dim_funder + bridge_package_person/_funder (lake-free; no emails stored)
@@ -97,6 +98,16 @@ the *published* Parquet at build time. 1.0 clients fail with "Contents of view w
 the published types later differ, so a mart schema change needs the views file regenerated after
 the new marts deploy (the generator warns when the bound schema differs from the local one). Column
 definitions live in `build_marts.DEFINITIONS`; a mart column without one fails the build.
+
+Release history (#44): `extract-packages --release 3.0,3.1` (or `--all-releases`) adds past
+releases' `packages/<ver>/<repo>/VIEWS` to `dim_package_version` only (`dim_package` stays the
+current release), force-cached since they're immutable; VIEWS exist from 1.8 (2006), older
+releases and missing repos 404 and are skipped. Every run loads `dim_release` (date + announced
+software count for all releases) from the release-announcements page and sets
+`dim_package.first_seen_release` to the earliest loaded release ("1.8" means 1.8 or earlier).
+Past-release rows persist across runs, so one `--all-releases` run on a store is enough; the
+monthly refresh then adds each new release. `mart_release_history` / `mart_release_growth`
+diff consecutive loaded releases.
 
 HTTP responses are cached under `data/cache/` (set `BIOCINTEL_NO_CACHE=1` to bypass). The DuckDB
 file (`data/biocintel.duckdb`) and marts are gitignored and fully rebuildable. Inspect the store

@@ -10,6 +10,7 @@ export const MARTS = [
   "mart_package_impact.parquet",
   "mart_grant_attribution.parquet",
   "mart_release_growth.parquet",
+  "mart_release_history.parquet",
   "mart_work.parquet",
   "mart_package_work.parquet",
   "mart_ecosystem_downloads_yearly.parquet",
@@ -66,9 +67,27 @@ export async function fetchManifest(): Promise<Manifest> {
   return res.json();
 }
 
+// Identical SQL resolves from here, so switching views does not re-run it. The marts are
+// immutable for the life of the page; rejected queries are evicted so a retry can succeed.
+const queryCache = new Map<string, Promise<unknown[]>>();
+
+export function clearQueryCache() {
+  queryCache.clear();
+}
+
+export function query<T = Record<string, unknown>>(sql: string): Promise<T[]> {
+  let hit = queryCache.get(sql);
+  if (!hit) {
+    hit = runQuery(sql);
+    hit.catch(() => queryCache.delete(sql));
+    queryCache.set(sql, hit);
+  }
+  return hit as Promise<T[]>;
+}
+
 // Run a SQL query and return plain JS row objects. A fresh connection per call
 // keeps callers simple; DuckDB-WASM connections are cheap.
-export async function query<T = Record<string, unknown>>(sql: string): Promise<T[]> {
+async function runQuery<T = Record<string, unknown>>(sql: string): Promise<T[]> {
   const db = await getDb();
   for (const name of LAZY_MARTS) {
     if (!sql.includes(name)) continue;

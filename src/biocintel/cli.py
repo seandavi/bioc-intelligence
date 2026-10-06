@@ -32,6 +32,7 @@ def main(argv: list[str] | None = None) -> None:
     p_pkg = sub.add_parser("extract-packages", help="VIEWS -> dim_package(_version)")
     p_pkg.add_argument("--repos", nargs="*", choices=list(extract_packages.REPOS))
     p_pkg.add_argument("--devel", action="store_true")
+    extract_packages.add_release_arguments(p_pkg)
 
     p_dl = sub.add_parser("extract-downloads", help="stats tabs -> fact_download")
     p_dl.add_argument("--repos", nargs="*", choices=list(extract_downloads.REPOS))
@@ -54,7 +55,9 @@ def main(argv: list[str] | None = None) -> None:
     if args.cmd == "init-db":
         _init_db(args)
     elif args.cmd == "extract-packages":
-        extract_packages.run(args.repos, devel=args.devel)
+        extract_packages.run(
+            args.repos, devel=args.devel, releases=args.release, all_releases=args.all_releases
+        )
     elif args.cmd == "extract-downloads":
         extract_downloads.run(args.repos)
     elif args.cmd == "extract-people":
