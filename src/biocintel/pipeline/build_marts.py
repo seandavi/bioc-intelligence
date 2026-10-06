@@ -386,12 +386,26 @@ DEFINITIONS: dict[str, dict] = {
         },
     },
     "mart_release_growth": {
-        "description": "Package counts per Bioconductor release.",
+        "description": "One row per Bioconductor release (all releases since 1.0; VIEWS-derived counts from 1.8).",
         "columns": {
             "bioc_release": "Bioconductor release, e.g. 3.23.",
-            "n_packages": "Packages in the release.",
-            "n_new_packages": "Packages first seen in the release (0 until version history lands).",
+            "release_date": "Release date from the release-announcements page.",
+            "n_software_announced": "Software package count as announced for the release.",
+            "n_packages": "Distinct packages in the release's VIEWS (NULL for 1.0-1.7, which have no VIEWS).",
+            "n_new_packages": "Packages first seen in this release (NULL for the first loaded release).",
+            "n_removed": "Packages present in the previous release and absent here (NULL for the first loaded release).",
             "net_downloads": "Reserved: release-windowed downloads (NULL for now).",
+        },
+    },
+    "mart_release_history": {
+        "description": "Package counts per Bioconductor release and repository, from historic VIEWS.",
+        "columns": {
+            "bioc_release": "Bioconductor release, e.g. 3.23.",
+            "release_date": "Release date from the release-announcements page.",
+            "repo": "Repository: bioc, data-experiment, data-annotation or workflows.",
+            "n_packages": "Distinct packages in that repository's VIEWS for the release.",
+            "n_new": "Packages first seen in this release for the repository.",
+            "n_removed": "Packages present in the previous release and absent here.",
         },
     },
     "mart_grant_attribution": {
