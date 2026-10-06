@@ -16,6 +16,27 @@ CREATE TABLE IF NOT EXISTS dim_package (
     url                 VARCHAR[],
     bug_reports         VARCHAR,
     source_doi          VARCHAR,          -- DOI of describing manuscript, if known
+    -- VIEWS dependency / maintenance / docs fields (#39), deps are bare names with R excluded
+    depends             VARCHAR[],
+    imports             VARCHAR[],
+    suggests            VARCHAR[],
+    linking_to          VARCHAR[],
+    depends_on_me       VARCHAR[],
+    imports_me          VARCHAR[],
+    suggests_me         VARCHAR[],
+    links_to_me         VARCHAR[],
+    dependency_count    INTEGER,
+    git_last_commit_date DATE,
+    date_publication    DATE,
+    package_status      VARCHAR,
+    has_readme          BOOLEAN,
+    has_news            BOOLEAN,
+    has_install         BOOLEAN,
+    has_license         BOOLEAN,
+    n_vignettes         INTEGER,
+    vignette_titles     VARCHAR[],
+    license             VARCHAR,
+    needs_compilation   BOOLEAN,
     PRIMARY KEY (package_name, repo)
 );
 

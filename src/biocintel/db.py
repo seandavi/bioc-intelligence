@@ -14,6 +14,30 @@ import duckdb
 
 from .config import DB_PATH
 
+# dim_package columns added with the VIEWS dependency/maintenance fields (#39).
+_DIM_PACKAGE_VIEWS_COLUMNS = [
+    ("depends", "VARCHAR[]"),
+    ("imports", "VARCHAR[]"),
+    ("suggests", "VARCHAR[]"),
+    ("linking_to", "VARCHAR[]"),
+    ("depends_on_me", "VARCHAR[]"),
+    ("imports_me", "VARCHAR[]"),
+    ("suggests_me", "VARCHAR[]"),
+    ("links_to_me", "VARCHAR[]"),
+    ("dependency_count", "INTEGER"),
+    ("git_last_commit_date", "DATE"),
+    ("date_publication", "DATE"),
+    ("package_status", "VARCHAR"),
+    ("has_readme", "BOOLEAN"),
+    ("has_news", "BOOLEAN"),
+    ("has_install", "BOOLEAN"),
+    ("has_license", "BOOLEAN"),
+    ("n_vignettes", "INTEGER"),
+    ("vignette_titles", "VARCHAR[]"),
+    ("license", "VARCHAR"),
+    ("needs_compilation", "BOOLEAN"),
+]
+
 
 def connect(
     path: Path | str | None = None, *, read_only: bool = False
@@ -30,3 +54,5 @@ def init_schema(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(ddl)
     # Columns added after a table first shipped; CREATE IF NOT EXISTS won't add them.
     con.execute("ALTER TABLE bridge_package_pub ADD COLUMN IF NOT EXISTS source_release VARCHAR")
+    for name, typ in _DIM_PACKAGE_VIEWS_COLUMNS:
+        con.execute(f"ALTER TABLE dim_package ADD COLUMN IF NOT EXISTS {name} {typ}")
