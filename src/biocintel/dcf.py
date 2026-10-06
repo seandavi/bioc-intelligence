@@ -11,12 +11,17 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 
-def parse_dcf(text: str) -> list[dict[str, str]]:
-    """Parse DCF ``text`` into a list of records (one dict per stanza)."""
-    return list(_iter_records(text))
+def parse_dcf(text: str, *, fold: bool = True) -> list[dict[str, str]]:
+    """Parse DCF ``text`` into a list of records (one dict per stanza).
+
+    ``fold=False`` joins continuation lines with ``\\n`` instead of a space, for
+    fields that are code (``Authors@R``) where a ``#`` comment ends at the line.
+    """
+    return list(_iter_records(text, fold))
 
 
-def _iter_records(text: str) -> Iterator[dict[str, str]]:
+def _iter_records(text: str, fold: bool) -> Iterator[dict[str, str]]:
+    sep_ = " " if fold else "\n"
     record: dict[str, str] = {}
     key: str | None = None
     for raw in text.splitlines():
@@ -27,7 +32,7 @@ def _iter_records(text: str) -> Iterator[dict[str, str]]:
             continue
         if raw[0].isspace():  # continuation of the previous field
             if key is not None:
-                record[key] = f"{record[key]} {raw.strip()}".strip()
+                record[key] = f"{record[key]}{sep_}{raw.strip()}".strip()
             continue
         head, sep, val = raw.partition(":")
         if not sep:  # malformed line without a colon — skip defensively

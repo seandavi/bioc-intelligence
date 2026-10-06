@@ -88,3 +88,45 @@ def test_package_impact_reads_only_latest_download_snapshot():
         "FROM mart_package_impact WHERE package_name='limma'"
     ).fetchone()
     assert row == (150, 280, 150)
+
+
+def test_person_and_funder_marts():
+    con = db.connect(":memory:")
+    _fixture(con)
+    con.execute(
+        "INSERT INTO dim_person VALUES "
+        "('orcid:0000-0001-0000-0001','Jane Doe','0000-0001-0000-0001',NULL)"
+    )
+    con.execute("INSERT INTO dim_person VALUES ('name:bob','Bob',NULL,NULL)")
+    rows = [
+        ("limma", "bioc", "orcid:0000-0001-0000-0001", ["aut", "cre"]),
+        ("edgeR", "bioc", "orcid:0000-0001-0000-0001", ["aut"]),
+        ("edgeR", "bioc", "name:bob", ["cre"]),
+    ]
+    for pkg, repo, pid, roles in rows:
+        con.execute(
+            "INSERT INTO bridge_package_person VALUES (?, ?, ?, ?, 'authors_r')",
+            [pkg, repo, pid, roles],
+        )
+    con.execute("INSERT INTO dim_funder VALUES ('nih-nci','NIH NCI',true)")
+    con.execute(
+        "INSERT INTO bridge_package_funder VALUES "
+        "('limma','bioc','nih-nci','NIH NCI U24CA1','U24CA1','authors_r'), "
+        "('limma','bioc','nih-nci','NCI','U24CA9','authors_r')"
+    )
+    con.execute(_MART_SQL)
+
+    jane = con.execute(
+        "SELECT n_packages, n_maintained, n_authored, package_names FROM mart_person "
+        "WHERE name='Jane Doe'"
+    ).fetchone()
+    assert jane == (2, 1, 2, ["edgeR", "limma"])
+    assert con.execute(
+        "SELECT person_id FROM mart_package_person WHERE package_name='edgeR' AND is_maintainer"
+    ).fetchall() == [("name:bob",)]
+
+    # grant_id is set only where the declared grant is a known dim_grant core project
+    funders = con.execute(
+        "SELECT grant_number, grant_id FROM mart_package_funder ORDER BY grant_number"
+    ).fetchall()
+    assert funders == [("U24CA1", "U24CA1"), ("U24CA9", None)]

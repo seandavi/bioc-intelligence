@@ -27,8 +27,11 @@ column names stable once published (mirror the lake's versioned-view discipline)
 | `mart_grant_attribution` | grant | `agency`, `title`, `n_packages_supported`, `n_citing_works`, `package_names[]` | the grant-narrative payload; populated from RePORTER via lake |
 | `mart_package_directory` | package × repo | name, repo, maintainer, `biocviews[]`, `url[]`, `source_doi`, title | the explorer's backing data |
 | `mart_release_growth` | bioc_release | `n_packages` (+ `n_new_packages`/`net_downloads` pending history/downloads) | |
+| `mart_package_person` | package × repo × person | `person_id`, name, `orcid`, `roles[]`, `is_maintainer`, `source` | people credited on a package; no emails (not stored upstream) |
+| `mart_person` | person | name, `orcid`, `n_packages`, `n_maintained`, `n_authored`, `package_names[]` | "developers with more than N packages"; identity = ORCID, else normalized name |
+| `mart_package_funder` | package × repo × funder | `funder_id`, `funder_name`, `curated`, `declared_name`, `grant_number`, `grant_id` | declared (`fnd`) funders only; `grant_id` set when the NIH grant matches a RePORTER core project in `dim_grant`; `curated=false` rows are as-written (many are PIs, not agencies) |
 
-All four are exported every `build-marts` run and read directly by the SPA. The
+The marts above are exported every `build-marts` run (the SPA registers its own subset in `frontend/src/db/duckdb.ts`). The
 enrichment-sourced columns are present-but-empty until `enrich_from_lake` has run,
 so the frontend binds to a stable shape regardless.
 

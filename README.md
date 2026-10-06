@@ -103,6 +103,7 @@ uv venv && uv pip install -e '.[dev]'
 uv run biocintel init-db              # create the DuckDB store + schema
 uv run biocintel extract-packages     # VIEWS → dim_package(_version), all 4 repos
 uv run biocintel extract-citations    # CITATION/Description DOIs → bridge_package_pub (authoritative)
+uv run biocintel extract-people       # Authors@R → people, ORCIDs, roles, declared funders (no emails stored)
 uv run biocintel extract-downloads    # download stats → fact_download
 uv run biocintel build-marts          # derive mart_* → data/marts/*.parquet
 

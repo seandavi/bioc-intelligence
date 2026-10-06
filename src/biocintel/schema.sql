@@ -102,3 +102,34 @@ CREATE TABLE IF NOT EXISTS fact_mention_candidate (
     package_confidence       DOUBLE,
     usage_vs_passing_reference VARCHAR
 );
+
+-- ── People & funders from Authors@R (#23). No emails are stored, by design. ──
+CREATE TABLE IF NOT EXISTS dim_person (
+    person_id  VARCHAR PRIMARY KEY,       -- 'orcid:0000-…' or 'name:<normalized name>'
+    name       VARCHAR NOT NULL,
+    orcid      VARCHAR,
+    ror        VARCHAR                    -- declared affiliation ROR; best-effort, often null
+);
+
+CREATE TABLE IF NOT EXISTS bridge_package_person (
+    package_name  VARCHAR NOT NULL,
+    repo          VARCHAR NOT NULL,
+    person_id     VARCHAR NOT NULL,
+    roles         VARCHAR[] NOT NULL,     -- MARC-style codes as declared: aut, cre, ctb, ...
+    source        VARCHAR NOT NULL        -- 'authors_r' | 'description_author' | 'views_author' | 'maintainer'
+);
+
+CREATE TABLE IF NOT EXISTS dim_funder (
+    funder_id  VARCHAR PRIMARY KEY,       -- alias-table id (e.g. 'czi') or 'name:<normalized>'
+    name       VARCHAR NOT NULL,
+    curated    BOOLEAN NOT NULL           -- true when funder_aliases.yaml recognised it
+);
+
+CREATE TABLE IF NOT EXISTS bridge_package_funder (
+    package_name   VARCHAR NOT NULL,
+    repo           VARCHAR NOT NULL,
+    funder_id      VARCHAR NOT NULL,
+    declared_name  VARCHAR NOT NULL,      -- as written in Authors@R
+    grant_number   VARCHAR,               -- NIH core project number → dim_grant.grant_id
+    source         VARCHAR NOT NULL
+);

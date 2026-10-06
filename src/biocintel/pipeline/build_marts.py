@@ -137,6 +137,37 @@ SELECT package_name, repo, latest_release, maintainer, maintainer_email,
        title, biocviews, url, bug_reports, source_doi
 FROM dim_package
 ORDER BY package_name, repo;
+
+-- People per package (roles as declared in Authors@R; no emails are stored upstream).
+CREATE OR REPLACE TABLE mart_package_person AS
+SELECT bp.package_name, bp.repo, bp.person_id, p.name, p.orcid, bp.roles,
+       list_contains(bp.roles, 'cre') AS is_maintainer,
+       bp.source
+FROM bridge_package_person bp
+JOIN dim_person p USING (person_id)
+ORDER BY bp.package_name, bp.repo, is_maintainer DESC, p.name;
+
+-- Packages per person: maintainer / author counts for "developers with more than N packages".
+CREATE OR REPLACE TABLE mart_person AS
+SELECT p.person_id, p.name, p.orcid,
+       COUNT(*)                                              AS n_packages,
+       COUNT(*) FILTER (WHERE list_contains(bp.roles, 'cre')) AS n_maintained,
+       COUNT(*) FILTER (WHERE list_contains(bp.roles, 'aut')) AS n_authored,
+       LIST(bp.package_name ORDER BY bp.package_name)        AS package_names
+FROM bridge_package_person bp
+JOIN dim_person p USING (person_id)
+GROUP BY p.person_id, p.name, p.orcid
+ORDER BY n_packages DESC, p.name;
+
+-- Declared funders per package (the `fnd` role). grant_id is set when the declared NIH
+-- grant number matches a RePORTER core project already in dim_grant.
+CREATE OR REPLACE TABLE mart_package_funder AS
+SELECT bf.package_name, bf.repo, bf.funder_id, f.name AS funder_name, f.curated,
+       bf.declared_name, bf.grant_number, g.grant_id
+FROM bridge_package_funder bf
+JOIN dim_funder f USING (funder_id)
+LEFT JOIN dim_grant g ON g.grant_id = bf.grant_number
+ORDER BY bf.package_name, bf.repo, f.name;
 """
 
 _MARTS = [
@@ -145,6 +176,9 @@ _MARTS = [
     "mart_grant_attribution",
     "mart_package_directory",
     "mart_work",
+    "mart_package_person",
+    "mart_person",
+    "mart_package_funder",
 ]
 
 

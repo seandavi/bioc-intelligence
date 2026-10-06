@@ -25,6 +25,7 @@ uv run biocintel extract-packages        # VIEWS -> dim_package(_version), all 4
 uv run biocintel extract-packages --devel --repos bioc   # add devel channel / scope repos
 uv run biocintel extract-downloads       # stats tabs -> fact_download (skips a repo on 404)
 uv run biocintel extract-citations       # CITATION/Description DOIs -> bridge_package_pub (all 4 repos; lake-free)
+uv run biocintel extract-people          # Authors@R -> dim_person/dim_funder + bridge_package_person/_funder (lake-free; no emails stored)
 uv run biocintel build-marts             # derive mart_* -> data/marts/*.parquet
 uv run biocintel all                     # the three extract/build steps in order
 
@@ -177,8 +178,11 @@ Three layers, single direction of data flow:
 **Data model shape (spec §5):** dimensions (`dim_package`, `dim_package_version`, `dim_work`,
 `dim_grant`) are *rebuilt per release*. Fact tables (`fact_download`, `fact_citation_edge`,
 `fact_mention_candidate`) are *append-only and snapshot-stamped* (`_snapshot` column). Bridges
-(`bridge_package_pub`, `bridge_work_grant`) carry provenance. Marts (`mart_package_impact`,
-`mart_grant_attribution`, `mart_release_growth`) are derived and exported.
+(`bridge_package_pub`, `bridge_work_grant`, `bridge_package_person`, `bridge_package_funder`) carry
+provenance. People/funders (`dim_person`, `dim_funder`) come from `Authors@R`, parsed without
+evaluating it (`authors.py`); funder spellings are normalized via `funder_aliases.yaml`. Marts
+(`mart_package_impact`, `mart_grant_attribution`, `mart_release_growth`, `mart_package_person`,
+`mart_person`, `mart_package_funder`) are derived and exported.
 
 ## Settled decisions — do not re-litigate
 
