@@ -76,7 +76,13 @@ CREATE TABLE IF NOT EXISTS dim_grant (
     agency       VARCHAR,
     project_num  VARCHAR,
     fy           INTEGER,
-    title        VARCHAR
+    title        VARCHAR,
+    ic_name      VARCHAR,
+    fy_first     INTEGER,
+    fy_last      INTEGER,
+    org_name     VARCHAR,
+    org_country  VARCHAR,
+    pi_names     VARCHAR
 );
 
 -- ── Facts & bridges ─────────────────────────────────────────────────────────

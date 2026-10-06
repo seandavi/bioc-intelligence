@@ -197,14 +197,18 @@ gp AS (
 )
 SELECT gp.grant_id,
        d.agency,
+       d.ic_name,
        d.title,
+       d.fy_first,
+       d.fy_last,
+       d.org_name,
        COUNT(DISTINCT gp.package_name)    AS n_packages_supported,
        COUNT(DISTINCT e.citing_work_id)   AS n_citing_works,
        LIST(DISTINCT gp.package_name)     AS package_names
 FROM gp
 LEFT JOIN dim_grant d USING (grant_id)
 LEFT JOIN fact_citation_edge e ON e.cited_work_id = gp.work_id
-GROUP BY gp.grant_id, d.agency, d.title
+GROUP BY gp.grant_id, d.agency, d.ic_name, d.title, d.fy_first, d.fy_last, d.org_name
 ORDER BY n_packages_supported DESC, gp.grant_id;
 
 -- Linked works (one row per describing/companion publication) — powers
@@ -413,7 +417,11 @@ DEFINITIONS: dict[str, dict] = {
         "columns": {
             "grant_id": "NIH core project number, e.g. U24CA289073.",
             "agency": "NIH Institute/Center code.",
-            "title": "Grant title (NIH RePORTER).",
+            "ic_name": "NIH Institute/Center name, e.g. National Human Genome Research Institute.",
+            "title": "Parent award title (NIH RePORTER); a sub-project title only if no parent.",
+            "fy_first": "First fiscal year RePORTER lists for the core project.",
+            "fy_last": "Last fiscal year RePORTER lists for the core project.",
+            "org_name": "Awardee organization on the latest parent-award row.",
             "n_packages_supported": "Distinct packages whose linked paper acknowledges the grant.",
             "n_citing_works": "Distinct works citing those papers (0 until cited-by runs).",
             "package_names": "The supported packages.",
