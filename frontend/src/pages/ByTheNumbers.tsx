@@ -7,6 +7,7 @@ import { VegaChart } from "../components/VegaChart";
 import { REPO_LABEL } from "../components/ui";
 import { Link } from "../lib/router";
 import { fmtCompact, fmtFloat, fmtInt } from "../lib/format";
+import { HIGH_CONFIDENCE_SQL } from "../lib/confidence";
 
 const ACCENT = "#1f7bbf";
 
@@ -37,7 +38,6 @@ const BIOCVIEWS_COUNT = `
 
 const IMPACT = `
   SELECT
-    (count(*) FILTER (WHERE n_primary_pubs > 0))::INT AS n_pkgs_with_pub,
     (sum(total_distinct_ips))::BIGINT AS total_ips,
     (sum(distinct_ips_trailing_12mo))::BIGINT AS ips_12mo
   FROM 'mart_package_impact.parquet'`;
@@ -46,15 +46,24 @@ const GRANTS = `
   SELECT count(*)::INT AS n_grants, count(DISTINCT agency)::INT AS n_institutes
   FROM 'mart_grant_attribution.parquet'`;
 
+// Paper figures follow the leaderboard default: DOI and CITATION links only, each work once.
 // RCR is a normalized rate → summarize by median + p10/p90, never a sum.
 const WORKS = `
+  WITH w AS (
+    SELECT DISTINCT work_id, package_name, repo FROM 'mart_package_work.parquet'
+    WHERE ${HIGH_CONFIDENCE_SQL}
+  ), d AS (
+    SELECT DISTINCT work_id, citation_count, icite_rcr FROM 'mart_package_work.parquet'
+    WHERE work_id IN (SELECT work_id FROM w)
+  )
   SELECT median(icite_rcr) AS median_rcr,
          quantile_cont(icite_rcr, 0.1) AS p10,
          quantile_cont(icite_rcr, 0.9) AS p90,
          (sum(citation_count))::BIGINT AS total_citations,
          (count(*))::INT AS n_works,
-         (count(icite_rcr))::INT AS n_with_rcr
-  FROM 'mart_work.parquet'`;
+         (count(icite_rcr))::INT AS n_with_rcr,
+         (SELECT count(DISTINCT (package_name, repo))::INT FROM w) AS n_pkgs_with_pub
+  FROM d`;
 
 const CITES_BY_YEAR = `
   SELECT year, (sum(citation_count))::BIGINT AS citations
@@ -68,10 +77,20 @@ const WORKS_BY_YEAR = `
   WHERE year IS NOT NULL AND year BETWEEN 2000 AND 2026
   GROUP BY year ORDER BY year`;
 
+// Per-package medians over DOI and CITATION links; a work shared by several packages is one
+// bar labelled with all of them. Median RCR of a package's works = RCR when it has one work.
 const TOP_RCR = `
-  SELECT package_name, median_rcr
-  FROM 'mart_package_impact.parquet'
-  WHERE median_rcr IS NOT NULL ORDER BY median_rcr DESC LIMIT 10`;
+  WITH pkg AS (
+    SELECT package_name, repo, median(icite_rcr) AS median_rcr,
+           list(DISTINCT work_id ORDER BY work_id) FILTER (WHERE icite_rcr IS NOT NULL) AS works
+    FROM (SELECT DISTINCT package_name, repo, work_id, icite_rcr FROM 'mart_package_work.parquet'
+          WHERE ${HIGH_CONFIDENCE_SQL})
+    GROUP BY package_name, repo HAVING median(icite_rcr) IS NOT NULL
+  )
+  SELECT string_agg(package_name, ' / ' ORDER BY package_name) AS package_name,
+         any_value(median_rcr) AS median_rcr
+  FROM pkg GROUP BY works, median_rcr
+  ORDER BY median_rcr DESC LIMIT 10`;
 
 interface Eco {
   n_packages: number;
@@ -80,7 +99,6 @@ interface Eco {
   current_release: string;
 }
 interface Impact {
-  n_pkgs_with_pub: number;
   total_ips: number;
   ips_12mo: number;
 }
@@ -91,6 +109,7 @@ interface Works {
   total_citations: number;
   n_works: number;
   n_with_rcr: number;
+  n_pkgs_with_pub: number;
 }
 
 function barSpec(
@@ -298,9 +317,9 @@ export function ByTheNumbers() {
         </div>
       </Section>
 
-      <Section title="Impact" note="linked so far — grows as enrichment fills in">
+      <Section title="Impact" note="DOI and CITATION links only">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <StatCard label="Pkgs w/ publication" value={fmtInt(im?.n_pkgs_with_pub)}
+          <StatCard label="Pkgs w/ publication" value={fmtInt(w?.n_pkgs_with_pub)}
             info="Packages linked to at least one paper the package asks users to cite (via an embedded DOI or the package's CITATION file)." />
           <StatCard label="Linked works" value={fmtInt(w?.n_works)} sub="papers to cite"
             info="Distinct publications linked to packages as papers the package asks users to cite." />
