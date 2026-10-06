@@ -5,6 +5,7 @@ import { Explorer, PackagePage } from "./pages/Explorer";
 import { ImpactLeaderboard } from "./pages/ImpactLeaderboard";
 import { BiocViews } from "./pages/BiocViews";
 import { Grants } from "./pages/Grants";
+import { People } from "./pages/People";
 import { Growth } from "./pages/Growth";
 import { Trends } from "./pages/Trends";
 import { About } from "./pages/About";
@@ -17,6 +18,7 @@ const NAV = [
   { id: "impact", label: "Impact" },
   { id: "trends", label: "Trends" },
   { id: "grants", label: "Grants" },
+  { id: "people", label: "People" },
   { id: "growth", label: "Growth" },
   { id: "about", label: "About" },
 ];
@@ -89,6 +91,8 @@ export default function App() {
           <BiocViews />
         ) : route.view === "grants" ? (
           <Grants />
+        ) : route.view === "people" ? (
+          <People />
         ) : route.view === "growth" ? (
           <Growth />
         ) : route.view === "about" ? (
