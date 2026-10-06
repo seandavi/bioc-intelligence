@@ -2,7 +2,7 @@
 
 Bioconductor's static files (VIEWS, config.yaml, stats tabs) are large and change
 at most weekly, so a content cache keyed by URL keeps re-runs cheap and polite.
-Set ``BIOCINTEL_NO_CACHE=1`` to bypass.
+Set ``BIOCINTEL_NO_CACHE=1`` to bypass, except for ``force_cache`` (immutable) URLs.
 """
 
 from __future__ import annotations
@@ -34,14 +34,21 @@ def _cache_path(url: str) -> Path:
     return CACHE_DIR / digest
 
 
-def get_text(url: str, *, use_cache: bool = True) -> str:
+def get_text(url: str, *, use_cache: bool = True, force_cache: bool = False) -> str:
     """GET ``url`` as text, with retries on transient errors and a disk cache.
 
     Raises :class:`HttpError` on a definitive 4xx (so callers can skip a missing
     resource without aborting the run — see ``extract_downloads``).
+
+    ``force_cache`` is for immutable resources (e.g. past-release pages): it caches
+    even under ``BIOCINTEL_NO_CACHE=1`` and also caches a 404, so a miss is never
+    re-fetched.
     """
-    use_cache = use_cache and os.getenv("BIOCINTEL_NO_CACHE") != "1"
+    use_cache = force_cache or (use_cache and os.getenv("BIOCINTEL_NO_CACHE") != "1")
     cache = _cache_path(url)
+    missing = cache.with_suffix(".404")
+    if force_cache and missing.exists():
+        raise HttpError(url, 404)
     if use_cache and cache.exists():
         return cache.read_text(encoding="utf-8")
 
@@ -49,6 +56,9 @@ def get_text(url: str, *, use_cache: bool = True) -> str:
     for attempt in range(_RETRIES):
         try:
             resp = httpx.get(url, timeout=_TIMEOUT, follow_redirects=True)
+            if force_cache and resp.status_code == 404:
+                missing.parent.mkdir(parents=True, exist_ok=True)
+                missing.touch()
             if 400 <= resp.status_code < 500:
                 raise HttpError(url, resp.status_code)
             resp.raise_for_status()

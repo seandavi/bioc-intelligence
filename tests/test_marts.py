@@ -137,7 +137,8 @@ def test_package_work_keeps_highest_confidence_edge():
     _fixture(con)
     con.execute("UPDATE dim_work SET doi='10.1/limma', title='limma paper' WHERE work_id='W1'")
     con.execute(
-        "INSERT INTO bridge_package_pub VALUES "
+        "INSERT INTO bridge_package_pub "
+        "(package_name, repo, work_id, role, match_method, confidence) VALUES "
         "('limma','bioc','10.1/limma','primary','citation_file',0.9), "  # same work via DOI
         "('limma','bioc','10.9/unenriched','primary','description_doi',0.8)"
     )

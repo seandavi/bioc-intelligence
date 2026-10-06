@@ -213,7 +213,15 @@ reopens the question:
   rendered `.../citations/<pkg>/citation.html` when `inst/CITATION` isn't on the org, as
   `match_method = 'citation_file'` (confidence 0.9); `<doi:…>` in DESCRIPTION `Description:`
   becomes `description_doi` (0.8 — it sometimes cites dependencies/related work). DOI
-  harvesting + normalisation lives in `biocintel/doi.py`. Every edge
+  harvesting + normalisation lives in `biocintel/doi.py`. CITATION files rotate (edgeR's devel
+  CITATION lists only its 2025 paper), so `extract-citations` also unions the DOIs on every past
+  release's rendered `packages/<ver>/<repo>/citations/<pkg>/citation.html` (3.0 → current−1,
+  from `config.yaml`) as `citation_file` (0.9), with `bridge_package_pub.source_release` =
+  `devel` | `release` | the newest past release listing it. Those pages are immutable, so they're
+  fetched with `get_text(force_cache=True)`, which caches (404s too) even under
+  `BIOCINTEL_NO_CACHE=1`; the first full run is ~88k GETs, later runs only fetch a new release.
+  `--packages a,b --releases 3.16,3.19` bounds a run (only those packages' rows are replaced;
+  `--releases ''` skips the pass). Every edge
   **must** carry `match_method` (`doi` | `citation_file` | `description_doi` | `title_search` |
   `manual`) and
   `confidence` so the dashboard can filter to high-confidence linkages for grant reporting.

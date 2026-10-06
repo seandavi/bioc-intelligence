@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS bridge_package_pub (
     work_id       VARCHAR NOT NULL,
     role          VARCHAR,                -- 'primary' | 'companion'
     match_method  VARCHAR,                -- 'doi' | 'citation_file' | 'description_doi' | 'title_search' | 'manual'
-    confidence    DOUBLE
+    confidence    DOUBLE,
+    source_release VARCHAR                -- citation_file: 'devel' | 'release' | past release e.g. '3.16'
 );
 
 CREATE TABLE IF NOT EXISTS fact_citation_edge (

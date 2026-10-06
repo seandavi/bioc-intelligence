@@ -28,3 +28,5 @@ def init_schema(con: duckdb.DuckDBPyConnection) -> None:
     """Create all canonical tables if absent (idempotent)."""
     ddl = resources.files("biocintel").joinpath("schema.sql").read_text(encoding="utf-8")
     con.execute(ddl)
+    # Columns added after a table first shipped; CREATE IF NOT EXISTS won't add them.
+    con.execute("ALTER TABLE bridge_package_pub ADD COLUMN IF NOT EXISTS source_release VARCHAR")
