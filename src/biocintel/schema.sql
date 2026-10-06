@@ -68,7 +68,13 @@ CREATE TABLE IF NOT EXISTS dim_work (
     journal         VARCHAR,
     icite_rcr       DOUBLE,
     citation_count  BIGINT,
-    _snapshot       DATE
+    _snapshot       DATE,
+    nih_percentile      DOUBLE,   -- iCite
+    apt                 DOUBLE,   -- iCite Approximate Potential to Translate
+    is_clinical         BOOLEAN,  -- iCite
+    citations_per_year  DOUBLE,   -- iCite
+    is_retracted        BOOLEAN,  -- OpenAlex
+    n_patent_citations  INTEGER   -- distinct citing patents (reliance.patent_citations)
 );
 
 CREATE TABLE IF NOT EXISTS dim_grant (

@@ -26,6 +26,7 @@ export const MARTS = [
 // that serves identity-encoded ranges.
 export const LAZY_MARTS = [
   "mart_package_downloads_monthly.parquet",
+  "mart_package_dependency.parquet",
   "mart_work_institution.parquet",
 ] as const;
 
