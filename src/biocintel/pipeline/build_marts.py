@@ -128,13 +128,31 @@ ORDER BY n_packages_supported DESC, gp.grant_id;
 -- Linked works (one row per describing/companion publication) — powers
 -- ecosystem-level citation stats and the citations-by-year plot.
 CREATE OR REPLACE TABLE mart_work AS
-SELECT work_id, pmid, doi, year, journal, icite_rcr, citation_count
+SELECT work_id, pmid, doi, title, year, journal, icite_rcr, citation_count
 FROM dim_work;
+
+-- Package → linked works (one row per package × work), for the explorer's papers list.
+-- Same DOI/PMID reconciliation as `pw`; a pair reached by several match methods keeps
+-- its highest-confidence edge. Works not yet in dim_work keep a row with NULL metadata.
+CREATE OR REPLACE TABLE mart_package_work AS
+SELECT b.package_name, b.repo,
+       COALESCE(w.work_id, b.work_id)                          AS work_id,
+       COALESCE(w.doi, CASE WHEN b.work_id LIKE '10.%' THEN b.work_id END) AS doi,
+       w.pmid, w.title, w.year, w.journal, w.citation_count, w.icite_rcr,
+       b.match_method, b.confidence, b.role
+FROM bridge_package_pub b
+LEFT JOIN dim_work w
+  ON b.work_id = w.work_id OR b.work_id = w.doi OR b.work_id = w.pmid
+QUALIFY row_number() OVER (
+    PARTITION BY b.package_name, b.repo, COALESCE(w.work_id, b.work_id)
+    ORDER BY b.confidence DESC NULLS LAST, b.match_method
+) = 1
+ORDER BY b.package_name, b.repo, b.confidence DESC, w.year DESC NULLS LAST;
 
 -- Flat package directory for the explorer view (frontend reads this directly).
 CREATE OR REPLACE TABLE mart_package_directory AS
-SELECT package_name, repo, latest_release, maintainer, maintainer_email,
-       title, biocviews, url, bug_reports, source_doi
+SELECT package_name, repo, latest_release, maintainer,  -- no maintainer_email (#33)
+       title, description, biocviews, url, bug_reports, source_doi
 FROM dim_package
 ORDER BY package_name, repo;
 
@@ -176,6 +194,7 @@ _MARTS = [
     "mart_grant_attribution",
     "mart_package_directory",
     "mart_work",
+    "mart_package_work",
     "mart_package_person",
     "mart_person",
     "mart_package_funder",

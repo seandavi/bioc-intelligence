@@ -130,3 +130,39 @@ def test_person_and_funder_marts():
         "SELECT grant_number, grant_id FROM mart_package_funder ORDER BY grant_number"
     ).fetchall()
     assert funders == [("U24CA1", "U24CA1"), ("U24CA9", None)]
+
+
+def test_package_work_keeps_highest_confidence_edge():
+    con = db.connect(":memory:")
+    _fixture(con)
+    con.execute("UPDATE dim_work SET doi='10.1/limma', title='limma paper' WHERE work_id='W1'")
+    con.execute(
+        "INSERT INTO bridge_package_pub VALUES "
+        "('limma','bioc','10.1/limma','primary','citation_file',0.9), "  # same work via DOI
+        "('limma','bioc','10.9/unenriched','primary','description_doi',0.8)"
+    )
+    con.execute(_MART_SQL)
+    cols = [r[0] for r in con.execute("DESCRIBE mart_package_work").fetchall()]
+    assert cols == [
+        "package_name", "repo", "work_id", "doi", "pmid", "title", "year", "journal",
+        "citation_count", "icite_rcr", "match_method", "confidence", "role",
+    ]
+    rows = con.execute(
+        "SELECT work_id, doi, title, match_method, confidence FROM mart_package_work "
+        "ORDER BY work_id"
+    ).fetchall()
+    assert rows == [
+        ("10.9/unenriched", "10.9/unenriched", None, "description_doi", 0.8),
+        ("W1", "10.1/limma", "limma paper", "doi", 1.0),
+    ]
+
+
+def test_directory_mart_has_description_not_email():
+    con = db.connect(":memory:")
+    _fixture(con)
+    con.execute(_MART_SQL)
+    cols = {r[0] for r in con.execute("DESCRIBE mart_package_directory").fetchall()}
+    assert "description" in cols
+    assert "maintainer_email" not in cols
+    work_cols = {r[0] for r in con.execute("DESCRIBE mart_work").fetchall()}
+    assert "title" in work_cols
