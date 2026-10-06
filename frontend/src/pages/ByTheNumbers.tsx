@@ -3,6 +3,7 @@ import type { VisualizationSpec } from "vega-embed";
 import { useQuery } from "../db/useQuery";
 import { StatCard } from "../components/StatCard";
 import { VegaChart } from "../components/VegaChart";
+import { REPO_LABEL } from "../components/ui";
 import { fmtCompact, fmtFloat, fmtInt } from "../lib/format";
 
 const ACCENT = "#1f7bbf";
@@ -19,9 +20,13 @@ const BY_REPO = `
   SELECT repo, count(*)::INT AS n
   FROM 'mart_package_directory.parquet' GROUP BY repo ORDER BY n DESC`;
 
+// The four roots of the biocViews taxonomy tag nearly every package; they say nothing in a ranking.
+const BIOCVIEWS_ROOTS = "('Software', 'AnnotationData', 'ExperimentData', 'Workflow')";
+
 const BIOCVIEWS_TOP = `
   SELECT term, count(*)::INT AS n
   FROM (SELECT unnest(biocviews) AS term FROM 'mart_package_directory.parquet')
+  WHERE term NOT IN ${BIOCVIEWS_ROOTS}
   GROUP BY term ORDER BY n DESC LIMIT 12`;
 
 const BIOCVIEWS_COUNT = `
@@ -31,11 +36,12 @@ const BIOCVIEWS_COUNT = `
 const IMPACT = `
   SELECT
     (count(*) FILTER (WHERE n_primary_pubs > 0))::INT AS n_pkgs_with_pub,
-    (sum(total_distinct_ips))::BIGINT AS total_ips
+    (sum(total_distinct_ips))::BIGINT AS total_ips,
+    (sum(distinct_ips_trailing_12mo))::BIGINT AS ips_12mo
   FROM 'mart_package_impact.parquet'`;
 
 const GRANTS = `
-  SELECT count(*)::INT AS n_grants, count(DISTINCT agency)::INT AS n_agencies
+  SELECT count(*)::INT AS n_grants, count(DISTINCT agency)::INT AS n_institutes
   FROM 'mart_grant_attribution.parquet'`;
 
 // RCR is a normalized rate → summarize by median + p10/p90, never a sum.
@@ -44,11 +50,18 @@ const WORKS = `
          quantile_cont(icite_rcr, 0.1) AS p10,
          quantile_cont(icite_rcr, 0.9) AS p90,
          (sum(citation_count))::BIGINT AS total_citations,
-         (count(*))::INT AS n_works
+         (count(*))::INT AS n_works,
+         (count(icite_rcr))::INT AS n_with_rcr
   FROM 'mart_work.parquet'`;
 
 const CITES_BY_YEAR = `
   SELECT year, (sum(citation_count))::BIGINT AS citations
+  FROM 'mart_work.parquet'
+  WHERE year IS NOT NULL AND year BETWEEN 2000 AND 2026
+  GROUP BY year ORDER BY year`;
+
+const WORKS_BY_YEAR = `
+  SELECT year, (count(*))::INT AS papers
   FROM 'mart_work.parquet'
   WHERE year IS NOT NULL AND year BETWEEN 2000 AND 2026
   GROUP BY year ORDER BY year`;
@@ -67,6 +80,7 @@ interface Eco {
 interface Impact {
   n_pkgs_with_pub: number;
   total_ips: number;
+  ips_12mo: number;
 }
 interface Works {
   median_rcr: number | null;
@@ -74,6 +88,7 @@ interface Works {
   p90: number | null;
   total_citations: number;
   n_works: number;
+  n_with_rcr: number;
 }
 
 function barSpec(
@@ -101,7 +116,11 @@ function barSpec(
   } as VisualizationSpec;
 }
 
-function yearSpec(values: Record<string, unknown>[], title: string): VisualizationSpec {
+function yearSpec(
+  values: Record<string, unknown>[],
+  field: string,
+  title: string,
+): VisualizationSpec {
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
     title: { text: title, fontSize: 13, color: "#334155" },
@@ -109,10 +128,10 @@ function yearSpec(values: Record<string, unknown>[], title: string): Visualizati
     mark: { type: "bar", color: ACCENT },
     encoding: {
       x: { field: "year", type: "ordinal", axis: { title: null, labelAngle: 0, labelOverlap: true } },
-      y: { field: "citations", type: "quantitative", axis: { title: null, grid: false } },
+      y: { field, type: "quantitative", axis: { title: null, grid: false } },
       tooltip: [
         { field: "year", type: "ordinal" },
-        { field: "citations", type: "quantitative" },
+        { field, type: "quantitative" },
       ],
     },
     width: "container",
@@ -139,13 +158,22 @@ export function ByTheNumbers() {
   const bvTop = useQuery<Record<string, unknown>>(BIOCVIEWS_TOP);
   const bvCount = useQuery<{ n: number }>(BIOCVIEWS_COUNT);
   const impact = useQuery<Impact>(IMPACT);
-  const grants = useQuery<{ n_grants: number; n_agencies: number }>(GRANTS);
+  const grants = useQuery<{ n_grants: number; n_institutes: number }>(GRANTS);
   const works = useQuery<Works>(WORKS);
   const byYear = useQuery<Record<string, unknown>>(CITES_BY_YEAR);
+  const papersByYear = useQuery<Record<string, unknown>>(WORKS_BY_YEAR);
   const topRcr = useQuery<Record<string, unknown>>(TOP_RCR);
 
   const repoSpec = useMemo(
-    () => (byRepo.data ? barSpec(byRepo.data, "n", "repo", "Packages per repository") : null),
+    () =>
+      byRepo.data
+        ? barSpec(
+            byRepo.data.map((r) => ({ ...r, repo: REPO_LABEL[r.repo as string] ?? r.repo })),
+            "n",
+            "repo",
+            "Packages per repository",
+          )
+        : null,
     [byRepo.data],
   );
   const bvSpec = useMemo(
@@ -160,8 +188,18 @@ export function ByTheNumbers() {
     [topRcr.data],
   );
   const yearChart = useMemo(
-    () => (byYear.data ? yearSpec(byYear.data, "Citations by publication year") : null),
+    () =>
+      byYear.data
+        ? yearSpec(byYear.data, "citations", "Citations to describing papers, by the paper's publication year")
+        : null,
     [byYear.data],
+  );
+  const papersChart = useMemo(
+    () =>
+      papersByYear.data
+        ? yearSpec(papersByYear.data, "papers", "Describing papers published per year")
+        : null,
+    [papersByYear.data],
   );
 
   if (eco.error) {
@@ -181,7 +219,10 @@ export function ByTheNumbers() {
   const w = works.data?.[0];
   const downloadsLive = (im?.total_ips ?? 0) > 0;
   const rcrSpread =
-    w?.p10 != null && w?.p90 != null ? `p10–p90 ${fmtFloat(w.p10)}–${fmtFloat(w.p90)}` : undefined;
+    w?.p10 != null && w?.p90 != null ? `p10–p90 ${fmtFloat(w.p10)}–${fmtFloat(w.p90)}` : null;
+  const rcrSub = [w ? `n = ${fmtInt(w.n_with_rcr)} of ${fmtInt(w.n_works)}` : null, rcrSpread]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div>
@@ -215,24 +256,27 @@ export function ByTheNumbers() {
       <Section title="Impact" note="linked so far — grows as enrichment fills in">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <StatCard label="Pkgs w/ publication" value={fmtInt(im?.n_pkgs_with_pub)}
-            info="Packages linked to at least one describing publication (via an embedded DOI or the package's CITATION file)." />
-          <StatCard label="Linked works" value={fmtInt(w?.n_works)} sub="describing papers"
-            info="Distinct publications linked to packages as their describing paper." />
+            info="Packages linked to at least one paper the package asks users to cite (via an embedded DOI or the package's CITATION file)." />
+          <StatCard label="Linked works" value={fmtInt(w?.n_works)} sub="papers to cite"
+            info="Distinct publications linked to packages as papers the package asks users to cite." />
           <StatCard label="Total citations" value={fmtCompact(w?.total_citations)} sub="OpenAlex"
-            info="Sum of OpenAlex citation counts across all linked describing papers. Citations are counts, so summing is meaningful." />
-          <StatCard label="Median RCR" value={fmtFloat(w?.median_rcr ?? null, 2)} sub={rcrSpread}
+            info="Sum of OpenAlex citation counts across all linked papers the packages ask users to cite. Citations are counts, so summing is meaningful." />
+          <StatCard label="Median RCR" value={fmtFloat(w?.median_rcr ?? null, 2)} sub={rcrSub || undefined}
             info="Relative Citation Ratio (NIH iCite): a field- and time-normalized citation rate where 1.0 = the NIH-wide average. Shown as the median across linked papers, with the 10th–90th percentile spread." />
-          <StatCard label="NIH grants" value={fmtInt(g?.n_grants)} sub={`${g?.n_agencies ?? 0} agencies`}
+          <StatCard label="NIH grants" value={fmtInt(g?.n_grants)} sub={`${g?.n_institutes ?? 0} NIH Institutes/Centers`}
             info="Distinct NIH awards whose publications are described by a Bioconductor package (linked via NIH RePORTER)." />
           <StatCard
             label="Distinct-IP downloads"
-            value={downloadsLive ? fmtCompact(im?.total_ips) : "pending"}
-            sub={downloadsLive ? "all-time" : "stats endpoint offline"}
+            value={downloadsLive ? fmtCompact(im?.ips_12mo) : "pending"}
+            sub={downloadsLive ? `last 12 months · ${fmtCompact(im?.total_ips)} all-time` : "stats endpoint offline"}
             pending={!downloadsLive}
-            info="Sum of monthly distinct downloading IPs — the usage proxy (less gameable than raw downloads). An IP active in several months counts once per month."
+            info="Sum of monthly distinct downloading IPs — the usage proxy (less gameable than raw downloads). An IP active in several months counts once per month. Collection methodology changed in Oct 2015, so all-time totals span two eras."
           />
         </div>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            {papersChart && <VegaChart spec={papersChart} className="w-full" />}
+          </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             {yearChart && <VegaChart spec={yearChart} className="w-full" />}
           </div>
