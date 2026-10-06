@@ -48,6 +48,16 @@ _DIM_GRANT_COLUMNS = [
     ("pi_names", "VARCHAR"),
 ]
 
+# dim_work columns added with the iCite/retraction/patent enrichment (#47).
+_DIM_WORK_COLUMNS = [
+    ("nih_percentile", "DOUBLE"),
+    ("apt", "DOUBLE"),
+    ("is_clinical", "BOOLEAN"),
+    ("citations_per_year", "DOUBLE"),
+    ("is_retracted", "BOOLEAN"),
+    ("n_patent_citations", "INTEGER"),
+]
+
 
 def connect(
     path: Path | str | None = None, *, read_only: bool = False
@@ -68,3 +78,5 @@ def init_schema(con: duckdb.DuckDBPyConnection) -> None:
         con.execute(f"ALTER TABLE dim_package ADD COLUMN IF NOT EXISTS {name} {typ}")
     for name, typ in _DIM_GRANT_COLUMNS:
         con.execute(f"ALTER TABLE dim_grant ADD COLUMN IF NOT EXISTS {name} {typ}")
+    for name, typ in _DIM_WORK_COLUMNS:
+        con.execute(f"ALTER TABLE dim_work ADD COLUMN IF NOT EXISTS {name} {typ}")

@@ -4,8 +4,10 @@ All cross-catalog SQL against the read-only lake (spec §4/§7). Driven by the s
 of *primary works* already linked in ``bridge_package_pub`` (run ``link_works``
 first). Steps:
 
-- **works**  — linked OpenAlex works + iCite RCR → ``dim_work`` (cheap; scans the
-  114M ``works`` once to materialize a small ``linked`` temp table).
+- **works**  — linked OpenAlex works + iCite RCR/percentile/APT → ``dim_work`` (cheap;
+  scans the 114M ``works`` once to materialize a small ``linked`` temp table), then
+  citing-patent counts from ``reliance.patent_citations`` (best-effort: a failure
+  is logged and the run continues).
 - **grants** — ``reporter.publink``→``reporter.projects`` for those works'
   PMIDs → ``dim_grant`` + ``bridge_work_grant``.
 - **institutions** — author affiliations of every ``dim_work`` row with an
@@ -37,7 +39,8 @@ CREATE OR REPLACE TEMP TABLE linked AS
 SELECT DISTINCT
     w.id AS oa_id, w.pmid, w.doi,
     COALESCE(CAST(w.pmid AS VARCHAR), w.doi) AS work_id,
-    w.title, w.publication_year AS year, w.source_name AS journal, w.cited_by_count
+    w.title, w.publication_year AS year, w.source_name AS journal, w.cited_by_count,
+    w.is_retracted
 FROM lake.openalex.works w
 -- A bridge work_id is PMID-or-DOI; match EITHER side (a citation link stores the
 -- DOI even when the work also has a PMID, so a single COALESCE key would miss it).
@@ -57,7 +60,7 @@ INSERT INTO linked
 SELECT DISTINCT
     NULL AS oa_id, ic.pmid, ic.doi,
     COALESCE(CAST(ic.pmid AS VARCHAR), ic.doi) AS work_id,
-    ic.title, ic.year, ic.journal, ic.citation_count
+    ic.title, ic.year, ic.journal, ic.citation_count, NULL AS is_retracted
 FROM lake.icite.metadata ic
 WHERE (ic.doi IN (SELECT work_id FROM bi.bridge_package_pub)
        OR CAST(ic.pmid AS VARCHAR) IN (SELECT work_id FROM bi.bridge_package_pub))
@@ -67,10 +70,28 @@ WHERE (ic.doi IN (SELECT work_id FROM bi.bridge_package_pub)
 
 _WORKS_SQL = """
 INSERT OR REPLACE INTO bi.dim_work
+    (work_id, pmid, doi, openalex_id, title, year, journal, icite_rcr, citation_count,
+     _snapshot, nih_percentile, apt, is_clinical, citations_per_year, is_retracted)
 SELECT l.work_id, CAST(l.pmid AS VARCHAR), l.doi, l.oa_id,
-       l.title, l.year, l.journal, ic.rcr, l.cited_by_count, current_date
+       l.title, l.year, l.journal, ic.rcr, l.cited_by_count, current_date,
+       ic.nih_percentile, ic.apt, ic.is_clinical, ic.citations_per_year, l.is_retracted
 FROM linked l
 LEFT JOIN lake.icite.metadata ic ON ic.pmid = l.pmid;
+"""
+
+# Distinct citing patents per linked OpenAlex work; reliance.patent_citations.work_id is
+# the same OpenAlex id as dim_work.openalex_id. 0 = no patent cites it; NULL = no
+# OpenAlex id (iCite-fallback works) or the step failed.
+_WORK_PATENTS_SQL = """
+UPDATE bi.dim_work d SET n_patent_citations = COALESCE(p.n, 0)
+FROM linked l
+LEFT JOIN (
+    SELECT work_id, count(DISTINCT patent) AS n
+    FROM lake.reliance.patent_citations
+    WHERE work_id IN (SELECT oa_id FROM linked)
+    GROUP BY work_id
+) p ON p.work_id = l.oa_id
+WHERE d.work_id = l.work_id AND l.oa_id IS NOT NULL;
 """
 
 # NOTE (contract): reporter.publink.project_number is a *core* project number —
@@ -167,6 +188,15 @@ FROM work_institution;
 
 def _enrich_works(con: duckdb.DuckDBPyConnection) -> int:
     con.execute(_WORKS_SQL)
+    # Best-effort (spec §3): patent counts never fail the works step.
+    try:
+        con.execute(_WORK_PATENTS_SQL)
+        n_cited = con.execute(
+            "SELECT count(*) FROM bi.dim_work WHERE n_patent_citations > 0"
+        ).fetchone()[0]
+        print(f"  works cited by patents: {n_cited}")
+    except duckdb.Error as exc:
+        print(f"  patents: skipped ({exc})")
     return con.execute("SELECT count(*) FROM bi.dim_work").fetchone()[0]
 
 

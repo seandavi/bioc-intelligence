@@ -214,7 +214,9 @@ ORDER BY n_packages_supported DESC, gp.grant_id;
 -- Linked works (one row per describing/companion publication) — powers
 -- ecosystem-level citation stats and the citations-by-year plot.
 CREATE OR REPLACE TABLE mart_work AS
-SELECT work_id, pmid, doi, title, year, journal, icite_rcr, citation_count
+SELECT work_id, pmid, doi, title, year, journal, icite_rcr, citation_count,
+       nih_percentile, apt, is_clinical, citations_per_year,
+       journal ILIKE '%rxiv%' AS is_preprint, is_retracted, n_patent_citations
 FROM dim_work;
 
 -- Package → linked works (one row per package × work), for the explorer's papers list.
@@ -225,6 +227,8 @@ SELECT b.package_name, b.repo,
        COALESCE(w.work_id, b.work_id)                          AS work_id,
        COALESCE(w.doi, CASE WHEN b.work_id LIKE '10.%' THEN b.work_id END) AS doi,
        w.pmid, w.title, w.year, w.journal, w.citation_count, w.icite_rcr,
+       w.nih_percentile, w.apt, w.is_clinical, w.citations_per_year,
+       w.journal ILIKE '%rxiv%' AS is_preprint, w.is_retracted, w.n_patent_citations,
        b.match_method, b.confidence, b.role
 FROM bridge_package_pub b
 LEFT JOIN dim_work w
@@ -356,6 +360,16 @@ _WORK = {
     "icite_rcr": "Relative Citation Ratio (NIH iCite): field- and time-normalized citation rate; "
                  "1.0 = NIH-wide average.",
     "citation_count": "OpenAlex citation count.",
+    "nih_percentile": "NIH iCite percentile of the RCR among NIH-funded papers (0-100); "
+                      "90 = top decile.",
+    "apt": "NIH iCite Approximate Potential to Translate: predicted probability (0-1) that "
+           "the paper is later cited by a clinical article.",
+    "is_clinical": "NIH iCite flag: the paper is itself a clinical article.",
+    "citations_per_year": "NIH iCite citations per year since publication.",
+    "is_preprint": "Venue looks like a preprint server (journal name contains 'rxiv').",
+    "is_retracted": "OpenAlex retraction flag.",
+    "n_patent_citations": "Distinct patents citing the work (Reliance on Science); 0 = none "
+                          "found, empty = no OpenAlex id or not yet enriched.",
 }
 _DL = {
     "methodology_era": "Download-stats collection era: 'pre_2015_10' or 'modern'. Bioconductor "
@@ -450,7 +464,8 @@ DEFINITIONS: dict[str, dict] = {
         },
     },
     "mart_work": {
-        "description": "One row per linked publication, with iCite RCR and citations.",
+        "description": "One row per linked publication, with iCite metrics, citations "
+                       "and patent citations.",
         "columns": _WORK,
     },
     "mart_package_work": {
