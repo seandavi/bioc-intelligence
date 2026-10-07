@@ -25,6 +25,15 @@ LAKE_ALIAS = "lake"  # set by cdsci-lake's read client
 LOCAL_ALIAS = "bi"
 
 
+def ensure_local_store(biocintel_path: Path | str | None = None) -> Path:
+    """Create the local schema so enrichment can write its tables; return the store path."""
+    path = Path(biocintel_path or DB_PATH)
+    bootstrap = db.connect(path)
+    db.init_schema(bootstrap)
+    bootstrap.close()
+    return path
+
+
 def connect_with_lake(biocintel_path: Path | str | None = None) -> duckdb.DuckDBPyConnection:
     """Open a connection that sees both the lake (``lake``) and local store (``bi``).
 
@@ -39,12 +48,7 @@ def connect_with_lake(biocintel_path: Path | str | None = None) -> duckdb.DuckDB
             "CU_OPENALEX_LAKE_BACKEND=postgres."
         ) from exc
 
-    path = Path(biocintel_path or DB_PATH)
-    # Ensure local tables exist before we attach the file read-write for writing.
-    bootstrap = db.connect(path)
-    db.init_schema(bootstrap)
-    bootstrap.close()
-
+    path = ensure_local_store(biocintel_path)
     con = lake_connect(read_only=True)  # attaches DuckLake as `lake`
     con.execute(f"ATTACH '{path}' AS {LOCAL_ALIAS}")
     return con

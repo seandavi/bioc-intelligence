@@ -1,0 +1,129 @@
+{
+ "meta": {
+  "count": 2,
+  "per_page": 200,
+  "next_cursor": null
+ },
+ "results": [
+  {
+   "id": "https://openalex.org/W2146512944",
+   "doi": "https://doi.org/10.1093/nar/gkv007",
+   "ids": {
+    "openalex": "https://openalex.org/W2146512944",
+    "doi": "https://doi.org/10.1093/nar/gkv007",
+    "mag": "2146512944",
+    "pmid": "https://pubmed.ncbi.nlm.nih.gov/25605792"
+   },
+   "title": "limma powers differential expression analyses for RNA-sequencing and microarray studies",
+   "publication_year": 2015,
+   "primary_location": {
+    "source": {
+     "id": "https://openalex.org/S134668137",
+     "display_name": "Nucleic Acids Research"
+    }
+   },
+   "cited_by_count": 44804,
+   "is_retracted": false,
+   "authorships": [
+    {
+     "author_position": "first",
+     "author": {
+      "id": "https://openalex.org/A5015434839",
+      "display_name": "Matthew E. Ritchie"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I165779595",
+       "display_name": "The University of Melbourne",
+       "ror": "https://ror.org/01ej9dk98",
+       "country_code": "AU"
+      },
+      {
+       "id": "https://openalex.org/I196021976",
+       "display_name": "Walter and Eliza Hall Institute of Medical Research",
+       "ror": "https://ror.org/01b6kha49",
+       "country_code": "AU"
+      }
+     ],
+     "is_corresponding": false
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5027183726",
+      "display_name": "Belinda Phipson"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I1321649718",
+       "display_name": "Royal Children's Hospital",
+       "ror": "https://ror.org/02rktxt32",
+       "country_code": "AU"
+      },
+      {
+       "id": "https://openalex.org/I4210150290",
+       "display_name": "Murdoch Children's Research Institute",
+       "ror": "https://ror.org/048fyec77",
+       "country_code": "AU"
+      }
+     ],
+     "is_corresponding": false
+    }
+   ]
+  },
+  {
+   "id": "https://openalex.org/W4392168904",
+   "doi": "https://doi.org/10.1093/nar/gkae127",
+   "ids": {
+    "openalex": "https://openalex.org/W4392168904",
+    "doi": "https://doi.org/10.1093/nar/gkae127",
+    "pmid": "https://pubmed.ncbi.nlm.nih.gov/38407446"
+   },
+   "title": "Low-input and single-cell methods for Infinium DNA methylation BeadChips",
+   "publication_year": 2024,
+   "primary_location": {
+    "source": {
+     "id": "https://openalex.org/S134668137",
+     "display_name": "Nucleic Acids Research"
+    }
+   },
+   "cited_by_count": 26,
+   "is_retracted": false,
+   "authorships": [
+    {
+     "author_position": "first",
+     "author": {
+      "id": "https://openalex.org/A5055855764",
+      "display_name": "Sol Moe Lee"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I1335321130",
+       "display_name": "Children's Hospital of Philadelphia",
+       "ror": "https://ror.org/01z7r7q48",
+       "country_code": "US"
+      }
+     ],
+     "is_corresponding": false
+    },
+    {
+     "author_position": "middle",
+     "author": {
+      "id": "https://openalex.org/A5038525058",
+      "display_name": "Christian E. Loo"
+     },
+     "institutions": [
+      {
+       "id": "https://openalex.org/I79576946",
+       "display_name": "University of Pennsylvania",
+       "ror": "https://ror.org/00b30xv10",
+       "country_code": "US"
+      }
+     ],
+     "is_corresponding": false
+    }
+   ]
+  }
+ ],
+ "group_by": []
+}

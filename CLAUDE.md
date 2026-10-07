@@ -9,8 +9,8 @@ the source of truth (architecture + settled decisions below); `docs/frontend-spe
 frontend opportunities. Package extraction runs against `bioconductor.org` and loads 3,810
 packages across all four repos. Download stats (2009–present, ~669k package-months across all four repos) load
 in the monthly refresh; the `.tab` endpoints 404'd for a while after the BioC 3.23 redesign and
-were back by 2026-10, and a 404 still logs-and-skips per `BiocPkgTools` convention. Phase 2–3 lake
-enrichment (works, RCR, grants) runs monthly; cited-by edges and Phase-4 mention mining/judging
+were back by 2026-10, and a 404 still logs-and-skips per `BiocPkgTools` convention. Phase 2–3
+enrichment (works, RCR, grants; from the public APIs since #83) runs monthly; cited-by edges and Phase-4 mention mining/judging
 are built but opt-in and not yet run at scale.
 
 The site is served from the custom domain https://impact.bioconductor.org (GitHub Pages;
@@ -38,29 +38,45 @@ uv run pytest tests/test_dcf.py          # a single test file
 uv run ruff check src tests              # lint (must stay clean)
 ```
 
-Phase-2 enrichment reads the lake, so it needs the cdsci-lake client + the prod backend:
+Phase-2 enrichment defaults to `--source api` (#83): `biocintel.sources` attaches an in-memory
+`lake` catalog and fills only the tables/columns the enrichment SQL reads, for our working set,
+from the OpenAlex, iCite and NIH RePORTER APIs. No lake client, credentials or env are needed.
+
+```bash
+uv run python -m biocintel.pipeline.link_works                       # ~1 OpenAlex call
+uv run python -m biocintel.pipeline.link_works --title-fallback      # + one title search per unlinked package (~2.8k)
+uv run python -m biocintel.pipeline.enrich_from_lake                 # ~3 min, mostly RePORTER's 1 req/s
+uv run python -m biocintel.pipeline.enrich_from_lake --steps works,grants,citations
+```
+
+`--source lake` runs the same SQL against cdsci-lake (needs its client + the prod backend) and is
+the only way to get patent counts:
 
 ```bash
 uv pip install -e ../cdsci-lake                                  # one-time, local sibling
-CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.link_works
-CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.link_works --title-fallback
+CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_from_lake --source lake
 ```
 
 `link_works` joins `dim_package.source_doi` to `lake.openalex.works.doi` (authoritative) and writes
 `bridge_package_pub`. Then `enrich_from_lake` fills the rest:
-
-```bash
-CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_from_lake
-CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_from_lake --steps works,grants,citations
-```
 
 - `works` (default) — linked OpenAlex works + iCite RCR → `dim_work`.
 - `institutions` (default) — `openalex.works_authorships` + `openalex.institutions` for every
   `dim_work` row with an OpenAlex id → `dim_institution` + `bridge_work_institution` (rebuilt each
   run; ~12 min, the authorships scan). Best-effort: a failure is logged and the run continues.
 - `grants` (default) — `reporter.publink`/`projects` → `dim_grant` + `bridge_work_grant`.
-- `citations` (**opt-in**) — `openalex.work_references` cited-by → `fact_citation_edge`. Scans the
-  **1.29B-row** references table plus a second `works` pass; run deliberately for a full refresh.
+- `citations` (**opt-in**) — `openalex.work_references` cited-by → `fact_citation_edge`. Under
+  `api`, one `filter=cites:W…` cursor page per 200 citing works (~3k calls for ~580k edges): set
+  `OPENALEX_API_KEY`, since keyless OpenAlex allows only 1,000 calls/day. Under `lake`, it scans
+  the **1.29B-row** references table plus a second `works` pass.
+
+API source gaps: patent counts (`reliance.patent_citations`) are lake-only, so under `api` they are
+skipped. `INSERT OR REPLACE` keeps existing values and new works get NULL. iCite has no DOI lookup
+(`dois=` is silently ignored), so a bridge DOI that OpenAlex doesn't know cannot resolve through
+the iCite DOI-fallback branch (in the 2026-10 smoke, all 75 works the lake resolved that way
+resolved through live OpenAlex instead).
+Live OpenAlex is newer than the lake's snapshot, so the two sources legitimately differ
+(e.g. preprint DOIs merged into their journal versions).
 
 Mention mining + judging (spec §6 — mine once, judge later, decoupled):
 
@@ -77,8 +93,9 @@ uv run python -m biocintel.pipeline.judge_mentions
 callable; no model is wired yet (`null_judge` is a no-op for plumbing). Confirmed candidates get
 promoted into `fact_citation_edge` (`mention_type='fulltext'`).
 
-The works scan over 114M rows takes ~80s; that's expected for a batch step. The lake dep is lazy
-(imported only inside `lake.connect_with_lake`), so the offline tests and CI never need it.
+Under `--source lake`, the works scan over 114M rows takes ~80s; that's expected for a batch step.
+The lake dep is lazy (imported only inside `lake.connect_with_lake`), so the offline tests, CI and
+the default API path never need it.
 
 **Lake contract gotchas found as first consumer** (verified live; candidates for upstream
 versioned-view aliases): `openalex.works.doi` is bare-lowercase (no `doi.org/` prefix);
@@ -87,7 +104,7 @@ number — join `reporter.projects.core_project_num`, not `project_num`.**
 
 The monthly refresh runs on **onclappc02** as a systemd `--user` timer, not GitHub Actions (the
 Actions runner couldn't reach the lake Postgres; see commit `8538472` and the README's *Scheduled
-refresh*). `systemd/biocintel-refresh.service` runs the extract → link → enrich → build-marts →
+refresh*). Since #83 its default path uses the APIs and needs no lake. `systemd/biocintel-refresh.service` runs the extract → link → enrich → build-marts →
 `sync-marts.sh` → `systemd/publish-marts.sh` steps; the last commits `data: monthly mart refresh`
 and pushes, which triggers Deploy Pages. The units under `~/.config/systemd/user/` are **copies**,
 not symlinks — re-copy and `systemctl --user daemon-reload` after editing them here.
@@ -122,7 +139,10 @@ directly with `duckdb data/biocintel.duckdb`.
 src/biocintel/
   config.py      # source URLs, the 4 repos (note: VIEWS/stats dir/stats-file names diverge),
                  # release metadata from config.yaml, methodology-era boundary
-  http.py        # retrying GET + on-disk cache; HttpError(404) lets callers skip-not-fail
+  http.py        # retrying GET + on-disk cache; HttpError(404) lets callers skip-not-fail;
+                 # post_json for RePORTER
+  sources/       # OpenAlex / iCite / RePORTER clients + connect_with_sources (API-filled `lake`)
+  lake.py        # connect_with_lake: attach cdsci-lake read-only (`--source lake`, mentions)
   dcf.py         # DCF parser for VIEWS/DESCRIPTION (+ list/maintainer helpers)
   doi.py         # DOI regex + normalisation shared by every DOI-harvesting extractor
   db.py          # DuckDB connect + schema bootstrap
@@ -145,14 +165,22 @@ and metaresearch (Bioconductor as an object of study). It follows the "UCCC rese
 pattern": identity-anchored spine, OpenAlex / iCite / NIH RePORTER enrichment, DuckDB + Parquet,
 zero-backend SPA frontend.
 
-## Upstream: cdsci-lake (the enrichment source)
+## Enrichment sources: public APIs (default) + cdsci-lake (optional)
 
-All shared enrichment corpora come **read-only from `../cdsci-lake`** — the
-cancerdatasci research-data lake (DuckLake: Postgres catalog + Cloudflare R2
-data). This project is its first external consumer; it consumes the *data
-contract*, not the lake's code, and does **not** re-fetch from OpenAlex / iCite /
-RePORTER / Europe PMC APIs. The "no lake" decision (below) governs this project's
-*own* store, not its sourcing — we read the shared lake, we don't build one.
+Enrichment SQL reads `lake.<schema>.<table>` whichever source fills it. **By default
+(`--source api`, #83) it comes from the OpenAlex / iCite / RePORTER APIs** for our small
+working set (~1.2k works): seconds-to-minutes of calls instead of scanning 114M works /
+1.29B references, and no gcloud, GSM credentials or tailnet Postgres. This deliberately
+reverses the earlier "do not re-fetch from the APIs" rule. The adapters must keep the
+lake's exact types and value formats (bare `W…`/`I…` ids, bare-lowercase DOI, BIGINT
+PMID, core project numbers in `publink`) so the SQL stays source-agnostic.
+
+`../cdsci-lake` (the cancerdatasci research-data lake: DuckLake, Postgres catalog +
+Cloudflare R2 data) stays **optional**, read-only, for the jobs with no cheap API
+replacement: full-text mention mining (`pmc.passages`) and patent counts
+(`reliance.patent_citations`), plus `--source lake` runs of link/enrich (e.g. a regression
+diff). We consume its *data contract*, not its code. The "no lake" decision (below)
+governs this project's *own* store, not its sourcing.
 
 Connect via the lake's read client. **The `.env` deliberately leaves the backend
 unset (defaults to a small local dev catalog), so prod reads need the override:**
@@ -182,7 +210,8 @@ Verified tables this project depends on (all under the `lake` catalog):
 | Full-text mentions | `pmc.passages` (974M) | `pmcid`, `section_type`, `text` |
 
 What stays bespoke (not in the lake): Bioconductor package manifest +
-DESCRIPTION, download-stats tabs, CITATION parsing, git tags.
+DESCRIPTION, download-stats tabs, CITATION parsing, git tags. (Under `--source api`,
+`openalex.*`, `icite.metadata` and `reporter.*` above are API-filled in-memory stand-ins.)
 
 ## Architecture (the big picture)
 
@@ -191,10 +220,10 @@ Three layers, single direction of data flow:
 1. **Extract/enrich pipeline** — a thin orchestrator (the "omicidx pattern": framework-free
    extract modules) run monthly by a systemd `--user` timer on onclappc02. Two kinds of module: *bespoke extracts* of
    Bioconductor-native sources (`extract_packages.py`, `extract_downloads.py`) that fetch over
-   HTTP/parse, and *lake-sourced* steps that `ATTACH` cdsci-lake read-only and enrich via
-   **cross-catalog SQL** rather than API clients (`link_works.py`, `enrich_from_lake.py`,
-   `mine_mentions.py` — these replace the old per-API `enrich_openalex`/`enrich_icite`/
-   `enrich_reporter`/`mine_epmc` modules). Then `judge_mentions.py` and `build_marts.py`. All write
+   HTTP/parse, and *enrichment* steps that enrich via **cross-catalog SQL** against a
+   `lake` catalog (`link_works.py`, `enrich_from_lake.py`, `mine_mentions.py`). That catalog is
+   API-filled in memory by `biocintel.sources` by default, or cdsci-lake attached read-only
+   (`--source lake`; always for `mine_mentions`). Then `judge_mentions.py` and `build_marts.py`. All write
    into the one local DuckDB file. See spec §7.
 2. **Canonical store** — a single DuckDB file is the working lakehouse. `build_marts.py` runs
    DuckDB SQL to export `mart_*` tables to **Parquet**, which is the publishable/distributable
@@ -220,7 +249,7 @@ reopens the question:
   batch-refresh workload. Historization that matters is *domain time* (downloads/citations over
   time) and lives as explicit snapshot columns/rows, **not** catalog versions. Point-in-time, if
   ever needed, = dated Parquet snapshots in R2 — not a catalog layer. (This is about the local
-  store only — upstream enrichment *is* read from the shared cdsci-lake DuckLake; see above.)
+  store only — upstream enrichment can still be read from the shared cdsci-lake DuckLake; see above.)
 - **Single DuckDB file** is canonical; **Parquet marts** are distribution. One file, copy it, done.
 - **All four repos** (`bioc`, `data-experiment`, `data-annotation`, `workflows`); `bioc` is tier-1,
   the rest tier-2 (enriched lazily).

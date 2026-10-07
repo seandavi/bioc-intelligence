@@ -1,0 +1,18 @@
+{
+ "meta": {
+  "total": 2
+ },
+ "results": [
+  {
+   "coreproject": "R35GM146978",
+   "pmid": 38407446,
+   "applid": 11392341
+  },
+  {
+   "coreproject": "F31HG012892",
+   "pmid": 38407446,
+   "applid": 10784593
+  }
+ ],
+ "facet_results": []
+}

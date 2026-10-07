@@ -14,11 +14,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
-# Phase-2 enrichment reads the shared lake via its own read client (cdsci-lake).
-# It lives as a local sibling, not on PyPI; wire it when Phase 2 starts, e.g.:
+# Enrichment defaults to the public APIs. The optional cdsci-lake read client
+# (`--source lake`, mention mining, patent counts) is a local sibling, not on PyPI:
 #   uv pip install -e ../cdsci-lake
-# (or add a [tool.uv.sources] path entry). Kept out of declared deps so Phase-1
-# installs don't depend on lake availability.
+# Kept out of declared deps so installs don't depend on lake availability.
 
 [project.scripts]
 biocintel = "biocintel.cli:main"

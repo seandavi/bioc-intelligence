@@ -1,0 +1,32 @@
+{
+ "data": [
+  {
+   "_id": "25605792",
+   "pmid": 25605792,
+   "title": "limma powers differential expression analyses for RNA-sequencing and microarray studies.",
+   "doi": "10.1093/nar/gkv007",
+   "apt": 0.75,
+   "year": 2015,
+   "journal": "Nucleic Acids Res",
+   "citation_count": 31320,
+   "citations_per_year": 2847.2727272727275,
+   "relative_citation_ratio": 1116.534080823251,
+   "nih_percentile": 100.0,
+   "is_clinical": false
+  },
+  {
+   "_id": "38407446",
+   "pmid": 38407446,
+   "title": "Low-input and single-cell methods for Infinium DNA methylation BeadChips.",
+   "doi": "10.1093/nar/gkae127",
+   "apt": 0.25,
+   "year": 2024,
+   "journal": "Nucleic Acids Res",
+   "citation_count": 21,
+   "citations_per_year": 10.5,
+   "relative_citation_ratio": 2.7796244681886857,
+   "nih_percentile": 82.2,
+   "is_clinical": false
+  }
+ ]
+}
