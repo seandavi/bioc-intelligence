@@ -235,12 +235,12 @@ def test_enrich_all_steps_from_api(api_store):
         "confidence) VALUES ('limma', 'bioc', '10.1093/nar/gkv007', 'primary', "
         "'citation_file', 0.9), ('sesame', 'bioc', '38407446', 'primary', 'doi', 1.0)"
     )
-    # an enriched work from an earlier run: the institutions step still reads it
+    # an enriched work from an earlier run that is no longer linked: the works step prunes it
     con.execute("INSERT INTO dim_work (work_id, openalex_id) VALUES ('old', 'W999')")
     con.close()
 
     counts = enrich_from_lake.run(enrich_from_lake.ALL_STEPS, source="api")
-    assert counts == {"dim_work": 3, "dim_institution": 6, "bridge_work_grant": 2,
+    assert counts == {"dim_work": 2, "dim_institution": 6, "bridge_work_grant": 2,
                       "fact_citation_edge": 3}
     assert "openalex_id:W999" in calls
     assert {"cites:W2146512944", "cites:W4392168904"} <= set(calls)

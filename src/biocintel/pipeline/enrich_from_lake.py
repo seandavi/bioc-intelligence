@@ -54,7 +54,12 @@ FROM lake.openalex.works w
 -- A bridge work_id is PMID-or-DOI; match EITHER side (a citation link stores the
 -- DOI even when the work also has a PMID, so a single COALESCE key would miss it).
 JOIN bi.bridge_package_pub b
-  ON b.work_id = CAST(w.pmid AS VARCHAR) OR b.work_id = w.doi;
+  ON b.work_id = CAST(w.pmid AS VARCHAR) OR b.work_id = w.doi
+-- One work per DOI: OpenAlex can hold a preprint and its PubMed record as two works
+-- sharing a DOI (TSAR); keep the one with a PMID.
+QUALIFY row_number() OVER (
+    PARTITION BY COALESCE(w.doi, w.id) ORDER BY w.pmid NULLS LAST, w.id
+) = 1;
 """
 
 # iCite fallback (#24): bridge DOIs absent from openalex.works.doi but present in
@@ -197,8 +202,24 @@ FROM work_institution;
 """
 
 
+# A work's spine id changes when a source learns or corrects its PMID (DOI -> PMID for
+# 23 works, PMID -> PMID for one, when the API replaced the lake). Re-key its cited-by
+# edges via the old row's OpenAlex id or DOI, then drop dim_work rows no longer linked:
+# a stale twin would double-count in the marts, which also join bridge rows on doi.
+_REKEY_EDGES_SQL = """
+UPDATE bi.fact_citation_edge e SET cited_work_id = l.work_id
+FROM bi.dim_work old
+JOIN linked l ON old.openalex_id = l.oa_id OR old.doi = l.doi
+WHERE e.cited_work_id = old.work_id AND old.work_id <> l.work_id;
+"""
+
+_PRUNE_WORKS_SQL = "DELETE FROM bi.dim_work WHERE work_id NOT IN (SELECT work_id FROM linked);"
+
+
 def _enrich_works(con: duckdb.DuckDBPyConnection, *, patents: bool = True) -> int:
     con.execute(_WORKS_SQL)
+    con.execute(_REKEY_EDGES_SQL)
+    con.execute(_PRUNE_WORKS_SQL)
     if not patents:
         print("  patents: skipped (reliance.patent_citations is lake-only; use --source lake)")
         return con.execute("SELECT count(*) FROM bi.dim_work").fetchone()[0]
