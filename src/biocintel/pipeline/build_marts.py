@@ -705,7 +705,7 @@ def write_views_db(
 def add_arguments(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--views-db", type=Path,
                     help="also write a views-only DuckDB file (+ datapackage.json beside it)")
-    ap.add_argument("--public-base", default="https://seandavi.github.io/bioc-intelligence/data",
+    ap.add_argument("--public-base", default="https://impact.bioconductor.org/data",
                     help="URL the views read the marts from")
     ap.add_argument("--marts-dir", type=Path,
                     help="write only the views file, over these existing marts (no store)")

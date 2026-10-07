@@ -13,6 +13,9 @@ were back by 2026-10, and a 404 still logs-and-skips per `BiocPkgTools` conventi
 enrichment (works, RCR, grants) runs monthly; cited-by edges and Phase-4 mention mining/judging
 are built but opt-in and not yet run at scale.
 
+The site is served from the custom domain https://impact.bioconductor.org (GitHub Pages;
+`frontend/public/CNAME`, Vite `base: "/"`); marts live at `/data/`.
+
 ## Commands
 
 Python project managed with `uv` (Python ≥3.11). Deps: `duckdb`, `httpx`, `pyyaml`.

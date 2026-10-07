@@ -6,7 +6,7 @@
 > and the marts were refreshed. The findings below describe the site as it was on 2026-10-06; use
 > them as the record of why things changed, and the tracking issue for what changed.
 
-Review of the live dashboard (<https://seandavi.github.io/bioc-intelligence/>, snapshot
+Review of the live dashboard (<https://impact.bioconductor.org/>, snapshot
 2026-10-01) carried out 2026-10-06. Everything below was checked against the deployed site
 (screenshots at 1280 px and 390 px, DOM and performance probes), the bundled marts (identical to
 the deployed ones), the local DuckDB store, the cached VIEWS files, and a handful of read-only
@@ -459,7 +459,7 @@ The marts on GitHub Pages already behave like a read-only API:
 
 ```sql
 SELECT package_name, median_rcr, total_citations
-FROM 'https://seandavi.github.io/bioc-intelligence/data/mart_package_impact.parquet'
+FROM 'https://impact.bioconductor.org/data/mart_package_impact.parquet'
 WHERE repo = 'bioc' ORDER BY median_rcr DESC NULLS LAST LIMIT 3;
 -- DESeq2 2562.18 97164 | limma 1099.84 41828 | dada2 1078.98 34738
 ```
@@ -467,13 +467,13 @@ WHERE repo = 'bioc' ORDER BY median_rcr DESC NULLS LAST LIMIT 3;
 ```r
 library(duckdb); con <- dbConnect(duckdb())
 dbExecute(con, "INSTALL httpfs; LOAD httpfs")
-dbGetQuery(con, "SELECT * FROM 'https://seandavi.github.io/bioc-intelligence/data/mart_package_impact.parquet' WHERE package_name = 'limma'")
+dbGetQuery(con, "SELECT * FROM 'https://impact.bioconductor.org/data/mart_package_impact.parquet' WHERE package_name = 'limma'")
 ```
 
 ```python
 import duckdb
 duckdb.sql("INSTALL httpfs; LOAD httpfs")
-duckdb.sql("SELECT * FROM 'https://seandavi.github.io/bioc-intelligence/data/mart_package_impact.parquet' WHERE package_name = 'limma'").show()
+duckdb.sql("SELECT * FROM 'https://impact.bioconductor.org/data/mart_package_impact.parquet' WHERE package_name = 'limma'").show()
 ```
 
 Nobody knows this because the site never says it. The spec (section 2) always intended the
@@ -491,12 +491,12 @@ and is introspectable (`duckdb_views()`, `duckdb_columns()`), and the methodolog
 SQL (`SELECT sql FROM duckdb_views()`). Using it is one line:
 
 ```sql
-ATTACH 'https://seandavi.github.io/bioc-intelligence/data/bioc-intelligence.duckdb' AS bi (READ_ONLY);
+ATTACH 'https://impact.bioconductor.org/data/bioc-intelligence.duckdb' AS bi (READ_ONLY);
 SELECT * FROM bi.package_impact WHERE package_name = 'limma';
 ```
 
 ```r
-dbExecute(con, "ATTACH 'https://seandavi.github.io/bioc-intelligence/data/bioc-intelligence.duckdb' AS bi (READ_ONLY)")
+dbExecute(con, "ATTACH 'https://impact.bioconductor.org/data/bioc-intelligence.duckdb' AS bi (READ_ONLY)")
 dbGetQuery(con, "SELECT * FROM bi.package_impact WHERE package_name = 'limma'")
 # dbplyr users: tbl(con, I("bi.package_impact"))
 ```

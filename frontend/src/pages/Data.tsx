@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { query, type Manifest } from "../db/duckdb";
 import { downloadCsv } from "../lib/csv";
 
-const SITE = "https://seandavi.github.io/bioc-intelligence";
+const SITE = "https://impact.bioconductor.org";
 const PUBLIC_BASE = `${SITE}/data`;
 const VIEWS_URL = `${PUBLIC_BASE}/bioc-intelligence.duckdb`;
 

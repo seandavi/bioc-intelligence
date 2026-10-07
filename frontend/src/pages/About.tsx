@@ -82,6 +82,11 @@ export function About({ manifest }: { manifest: Manifest | null }) {
             </li>
           ))}
         </ul>
+        <p>
+          impact.bioconductor.org is maintained by Sean Davis (University of Colorado Anschutz) and
+          funded in part by the NIH; it is independent of the Bioconductor core team, and the
+          definitions on this page are open to correction.
+        </p>
       </Section>
 
       <Section id="sources" title="Data sources">
@@ -178,7 +183,7 @@ export function About({ manifest }: { manifest: Manifest | null }) {
       <Section id="cite" title="How to cite">
         <p className="rounded-lg border border-slate-200 bg-white p-4">
           Davis S. Bioconductor Intelligence: usage, publication and grant impact of Bioconductor
-          packages. Snapshot {snapshot}. <A href="https://seandavi.github.io/bioc-intelligence/">https://seandavi.github.io/bioc-intelligence/</A>
+          packages. Snapshot {snapshot}. <A href="https://impact.bioconductor.org/">https://impact.bioconductor.org/</A>
         </p>
         <p>
           The code and data are released under the MIT license (see{" "}
