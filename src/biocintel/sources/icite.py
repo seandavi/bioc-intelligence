@@ -33,7 +33,7 @@ def pubs(pmids: Iterable[int]) -> Iterator[dict]:
         query = urlencode(
             {"pmids": ",".join(map(str, pmids[i:i + BATCH])), "fl": FIELDS}, safe=","
         )
-        yield from json.loads(get_text(f"{API}?{query}"))["data"]
+        yield from json.loads(get_text(f"{API}?{query}", use_cache=False))["data"]
 
 
 def metadata_row(r: dict) -> tuple:

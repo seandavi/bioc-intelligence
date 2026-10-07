@@ -136,11 +136,18 @@ def _fill_for_enrich(con: duckdb.DuckDBPyConnection, steps: tuple[str, ...]) -> 
             con, "SELECT DISTINCT institution_id FROM lake.openalex.works_authorships "
                  "WHERE institution_ror IS NOT NULL",
         )
-        _insert(con, "openalex.institutions", [
-            openalex.institution_row(r) for r in openalex.fetch_by(
-                "institutions", "openalex_id", inst_ids, openalex.INSTITUTION_FIELDS)
-        ])
-        print(f"  openalex: {_count(con, 'openalex.institutions')} institutions")
+        try:
+            _insert(con, "openalex.institutions", [
+                openalex.institution_row(r) for r in openalex.fetch_by(
+                    "institutions", "openalex_id", inst_ids, openalex.INSTITUTION_FIELDS)
+            ])
+            print(f"  openalex: {_count(con, 'openalex.institutions')} institutions")
+        except RuntimeError as exc:
+            # Best-effort (spec §3), as under the lake: with the table gone the
+            # institutions step fails inside its transaction, rolls back and is skipped,
+            # leaving last run's dim_institution intact.
+            con.execute("DROP TABLE lake.openalex.institutions")
+            print(f"  openalex: institutions unavailable ({exc})")
 
     if "grants" in steps:
         links = reporter.publinks(pmids)

@@ -56,7 +56,7 @@ def _get(entity: str, params: dict) -> dict:
     if mailto := os.getenv("OPENALEX_MAILTO"):
         url += "&" + urlencode({"mailto": mailto})
     try:
-        return json.loads(get_text(url))
+        return json.loads(get_text(url, use_cache=False))  # live data, never cached
     except (HttpError, RuntimeError) as exc:  # re-raised without the key-bearing URL
         why = f"HTTP {exc.status}" if isinstance(exc, HttpError) else "retries exhausted"
         raise RuntimeError(f"OpenAlex request failed ({why}): {public}") from None

@@ -268,3 +268,52 @@ def test_enrich_all_steps_from_api(api_store):
     assert con.execute(
         "SELECT count(*) FROM bridge_work_institution WHERE work_id = '38407446'"
     ).fetchone()[0] == 2
+
+
+def _seed_bridge(con):
+    con.execute(
+        "INSERT INTO bridge_package_pub (package_name, repo, work_id, role, match_method, "
+        "confidence) VALUES ('limma', 'bioc', '10.1093/nar/gkv007', 'primary', "
+        "'citation_file', 0.9), ('sesame', 'bioc', '38407446', 'primary', 'doi', 1.0)"
+    )
+
+
+def test_api_failure_aborts_before_touching_the_store(api_store, monkeypatch):
+    """A failed fetch must fail the run, never leave a partial working set that the works
+    step's pruning would then use to delete good rows."""
+    con, _ = api_store
+    _seed_bridge(con)
+    con.execute("INSERT INTO dim_work (work_id, title) VALUES ('25605792', 'kept')")
+    con.close()
+
+    def boom(url, **_kw):
+        raise http.HttpError(url, 500)
+
+    monkeypatch.setattr(openalex, "get_text", boom)
+    with pytest.raises(RuntimeError, match="OpenAlex request failed"):
+        enrich_from_lake.run(("works",), source="api")
+    con = lake.db.connect(lake.DB_PATH)
+    assert con.execute("SELECT work_id, title FROM dim_work").fetchall() == [("25605792", "kept")]
+
+
+def test_institutions_outage_skips_only_that_step(api_store, monkeypatch):
+    """Institutions stay best-effort under the API: an /institutions failure keeps last
+    run's dim_institution and the other steps still land."""
+    con, _ = api_store
+    _seed_bridge(con)
+    con.execute("INSERT INTO dim_institution (ror, name) VALUES ('https://ror.org/x', 'kept')")
+    con.close()
+
+    real = openalex.get_text
+
+    def flaky(url, **kw):
+        if urlparse(url).path == "/institutions":
+            raise http.HttpError(url, 500)
+        return real(url, **kw)
+
+    monkeypatch.setattr(openalex, "get_text", flaky)
+    counts = enrich_from_lake.run(("works", "institutions", "grants"), source="api")
+    assert "dim_institution" not in counts and counts["dim_work"] == 2
+    con = lake.db.connect(lake.DB_PATH)
+    assert con.execute("SELECT ror, name FROM dim_institution").fetchall() == [
+        ("https://ror.org/x", "kept")]

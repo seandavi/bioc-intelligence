@@ -44,7 +44,7 @@ from the OpenAlex, iCite and NIH RePORTER APIs. No lake client, credentials or e
 
 ```bash
 uv run python -m biocintel.pipeline.link_works                       # ~1 OpenAlex call
-uv run python -m biocintel.pipeline.link_works --title-fallback      # + one title search per unlinked package (~2.8k)
+uv run python -m biocintel.pipeline.link_works --title-fallback      # + one title search per unlinked package (~2.8k; needs OPENALEX_API_KEY)
 uv run python -m biocintel.pipeline.enrich_from_lake                 # ~3 min, mostly RePORTER's 1 req/s
 uv run python -m biocintel.pipeline.enrich_from_lake --steps works,grants,citations
 ```
@@ -63,7 +63,7 @@ CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_fro
 - `works` (default) — linked OpenAlex works + iCite RCR → `dim_work`.
 - `institutions` (default) — `openalex.works_authorships` + `openalex.institutions` for every
   `dim_work` row with an OpenAlex id → `dim_institution` + `bridge_work_institution` (rebuilt each
-  run; ~12 min, the authorships scan). Best-effort: a failure is logged and the run continues.
+  run; seconds under `api`, ~12 min of authorships scan under `lake`). Best-effort: a failure is logged and the run continues.
 - `grants` (default) — `reporter.publink`/`projects` → `dim_grant` + `bridge_work_grant`.
 - `citations` (**opt-in**) — `openalex.work_references` cited-by → `fact_citation_edge`. Under
   `api`, one `filter=cites:W…` cursor page per 200 citing works (~3k calls for ~580k edges): set

@@ -92,6 +92,7 @@ def test_past_releases_from_config(monkeypatch):
 def test_force_cache_caches_200_and_404_under_no_cache(monkeypatch, tmp_path):
     monkeypatch.setattr(http, "CACHE_DIR", tmp_path)
     monkeypatch.setenv("BIOCINTEL_NO_CACHE", "1")
+    monkeypatch.setattr(http.time, "sleep", lambda _s: None)
     hits: list[str] = []
     status = {"https://x/ok": 200, "https://x/gone": 404, "https://x/busy": 429}
 
@@ -104,12 +105,12 @@ def test_force_cache_caches_200_and_404_under_no_cache(monkeypatch, tmp_path):
         assert http.get_text("https://x/ok", force_cache=True) == "page"
         with pytest.raises(http.HttpError):
             http.get_text("https://x/gone", force_cache=True)
-        with pytest.raises(http.HttpError):
+        with pytest.raises(RuntimeError):  # a 429 is retried with backoff, then gives up
             http.get_text("https://x/busy", force_cache=True)
     # 200 and 404 fetched once; a 429 is never cached
     assert hits.count("https://x/ok") == 1
     assert hits.count("https://x/gone") == 1
-    assert hits.count("https://x/busy") == 2
+    assert hits.count("https://x/busy") == 2 * http._RETRIES
     # without force_cache, BIOCINTEL_NO_CACHE=1 still bypasses the cache
     http.get_text("https://x/ok")
     assert hits.count("https://x/ok") == 2
