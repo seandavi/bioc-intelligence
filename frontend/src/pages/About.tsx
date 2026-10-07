@@ -134,6 +134,14 @@ export function About({ manifest }: { manifest: Manifest | null }) {
           before and after that date are not directly comparable. The headline figure is therefore
           the trailing 12 months, which sits entirely within the current method.
         </p>
+        <p>
+          Per-package distinct IPs count addresses for that one package. For Bioconductor as a
+          whole we use the installer package as a proxy, the convention the project itself uses:
+          BiocVersion, which BiocManager installs on every setup, since 2018, and BiocInstaller
+          before it. Summing distinct IPs over packages measures volume, not users: one machine
+          installing 50 packages counts 50 times. BiocManager itself is on CRAN, so its own
+          downloads are not in the Bioconductor stats.
+        </p>
         <Term id="rcr">Relative Citation Ratio (RCR)</Term>
         <p>
           NIH iCite's measure of a paper's citation influence relative to papers in its field. 1.0

@@ -1,5 +1,5 @@
 {
   "snapshot": "2026-10-07",
-  "marts": ["mart_ecosystem_downloads_yearly.parquet", "mart_grant_attribution.parquet", "mart_package_dependency.parquet", "mart_package_directory.parquet", "mart_package_downloads_monthly.parquet", "mart_package_funder.parquet", "mart_package_impact.parquet", "mart_package_person.parquet", "mart_package_work.parquet", "mart_person.parquet", "mart_release_growth.parquet", "mart_release_history.parquet", "mart_work_institution.parquet", "mart_work.parquet"],
+  "marts": ["mart_ecosystem_downloads_yearly.parquet", "mart_grant_attribution.parquet", "mart_installer_downloads_monthly.parquet", "mart_package_dependency.parquet", "mart_package_directory.parquet", "mart_package_downloads_monthly.parquet", "mart_package_funder.parquet", "mart_package_impact.parquet", "mart_package_person.parquet", "mart_package_work.parquet", "mart_person.parquet", "mart_release_growth.parquet", "mart_release_history.parquet", "mart_work_institution.parquet", "mart_work.parquet"],
   "views_db": "bioc-intelligence.duckdb"
 }

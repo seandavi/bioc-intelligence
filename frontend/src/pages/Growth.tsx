@@ -29,7 +29,7 @@ interface RepoRelease {
 interface YearRow {
   year: number;
   methodology_era: string;
-  distinct_ips: number;
+  installer_distinct_ips: number;
 }
 
 // Release order is numeric (3.9 < 3.10).
@@ -44,9 +44,14 @@ const BY_REPO = `
   SELECT bioc_release, strftime(release_date, '%Y-%m-%d') AS date, repo, n_packages, n_new, n_removed
   FROM 'mart_release_history.parquet' ORDER BY ${RELEASE_ORDER}, repo`;
 
+// Project-level installs: the installer package's distinct IPs, complete calendar years only.
 const YEARLY = `
-  SELECT year, methodology_era, sum(distinct_ips)::BIGINT AS distinct_ips
-  FROM 'mart_ecosystem_downloads_yearly.parquet' GROUP BY year, methodology_era ORDER BY year`;
+  WITH full_years AS (
+    SELECT year FROM 'mart_installer_downloads_monthly.parquet' GROUP BY year HAVING count(*) = 12)
+  SELECT year, methodology_era, sum(installer_distinct_ips)::BIGINT AS installer_distinct_ips
+  FROM 'mart_installer_downloads_monthly.parquet'
+  WHERE year IN (SELECT year FROM full_years)
+  GROUP BY year, methodology_era ORDER BY year`;
 
 interface CountryRow {
   country: string;
@@ -181,7 +186,7 @@ function usageSpec(rows: YearRow[]): VisualizationSpec {
   const values = rows.map((r) => ({ ...r, x: yearX(r.year, r.methodology_era) }));
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
-    title: title("Distinct IPs per year, all repositories"),
+    title: title("Machines installing Bioconductor per year"),
     width: "container",
     height: 240,
     layer: [
@@ -191,12 +196,12 @@ function usageSpec(rows: YearRow[]): VisualizationSpec {
         mark: { type: "line", point: true, color: METRIC.usage },
         encoding: {
           x: { field: "x", type: "temporal", axis: { title: null, format: "%Y" } },
-          y: { field: "distinct_ips", type: "quantitative", axis: { title: null } },
+          y: { field: "installer_distinct_ips", type: "quantitative", axis: { title: null } },
           detail: { field: "methodology_era" },
           tooltip: [
             { field: "year", type: "ordinal", title: "Year" },
             { field: "methodology_era", type: "nominal", title: "Era" },
-            { field: "distinct_ips", type: "quantitative", format: ",", title: "Distinct IPs" },
+            { field: "installer_distinct_ips", type: "quantitative", format: ",", title: "Distinct IPs (installer)" },
           ],
         },
       },
@@ -350,9 +355,10 @@ export function Growth() {
       <div className={PANEL}>
         {usage && <VegaChart spec={usage} className="w-full" />}
         <p className="mt-2 text-xs text-neutral-300">
-          Distinct IPs summed over packages and months. The shaded region is before{" "}
-          {ERA_START.slice(0, 7)}, when download-log collection changed; counts either side are
-          not comparable, so the line breaks at the boundary. The latest year is year-to-date.
+          Distinct IPs downloading the installer package (BiocVersion, installed by BiocManager,
+          since 2018; BiocInstaller before it), summed over the months of each complete year. The
+          shaded region is before {ERA_START.slice(0, 7)}, when download-log collection changed;
+          counts either side are not comparable, so the line breaks at the boundary.
         </p>
       </div>
 
