@@ -217,7 +217,8 @@ def test_ecosystem_yearly_keeps_eras_separate():
     _download_fixture(con)
     con.execute(_MART_SQL)
     rows = con.execute(
-        "SELECT year, methodology_era, distinct_ips, downloads, n_packages_with_downloads "
+        "SELECT year, methodology_era, sum_package_distinct_ips, downloads, "
+        "n_packages_with_downloads "
         "FROM mart_ecosystem_downloads_yearly WHERE repo='bioc' ORDER BY year, methodology_era"
     ).fetchall()
     assert rows == [
