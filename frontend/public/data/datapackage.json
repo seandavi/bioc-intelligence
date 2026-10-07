@@ -29,7 +29,7 @@
       "path": "https://impact.bioconductor.org/data/mart_ecosystem_downloads_yearly.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 2482,
+      "bytes": 2368,
       "description": "Downloads per year x repo x methodology era (2015 has a row per era).",
       "schema": {
         "fields": [
@@ -71,7 +71,7 @@
       "path": "https://impact.bioconductor.org/data/mart_grant_attribution.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 46767,
+      "bytes": 48378,
       "description": "One row per NIH grant acknowledged by a paper linked to a package.",
       "schema": {
         "fields": [
@@ -133,7 +133,7 @@
       "path": "https://impact.bioconductor.org/data/mart_installer_downloads_monthly.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 3307,
+      "bytes": 3234,
       "description": "Project-level installs per month: distinct IPs of the installer package (BiocInstaller 2011-2018, then BiocVersion, which BiocManager installs). The Bioconductor convention for 'machines that installed Bioconductor'.",
       "schema": {
         "fields": [
@@ -408,7 +408,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_impact.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 142557,
+      "bytes": 146901,
       "description": "One row per package: downloads, linked publications, citations, RCR and grants.",
       "schema": {
         "fields": [
@@ -537,7 +537,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_work.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 132538,
+      "bytes": 132507,
       "description": "One row per package x linked publication, with the link's provenance.",
       "schema": {
         "fields": [
@@ -649,7 +649,7 @@
       "path": "https://impact.bioconductor.org/data/mart_person.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 213903,
+      "bytes": 213896,
       "description": "One row per person: packages authored and maintained.",
       "schema": {
         "fields": [
