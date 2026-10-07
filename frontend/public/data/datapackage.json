@@ -3,8 +3,8 @@
   "title": "Bioconductor Intelligence marts",
   "description": "Usage, publication, citation and grant metrics for Bioconductor packages. Query in DuckDB: ATTACH 'https://seandavi.github.io/bioc-intelligence/data/bioc-intelligence.duckdb' AS bi (READ_ONLY).",
   "homepage": "https://github.com/seandavi/bioc-intelligence",
-  "version": "2026-10-06",
-  "created": "2026-10-06T00:00:00Z",
+  "version": "2026-10-07",
+  "created": "2026-10-07T00:00:00Z",
   "sources": [
     {
       "title": "Bioconductor",
@@ -71,7 +71,7 @@
       "path": "https://seandavi.github.io/bioc-intelligence/data/mart_grant_attribution.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 34655,
+      "bytes": 46767,
       "description": "One row per NIH grant acknowledged by a paper linked to a package.",
       "schema": {
         "fields": [
@@ -88,7 +88,7 @@
           {
             "name": "title",
             "type": "string",
-            "description": "Grant title (NIH RePORTER)."
+            "description": "Parent award title (NIH RePORTER); a sub-project title only if no parent."
           },
           {
             "name": "n_packages_supported",
@@ -113,7 +113,7 @@
       "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_directory.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 935057,
+      "bytes": 991216,
       "description": "One row per package: DESCRIPTION metadata from the repository VIEWS file.",
       "schema": {
         "fields": [
@@ -274,7 +274,7 @@
       "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_impact.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 141563,
+      "bytes": 142557,
       "description": "One row per package: downloads, linked publications, citations, RCR and grants.",
       "schema": {
         "fields": [
@@ -403,7 +403,7 @@
       "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_work.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 106475,
+      "bytes": 132538,
       "description": "One row per package x linked publication, with the link's provenance.",
       "schema": {
         "fields": [
@@ -480,7 +480,7 @@
       "path": "https://seandavi.github.io/bioc-intelligence/data/mart_person.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 213896,
+      "bytes": 213903,
       "description": "One row per person: packages authored and maintained.",
       "schema": {
         "fields": [
@@ -527,8 +527,8 @@
       "path": "https://seandavi.github.io/bioc-intelligence/data/mart_release_growth.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 588,
-      "description": "Package counts per Bioconductor release.",
+      "bytes": 2094,
+      "description": "One row per Bioconductor release since 1.0; VIEWS-derived counts from 1.8.",
       "schema": {
         "fields": [
           {
@@ -537,14 +537,29 @@
             "description": "Bioconductor release, e.g. 3.23."
           },
           {
+            "name": "release_date",
+            "type": "date",
+            "description": "Release date from the release-announcements page."
+          },
+          {
+            "name": "n_software_announced",
+            "type": "integer",
+            "description": "Software package count as announced for the release."
+          },
+          {
             "name": "n_packages",
             "type": "integer",
-            "description": "Packages in the release."
+            "description": "Distinct packages in the release VIEWS (NULL for 1.0-1.7: no VIEWS)."
           },
           {
             "name": "n_new_packages",
             "type": "integer",
-            "description": "Packages first seen in the release (0 until version history lands)."
+            "description": "Packages first seen in this release (NULL for the first loaded)."
+          },
+          {
+            "name": "n_removed",
+            "type": "integer",
+            "description": "Packages in the previous release, absent here (NULL for first loaded)."
           },
           {
             "name": "net_downloads",
@@ -555,12 +570,54 @@
       }
     },
     {
+      "name": "mart_release_history",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_release_history.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 2965,
+      "description": "Package counts per Bioconductor release and repository (historic VIEWS).",
+      "schema": {
+        "fields": [
+          {
+            "name": "bioc_release",
+            "type": "string",
+            "description": "Bioconductor release, e.g. 3.23."
+          },
+          {
+            "name": "release_date",
+            "type": "date",
+            "description": "Release date from the release-announcements page."
+          },
+          {
+            "name": "repo",
+            "type": "string",
+            "description": "Repository: bioc, data-experiment, data-annotation or workflows."
+          },
+          {
+            "name": "n_packages",
+            "type": "integer",
+            "description": "Distinct packages in that repository's VIEWS for the release."
+          },
+          {
+            "name": "n_new",
+            "type": "integer",
+            "description": "Packages first seen in this release for the repository."
+          },
+          {
+            "name": "n_removed",
+            "type": "integer",
+            "description": "Packages in the previous release and absent here."
+          }
+        ]
+      }
+    },
+    {
       "name": "mart_work",
       "path": "https://seandavi.github.io/bioc-intelligence/data/mart_work.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 88917,
-      "description": "One row per linked publication, with iCite RCR and citations.",
+      "bytes": 116167,
+      "description": "One row per linked publication, with iCite metrics, citations and patent citations.",
       "schema": {
         "fields": [
           {
