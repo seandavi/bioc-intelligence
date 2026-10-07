@@ -86,9 +86,29 @@
             "description": "NIH Institute/Center code."
           },
           {
+            "name": "ic_name",
+            "type": "string",
+            "description": "NIH Institute/Center name, e.g. National Human Genome Research Institute."
+          },
+          {
             "name": "title",
             "type": "string",
             "description": "Parent award title (NIH RePORTER); a sub-project title only if no parent."
+          },
+          {
+            "name": "fy_first",
+            "type": "integer",
+            "description": "First fiscal year RePORTER lists for the core project."
+          },
+          {
+            "name": "fy_last",
+            "type": "integer",
+            "description": "Last fiscal year RePORTER lists for the core project."
+          },
+          {
+            "name": "org_name",
+            "type": "string",
+            "description": "Awardee organization on the latest parent-award row."
           },
           {
             "name": "n_packages_supported",
@@ -104,6 +124,38 @@
             "name": "package_names",
             "type": "array",
             "description": "The supported packages."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_package_dependency",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_dependency.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 177603,
+      "description": "Forward dependency edges (Depends/Imports/Suggests/LinkingTo; R excluded).",
+      "schema": {
+        "fields": [
+          {
+            "name": "package_name",
+            "type": "string",
+            "description": "Bioconductor package name."
+          },
+          {
+            "name": "repo",
+            "type": "string",
+            "description": "Repository: bioc (software), data-experiment, data-annotation or workflows."
+          },
+          {
+            "name": "dep",
+            "type": "string",
+            "description": "The package depended on."
+          },
+          {
+            "name": "kind",
+            "type": "string",
+            "description": "depends, imports, suggests or linking_to."
           }
         ]
       }
@@ -166,6 +218,46 @@
             "name": "source_doi",
             "type": "string",
             "description": "The package's own DOI, when it has one."
+          },
+          {
+            "name": "n_reverse_deps",
+            "type": "integer",
+            "description": "Packages that depend on, import or link to this one."
+          },
+          {
+            "name": "n_deps",
+            "type": "integer",
+            "description": "Declared dependency count (from VIEWS)."
+          },
+          {
+            "name": "git_last_commit_date",
+            "type": "date",
+            "description": "Date of the last commit on the release branch."
+          },
+          {
+            "name": "package_status",
+            "type": "string",
+            "description": "Status from VIEWS, e.g. Deprecated."
+          },
+          {
+            "name": "has_news",
+            "type": "boolean",
+            "description": "Ships a NEWS file."
+          },
+          {
+            "name": "n_vignettes",
+            "type": "integer",
+            "description": "Number of vignettes."
+          },
+          {
+            "name": "license",
+            "type": "string",
+            "description": "DESCRIPTION License."
+          },
+          {
+            "name": "bioc_url",
+            "type": "string",
+            "description": "Package landing page on bioconductor.org."
           }
         ]
       }
@@ -458,6 +550,41 @@
             "description": "Relative Citation Ratio (NIH iCite): field- and time-normalized citation rate; 1.0 = NIH-wide average."
           },
           {
+            "name": "nih_percentile",
+            "type": "number",
+            "description": "NIH iCite percentile of the RCR among NIH-funded papers (0-100); 90 = top decile."
+          },
+          {
+            "name": "apt",
+            "type": "number",
+            "description": "NIH iCite Approximate Potential to Translate: predicted probability (0-1) that the paper is later cited by a clinical article."
+          },
+          {
+            "name": "is_clinical",
+            "type": "boolean",
+            "description": "NIH iCite flag: the paper is itself a clinical article."
+          },
+          {
+            "name": "citations_per_year",
+            "type": "number",
+            "description": "NIH iCite citations per year since publication."
+          },
+          {
+            "name": "is_preprint",
+            "type": "boolean",
+            "description": "Venue looks like a preprint server (journal name contains 'rxiv')."
+          },
+          {
+            "name": "is_retracted",
+            "type": "boolean",
+            "description": "OpenAlex retraction flag."
+          },
+          {
+            "name": "n_patent_citations",
+            "type": "integer",
+            "description": "Distinct patents citing the work (Reliance on Science); 0 = none found, empty = no OpenAlex id or not yet enriched."
+          },
+          {
             "name": "match_method",
             "type": "string",
             "description": "How the link was made: doi (the package's own DOI), citation_file (CITATION / CITATION.cff), description_doi (a DOI in Description, sometimes a dependency's paper), title_search, manual."
@@ -659,6 +786,98 @@
             "name": "citation_count",
             "type": "integer",
             "description": "OpenAlex citation count."
+          },
+          {
+            "name": "nih_percentile",
+            "type": "number",
+            "description": "NIH iCite percentile of the RCR among NIH-funded papers (0-100); 90 = top decile."
+          },
+          {
+            "name": "apt",
+            "type": "number",
+            "description": "NIH iCite Approximate Potential to Translate: predicted probability (0-1) that the paper is later cited by a clinical article."
+          },
+          {
+            "name": "is_clinical",
+            "type": "boolean",
+            "description": "NIH iCite flag: the paper is itself a clinical article."
+          },
+          {
+            "name": "citations_per_year",
+            "type": "number",
+            "description": "NIH iCite citations per year since publication."
+          },
+          {
+            "name": "is_preprint",
+            "type": "boolean",
+            "description": "Venue looks like a preprint server (journal name contains 'rxiv')."
+          },
+          {
+            "name": "is_retracted",
+            "type": "boolean",
+            "description": "OpenAlex retraction flag."
+          },
+          {
+            "name": "n_patent_citations",
+            "type": "integer",
+            "description": "Distinct patents citing the work (Reliance on Science); 0 = none found, empty = no OpenAlex id or not yet enriched."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_work_institution",
+      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_work_institution.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 121138,
+      "description": "One row per linked publication x author institution x author position.",
+      "schema": {
+        "fields": [
+          {
+            "name": "work_id",
+            "type": "string",
+            "description": "Work identifier: PMID when known, else DOI (OpenAlex ID is an enrichment handle)."
+          },
+          {
+            "name": "ror",
+            "type": "string",
+            "description": "ROR identifier of the institution."
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "description": "Institution name."
+          },
+          {
+            "name": "country_code",
+            "type": "string",
+            "description": "ISO country code."
+          },
+          {
+            "name": "country",
+            "type": "string",
+            "description": "Country name."
+          },
+          {
+            "name": "author_position",
+            "type": "string",
+            "description": "first, middle or last."
+          },
+          {
+            "name": "is_corresponding",
+            "type": "boolean",
+            "description": "Corresponding-author affiliation."
+          },
+          {
+            "name": "latitude",
+            "type": "number",
+            "description": "Institution latitude."
+          },
+          {
+            "name": "longitude",
+            "type": "number",
+            "description": "Institution longitude."
           }
         ]
       }
