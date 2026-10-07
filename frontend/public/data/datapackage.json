@@ -1,7 +1,7 @@
 {
   "name": "bioc-intelligence",
   "title": "Bioconductor Intelligence marts",
-  "description": "Usage, publication, citation and grant metrics for Bioconductor packages. Query in DuckDB: ATTACH 'https://seandavi.github.io/bioc-intelligence/data/bioc-intelligence.duckdb' AS bi (READ_ONLY).",
+  "description": "Usage, publication, citation and grant metrics for Bioconductor packages. Query in DuckDB: ATTACH 'https://impact.bioconductor.org/data/bioc-intelligence.duckdb' AS bi (READ_ONLY).",
   "homepage": "https://github.com/seandavi/bioc-intelligence",
   "version": "2026-10-07",
   "created": "2026-10-07T00:00:00Z",
@@ -26,10 +26,10 @@
   "resources": [
     {
       "name": "mart_ecosystem_downloads_yearly",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_ecosystem_downloads_yearly.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_ecosystem_downloads_yearly.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 2344,
+      "bytes": 2482,
       "description": "Downloads per year x repo x methodology era (2015 has a row per era).",
       "schema": {
         "fields": [
@@ -49,9 +49,9 @@
             "description": "Download-stats collection era: 'pre_2015_10' or 'modern'. Bioconductor changed its methodology in Oct 2015; do not add counts across eras."
           },
           {
-            "name": "distinct_ips",
+            "name": "sum_package_distinct_ips",
             "type": "number",
-            "description": "Distinct downloading IP addresses, the usage proxy (less gameable than downloads). Summed over months: an IP active in several months counts once per month."
+            "description": "SUM of per-package monthly distinct IPs: a volume measure (one address x 50 packages counts 50 times), never a count of users. For project-level installs use mart_installer_downloads_monthly."
           },
           {
             "name": "downloads",
@@ -68,7 +68,7 @@
     },
     {
       "name": "mart_grant_attribution",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_grant_attribution.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_grant_attribution.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
       "bytes": 46767,
@@ -129,8 +129,50 @@
       }
     },
     {
+      "name": "mart_installer_downloads_monthly",
+      "path": "https://impact.bioconductor.org/data/mart_installer_downloads_monthly.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 3307,
+      "description": "Project-level installs per month: distinct IPs of the installer package (BiocInstaller 2011-2018, then BiocVersion, which BiocManager installs). The Bioconductor convention for 'machines that installed Bioconductor'.",
+      "schema": {
+        "fields": [
+          {
+            "name": "year",
+            "type": "integer",
+            "description": "Calendar year."
+          },
+          {
+            "name": "month",
+            "type": "integer",
+            "description": "Month 1-12."
+          },
+          {
+            "name": "methodology_era",
+            "type": "string",
+            "description": "Download-stats collection era: 'pre_2015_10' or 'modern'. Bioconductor changed its methodology in Oct 2015; do not add counts across eras."
+          },
+          {
+            "name": "installer_package",
+            "type": "string",
+            "description": "Which installer package the row comes from."
+          },
+          {
+            "name": "installer_distinct_ips",
+            "type": "integer",
+            "description": "Distinct IPs that downloaded the installer package that month: the project-level usage proxy."
+          },
+          {
+            "name": "installer_downloads",
+            "type": "integer",
+            "description": "Raw downloads of the installer package that month."
+          }
+        ]
+      }
+    },
+    {
       "name": "mart_package_dependency",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_dependency.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_package_dependency.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
       "bytes": 177603,
@@ -162,7 +204,7 @@
     },
     {
       "name": "mart_package_directory",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_directory.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_package_directory.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
       "bytes": 991216,
@@ -264,7 +306,7 @@
     },
     {
       "name": "mart_package_downloads_monthly",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_downloads_monthly.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_package_downloads_monthly.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
       "bytes": 4081096,
@@ -311,7 +353,7 @@
     },
     {
       "name": "mart_package_funder",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_funder.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_package_funder.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
       "bytes": 10461,
@@ -363,7 +405,7 @@
     },
     {
       "name": "mart_package_impact",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_impact.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_package_impact.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
       "bytes": 142557,
@@ -440,7 +482,7 @@
     },
     {
       "name": "mart_package_person",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_person.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_package_person.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
       "bytes": 273152,
@@ -492,7 +534,7 @@
     },
     {
       "name": "mart_package_work",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_package_work.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_package_work.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
       "bytes": 132538,
@@ -604,7 +646,7 @@
     },
     {
       "name": "mart_person",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_person.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_person.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
       "bytes": 213903,
@@ -651,7 +693,7 @@
     },
     {
       "name": "mart_release_growth",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_release_growth.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_release_growth.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
       "bytes": 2094,
@@ -698,7 +740,7 @@
     },
     {
       "name": "mart_release_history",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_release_history.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_release_history.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
       "bytes": 2965,
@@ -740,7 +782,7 @@
     },
     {
       "name": "mart_work",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_work.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_work.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
       "bytes": 116167,
@@ -827,7 +869,7 @@
     },
     {
       "name": "mart_work_institution",
-      "path": "https://seandavi.github.io/bioc-intelligence/data/mart_work_institution.parquet",
+      "path": "https://impact.bioconductor.org/data/mart_work_institution.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
       "bytes": 121138,
@@ -899,8 +941,14 @@
     {
       "name": "ecosystem_yearly",
       "source": "mart_ecosystem_downloads_yearly",
-      "description": "Downloads per year summed across repos, one row per methodology era (never mix eras).",
-      "sql": "SELECT year, methodology_era, SUM(distinct_ips) AS distinct_ips, SUM(downloads) AS downloads, SUM(n_packages_with_downloads) AS n_packages_with_downloads FROM mart_ecosystem_downloads_yearly GROUP BY year, methodology_era ORDER BY year, methodology_era"
+      "description": "Download VOLUME per year summed across repos and packages, one row per methodology era (never mix eras). sum_package_distinct_ips is not a count of users; see installs_yearly for that.",
+      "sql": "SELECT year, methodology_era, SUM(sum_package_distinct_ips) AS sum_package_distinct_ips, SUM(downloads) AS downloads, SUM(n_packages_with_downloads) AS n_packages_with_downloads FROM mart_ecosystem_downloads_yearly GROUP BY year, methodology_era ORDER BY year, methodology_era"
+    },
+    {
+      "name": "installs_yearly",
+      "source": "mart_installer_downloads_monthly",
+      "description": "Machines installing Bioconductor per year: distinct IPs of the installer package (BiocInstaller to 2018, BiocVersion since), summed over months. The Bioconductor convention for project-level usage; one row per methodology era.",
+      "sql": "SELECT year, methodology_era, SUM(installer_distinct_ips) AS installer_distinct_ips FROM mart_installer_downloads_monthly GROUP BY year, methodology_era ORDER BY year, methodology_era"
     },
     {
       "name": "package_impact_ranked",
