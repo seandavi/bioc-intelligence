@@ -608,9 +608,20 @@ HONEST_VIEWS = {
     ),
     "ecosystem_yearly": (
         "mart_ecosystem_downloads_yearly",
-        "Downloads per year summed across repos, one row per methodology era (never mix eras).",
-        "SELECT year, methodology_era, SUM(distinct_ips) AS distinct_ips, "
+        "Download VOLUME per year summed across repos and packages, one row per methodology "
+        "era (never mix eras). sum_package_distinct_ips is not a count of users; see "
+        "installs_yearly for that.",
+        "SELECT year, methodology_era, "
+        "SUM(sum_package_distinct_ips) AS sum_package_distinct_ips, "
         "SUM(downloads) AS downloads, SUM(n_packages_with_downloads) AS n_packages_with_downloads "
+        "FROM {src} GROUP BY year, methodology_era ORDER BY year, methodology_era",
+    ),
+    "installs_yearly": (
+        "mart_installer_downloads_monthly",
+        "Machines installing Bioconductor per year: distinct IPs of the installer package "
+        "(BiocInstaller to 2018, BiocVersion since), summed over months. The Bioconductor "
+        "convention for project-level usage; one row per methodology era.",
+        "SELECT year, methodology_era, SUM(installer_distinct_ips) AS installer_distinct_ips "
         "FROM {src} GROUP BY year, methodology_era ORDER BY year, methodology_era",
     ),
     "package_impact_ranked": (
