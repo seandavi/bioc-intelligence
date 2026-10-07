@@ -66,20 +66,20 @@ function PaperItem({ w }: { w: Work }) {
   return (
     <li>
       <a
-        className="text-bioc-600 hover:underline"
+        className="text-primary-400 hover:underline"
         href={`https://doi.org/${w.doi}`}
         target="_blank"
         rel="noreferrer"
       >
         {w.title ?? w.doi}
       </a>
-      <div className="text-xs text-slate-500">
+      <div className="text-xs text-neutral-300">
         {[w.year, w.journal].filter(Boolean).join(" · ")}
         {(w.year || w.journal) && " · "}
         {fmtInt(w.citation_count)} citations · RCR {fmtFloat(w.icite_rcr, 2)}
       </div>
-      <div className="mt-0.5 text-xs text-slate-500">
-        <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600">
+      <div className="mt-0.5 text-xs text-neutral-300">
+        <span className="rounded bg-neutral-75 px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">
           {w.match_method}
         </span>{" "}
         confidence {w.confidence}
@@ -92,16 +92,16 @@ function DetailPanel({ pkg, papers, onClose }: { pkg: Pkg; papers: Work[]; onClo
   const views = splitList(pkg.biocviews);
   const urls = splitList(pkg.url);
   return (
-    <aside className="w-full shrink-0 rounded-xl border border-slate-200 bg-white p-4 lg:w-80">
+    <aside className="w-full shrink-0 rounded-xl border border-primary-75 bg-white p-4 lg:w-80">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-lg font-semibold text-slate-900">{pkg.package_name}</div>
+          <div className="text-lg font-semibold text-ink">{pkg.package_name}</div>
           <div className="mt-0.5 flex items-center gap-2">
             <RepoBadge repo={pkg.repo} />
-            <span className="text-xs text-slate-500">release {pkg.latest_release}</span>
+            <span className="text-xs text-neutral-300">release {pkg.latest_release}</span>
           </div>
           <a
-            className="mt-1 block text-xs text-bioc-600 hover:underline"
+            className="mt-1 block text-xs text-primary-400 hover:underline"
             href={`https://bioconductor.org/packages/${pkg.package_name}/`}
             target="_blank"
             rel="noreferrer"
@@ -110,22 +110,22 @@ function DetailPanel({ pkg, papers, onClose }: { pkg: Pkg; papers: Work[]; onClo
           </a>
         </div>
         {onClose && (
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-700" aria-label="close">
+          <button onClick={onClose} className="text-neutral-300 hover:text-neutral-400" aria-label="close">
             ✕
           </button>
         )}
       </div>
-      {pkg.title && <p className="mt-3 text-sm text-slate-700">{pkg.title}</p>}
+      {pkg.title && <p className="mt-3 text-sm text-neutral-400">{pkg.title}</p>}
       <dl className="mt-3 space-y-2 text-sm">
         {pkg.maintainer && (
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-500">Maintainer</dt>
-            <dd className="text-slate-700">{pkg.maintainer}</dd>
+            <dt className="text-xs uppercase tracking-wide text-neutral-300">Maintainer</dt>
+            <dd className="text-neutral-400">{pkg.maintainer}</dd>
           </div>
         )}
         {papers.length > 0 ? (
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-500">
+            <dt className="text-xs uppercase tracking-wide text-neutral-300">
               Papers the package asks users to cite
             </dt>
             <dd>
@@ -138,10 +138,10 @@ function DetailPanel({ pkg, papers, onClose }: { pkg: Pkg; papers: Work[]; onClo
           </div>
         ) : pkg.source_doi && (
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-500">Describing paper</dt>
+            <dt className="text-xs uppercase tracking-wide text-neutral-300">Describing paper</dt>
             <dd>
               <a
-                className="text-bioc-600 hover:underline"
+                className="text-primary-400 hover:underline"
                 href={`https://doi.org/${pkg.source_doi}`}
                 target="_blank"
                 rel="noreferrer"
@@ -153,12 +153,12 @@ function DetailPanel({ pkg, papers, onClose }: { pkg: Pkg; papers: Work[]; onClo
         )}
         {(urls.length > 0 || pkg.bug_reports) && (
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-500">Links</dt>
+            <dt className="text-xs uppercase tracking-wide text-neutral-300">Links</dt>
             <dd className="space-y-0.5">
               {urls.map((u) => (
                 <a
                   key={u}
-                  className="block truncate text-bioc-600 hover:underline"
+                  className="block truncate text-primary-400 hover:underline"
                   href={u}
                   target="_blank"
                   rel="noreferrer"
@@ -168,7 +168,7 @@ function DetailPanel({ pkg, papers, onClose }: { pkg: Pkg; papers: Work[]; onClo
               ))}
               {pkg.bug_reports && (
                 <a
-                  className="block truncate text-bioc-600 hover:underline"
+                  className="block truncate text-primary-400 hover:underline"
                   href={pkg.bug_reports}
                   target="_blank"
                   rel="noreferrer"
@@ -181,7 +181,7 @@ function DetailPanel({ pkg, papers, onClose }: { pkg: Pkg; papers: Work[]; onClo
         )}
         {views.length > 0 && (
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-500">biocViews</dt>
+            <dt className="text-xs uppercase tracking-wide text-neutral-300">biocViews</dt>
             <dd className="mt-1 flex flex-wrap gap-1">
               {views.map((v) => (
                 <BiocViewChip key={v} term={v} />
@@ -254,7 +254,7 @@ export function Explorer() {
         header: "Package",
         cell: ({ row }) => (
           <button
-            className="font-medium text-bioc-700 hover:underline"
+            className="font-medium text-primary-400 hover:underline"
             onClick={() => setSelected(row.original)}
           >
             {row.original.package_name}
@@ -278,7 +278,7 @@ export function Explorer() {
               {v.slice(0, 3).map((t) => (
                 <BiocViewChip key={t} term={t} />
               ))}
-              {v.length > 3 && <span className="text-xs text-slate-500">+{v.length - 3}</span>}
+              {v.length > 3 && <span className="text-xs text-neutral-300">+{v.length - 3}</span>}
             </div>
           );
         },
@@ -289,7 +289,7 @@ export function Explorer() {
         sortDescFirst: true,
         cell: ({ getValue }) => {
           const n = getValue<number>();
-          return n > 0 ? n : <span className="text-slate-500">—</span>;
+          return n > 0 ? <span className="text-metric-pubs">{n}</span> : <span className="text-neutral-300">—</span>;
         },
       },
     ],
@@ -321,8 +321,8 @@ export function Explorer() {
   return (
     <div>
       <div className="mb-5">
-        <h1 className="text-2xl font-semibold text-slate-900">Package explorer</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-semibold text-ink">Package explorer</h1>
+        <p className="mt-1 text-sm text-neutral-300">
           {loading ? "Loading packages…" : `${filtered.length.toLocaleString()} packages`}
           {" · search, sort, and filter the ecosystem."}
         </p>
@@ -341,33 +341,33 @@ export function Explorer() {
             className={`w-full ${INPUT_CLASS}`}
           />
           <div className="mt-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Repo</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-300">Repo</div>
             <div className="mt-2 space-y-1">
               {[...repoCounts.entries()]
                 .sort((a, b) => b[1] - a[1])
                 .map(([r, n]) => (
-                  <label key={r} className="flex items-center gap-2 text-sm text-slate-600">
+                  <label key={r} className="flex items-center gap-2 text-sm text-neutral-400">
                     <input
                       type="checkbox"
                       checked={repos.has(r)}
                       onChange={() => setParams("explorer", { repo: toggleInList(repoParam, r) })}
                     />
                     {REPO_LABEL[r] ?? r}
-                    <span className="ml-auto text-xs text-slate-500">{n}</span>
+                    <span className="ml-auto text-xs text-neutral-300">{n}</span>
                   </label>
                 ))}
             </div>
           </div>
           {viewTerm && (
             <div className="mt-4">
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-300">
                 biocViews
               </div>
               <div className="mt-2">
                 <Chip>
                   {viewTerm}
                   <button
-                    className="ml-1 text-bioc-700 hover:text-slate-900"
+                    className="ml-1 text-primary-400 hover:text-ink"
                     aria-label={`remove ${viewTerm} filter`}
                     onClick={() => setParams("explorer", { view: "" })}
                   >
@@ -377,22 +377,22 @@ export function Explorer() {
               </div>
             </div>
           )}
-          <label className="mt-4 flex items-center gap-2 text-sm text-slate-600">
+          <label className="mt-4 flex items-center gap-2 text-sm text-neutral-400">
             <input
               type="checkbox"
               checked={paperOnly}
               onChange={(e) => setParams("explorer", { paper: e.target.checked ? "1" : "", doi: "" })}
             />
             Has linked paper
-            <span className="ml-auto text-xs text-slate-500">{paperCount}</span>
+            <span className="ml-auto text-xs text-neutral-300">{paperCount}</span>
           </label>
         </div>
 
         {/* Table */}
         <div className="min-w-0 flex-1">
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded-xl border border-primary-75 bg-white">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-primary-75 text-xs uppercase tracking-wide text-neutral-300">
                 {table.getHeaderGroups().map((hg) => (
                   <tr key={hg.id}>
                     {hg.headers.map((h) => (
@@ -410,7 +410,7 @@ export function Explorer() {
               </thead>
               <tbody>
                 {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                  <tr key={row.id} className="border-b border-neutral-75 last:border-0 hover:bg-neutral-50">
                     {row.getVisibleCells().map((cell) => (
                       <td key={cell.id} className="px-3 py-2 align-top">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -420,7 +420,7 @@ export function Explorer() {
                 ))}
                 {!loading && total === 0 && (
                   <tr>
-                    <td colSpan={columns.length} className="px-3 py-8 text-center text-slate-500">
+                    <td colSpan={columns.length} className="px-3 py-8 text-center text-neutral-300">
                       {q ? `No packages match “${q}”.` : "No packages match these filters."}
                     </td>
                   </tr>
@@ -430,9 +430,9 @@ export function Explorer() {
           </div>
           {/* Pagination */}
           {total > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-500">
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-neutral-300">
               <button
-                className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+                className="rounded border border-neutral-100 px-2 py-1 disabled:opacity-40"
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
               >
@@ -443,7 +443,7 @@ export function Explorer() {
                 {table.getPageCount().toLocaleString()}
               </span>
               <button
-                className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+                className="rounded border border-neutral-100 px-2 py-1 disabled:opacity-40"
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
               >
@@ -455,7 +455,7 @@ export function Explorer() {
               </span>
               <select
                 aria-label="Rows per page"
-                className="rounded border border-slate-300 bg-white px-1 py-1"
+                className="rounded border border-neutral-100 bg-white px-1 py-1"
                 value={pageSize}
                 onChange={(e) => table.setPageSize(Number(e.target.value))}
               >

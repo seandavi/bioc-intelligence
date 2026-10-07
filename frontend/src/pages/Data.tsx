@@ -41,28 +41,28 @@ async function exportCsv(file: string) {
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <section id={id} className="mt-8">
-      <h2 className="mb-3 text-lg font-semibold text-slate-900">{title}</h2>
-      <div className="space-y-3 text-sm leading-relaxed text-slate-700">{children}</div>
+      <h2 className="mb-3 text-lg font-semibold text-ink">{title}</h2>
+      <div className="space-y-3 text-sm leading-relaxed text-neutral-400">{children}</div>
     </section>
   );
 }
 
 const Code = ({ label, children }: { label: string; children: string }) => (
   <div>
-    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-    <pre className="mt-1 overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">
+    <div className="text-xs font-semibold uppercase tracking-wide text-neutral-300">{label}</div>
+    <pre className="mt-1 overflow-x-auto rounded-lg bg-neutral-500 p-3 text-xs text-neutral-50">
       <code>{children}</code>
     </pre>
   </div>
 );
 
 const A = ({ href, children }: { href: string; children: ReactNode }) => (
-  <a className="text-bioc-600 underline" href={href}>
+  <a className="text-primary-400 underline" href={href}>
     {children}
   </a>
 );
 
-const TH = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500";
+const TH = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-neutral-300";
 const TD = "px-3 py-2 align-top";
 
 function CsvButton({ file }: { file: string }) {
@@ -78,7 +78,7 @@ function CsvButton({ file }: { file: string }) {
           () => setState("error"),
         );
       }}
-      className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bioc-500 disabled:opacity-50"
+      className="rounded-md border border-neutral-100 px-2 py-1 text-xs font-medium text-neutral-400 hover:bg-neutral-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal disabled:opacity-50"
     >
       {state === "busy" ? "Exporting…" : state === "error" ? "Export failed, retry" : "CSV"}
     </button>
@@ -101,8 +101,8 @@ export function Data({ manifest }: { manifest: Manifest | null }) {
 
   return (
     <div className="max-w-4xl">
-      <h1 className="text-2xl font-semibold text-slate-900">Data</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="text-2xl font-semibold text-ink">Data</h1>
+      <p className="mt-1 text-sm text-neutral-300">
         Everything on this site is public Parquet. Query it from DuckDB, R or Python, or download
         CSV. Snapshot {snapshot}.
       </p>
@@ -150,9 +150,9 @@ con.sql("SELECT * FROM bi.package_impact WHERE package_name = 'limma'").show()`}
 
       <Section id="files" title="Parquet files">
         <p>Each file can also be read directly by URL, or exported here as CSV.</p>
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <div className="overflow-x-auto rounded-lg border border-primary-75 bg-white">
           <table className="w-full text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50">
+            <thead className="border-b border-primary-75 bg-primary-50">
               <tr>
                 <th className={TH}>File</th>
                 <th className={`${TH} text-right`}>Size</th>
@@ -161,7 +161,7 @@ con.sql("SELECT * FROM bi.package_impact WHERE package_name = 'limma'").show()`}
             </thead>
             <tbody>
               {manifest?.marts.map((m) => (
-                <tr key={m} className="border-b border-slate-100 last:border-0">
+                <tr key={m} className="border-b border-neutral-75 last:border-0">
                   <td className={`${TD} break-all`}>
                     <A href={`${PUBLIC_BASE}/${m}`}>{`${PUBLIC_BASE}/${m}`}</A>
                   </td>
@@ -212,13 +212,13 @@ con.sql("SELECT * FROM bi.package_impact WHERE package_name = 'limma'").show()`}
       <Section id="dictionary" title="Data dictionary">
         {dp ? (
           dp.resources.map((r) => (
-            <details key={r.name} className="rounded-lg border border-slate-200 bg-white">
+            <details key={r.name} className="rounded-lg border border-primary-75 bg-white">
               <summary className="cursor-pointer px-3 py-2">
-                <code className="font-semibold text-slate-900">{r.name.replace(/^mart_/, "")}</code>{" "}
-                <span className="text-slate-600">{r.description}</span>
+                <code className="font-semibold text-ink">{r.name.replace(/^mart_/, "")}</code>{" "}
+                <span className="text-neutral-400">{r.description}</span>
               </summary>
-              <table className="w-full border-t border-slate-200 text-sm">
-                <thead className="bg-slate-50">
+              <table className="w-full border-t border-primary-75 text-sm">
+                <thead className="bg-primary-50">
                   <tr>
                     <th className={TH}>Column</th>
                     <th className={TH}>Type</th>
@@ -227,9 +227,9 @@ con.sql("SELECT * FROM bi.package_impact WHERE package_name = 'limma'").show()`}
                 </thead>
                 <tbody>
                   {r.schema.fields.map((f) => (
-                    <tr key={f.name} className="border-t border-slate-100">
+                    <tr key={f.name} className="border-t border-neutral-75">
                       <td className={`${TD} font-mono text-xs`}>{f.name}</td>
-                      <td className={`${TD} text-xs text-slate-500`}>{f.type}</td>
+                      <td className={`${TD} text-xs text-neutral-300`}>{f.type}</td>
                       <td className={TD}>{f.description}</td>
                     </tr>
                   ))}
@@ -238,12 +238,12 @@ con.sql("SELECT * FROM bi.package_impact WHERE package_name = 'limma'").show()`}
             </details>
           ))
         ) : (
-          <p className="text-slate-500">Loading the dictionary…</p>
+          <p className="text-neutral-300">Loading the dictionary…</p>
         )}
       </Section>
 
       <Section id="cite" title="How to cite">
-        <p className="rounded-lg border border-slate-200 bg-white p-4">
+        <p className="rounded-lg border border-primary-75 bg-white p-4">
           Davis S. Bioconductor Intelligence: usage, publication and grant impact of Bioconductor
           packages. Snapshot {snapshot}. <A href={VIEWS_URL}>{VIEWS_URL}</A>
         </p>

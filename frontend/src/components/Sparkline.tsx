@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { VisualizationSpec } from "vega-embed";
 import { VegaChart } from "./VegaChart";
-import { ACCENT } from "./charts";
+import { CATEGORY, METRIC } from "./charts";
 
 // One row of mart_package_downloads_monthly. package_name is only needed to tell
 // series apart when several packages share a chart.
@@ -21,7 +21,7 @@ export const ERA_START = "2015-10-01";
 // (Vega-Lite fails to merge an axis-less layer with an axis-bearing one).
 export const eraBand = (from: string, axes = true) => ({
   data: { values: [{ start: from, end: ERA_START }] },
-  mark: { type: "rect", color: "#e2e8f0", opacity: 0.7 },
+  mark: { type: "rect", color: "#e7e8ea", opacity: 0.7 },
   encoding: {
     x: { field: "start", type: "temporal", ...(axes ? {} : { axis: null }) },
     x2: { field: "end" },
@@ -46,7 +46,7 @@ export function monthlyIpsSpec(
   const first = values.reduce((a, r) => (r.date < a ? r.date : a), ERA_START);
   const line = {
     data: { values },
-    mark: { type: "line", strokeWidth: axes ? 2 : 1.5, ...(multi ? {} : { color: ACCENT }) },
+    mark: { type: "line", strokeWidth: axes ? 2 : 1.5, ...(multi ? {} : { color: METRIC.usage }) },
     encoding: {
       x: { field: "date", type: "temporal", axis: axes ? { title: null } : null },
       y: {
@@ -57,7 +57,14 @@ export function monthlyIpsSpec(
       },
       detail: { field: "methodology_era" },
       ...(multi
-        ? { color: { field: "package_name", type: "nominal", legend: { orient: "top", title: null } } }
+        ? {
+            color: {
+              field: "package_name",
+              type: "nominal",
+              scale: { range: CATEGORY },
+              legend: { orient: "top", title: null },
+            },
+          }
         : {}),
       tooltip: [
         ...(multi ? [{ field: "package_name", type: "nominal", title: "Package" }] : []),

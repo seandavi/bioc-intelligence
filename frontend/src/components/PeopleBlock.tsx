@@ -27,7 +27,7 @@ export function OrcidLink({ orcid }: { orcid: string }) {
       target="_blank"
       rel="noreferrer"
       title={`ORCID ${orcid}`}
-      className="text-xs text-bioc-600 hover:underline"
+      className="text-xs text-primary-400 hover:underline"
     >
       ORCID
     </a>
@@ -44,15 +44,15 @@ export function PeopleBlock({ name, repo }: { name: string; repo: string }) {
     ORDER BY is_maintainer DESC, name`);
 
   if (error) return <p className="text-sm text-red-700">Failed to load people: {error.message}</p>;
-  if (loading) return <p className="text-sm text-slate-400">Loading people…</p>;
-  if (!data?.length) return <p className="text-sm text-slate-500">No people listed in Authors@R.</p>;
+  if (loading) return <p className="text-sm text-neutral-300">Loading people…</p>;
+  if (!data?.length) return <p className="text-sm text-neutral-300">No people listed in Authors@R.</p>;
   return (
     <ul className="space-y-1 text-sm">
       {data.map((p) => (
         <li key={`${p.name}|${p.orcid ?? ""}`} className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-medium text-slate-800">{p.name}</span>
+          <span className="font-medium text-neutral-500">{p.name}</span>
           {p.orcid && <OrcidLink orcid={p.orcid} />}
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-neutral-300">
             {(p.roles ?? "")
               .split(",")
               .filter(Boolean)

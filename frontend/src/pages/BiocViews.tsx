@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "../db/useQuery";
 import { TermTree, type TreeNode } from "../components/TermTree";
 import { VegaChart } from "../components/VegaChart";
-import { horizontalBar } from "../components/charts";
+import { horizontalBar, NEUTRAL } from "../components/charts";
 import { BiocViewChip, INPUT_CLASS, SrLabel } from "../components/ui";
 import { fmtInt } from "../lib/format";
 
@@ -47,6 +47,7 @@ export function BiocViews() {
             "n",
             "term",
             "Top biocViews terms",
+            NEUTRAL,
           )
         : null,
     [all],
@@ -63,8 +64,8 @@ export function BiocViews() {
   return (
     <div>
       <div className="mb-5">
-        <h1 className="text-2xl font-semibold text-slate-900">biocViews</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-semibold text-ink">biocViews</h1>
+        <p className="mt-1 text-sm text-neutral-300">
           {loading ? "Loading…" : `${all.length.toLocaleString()} terms`} · the controlled
           vocabulary that classifies every package.
         </p>
@@ -81,17 +82,17 @@ export function BiocViews() {
             onChange={(e) => setTreeQ(e.target.value)}
             className={`mb-3 w-full ${INPUT_CLASS}`}
           />
-          <div className="max-h-[40rem] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3">
+          <div className="max-h-[40rem] overflow-y-auto rounded-xl border border-primary-75 bg-white p-3">
             {treeError ? (
               <p className="text-sm text-red-700">Failed to load hierarchy: {treeError.message}</p>
             ) : tree ? (
               <TermTree roots={tree} filter={treeQ} />
             ) : (
-              <p className="text-sm text-slate-500">Loading…</p>
+              <p className="text-sm text-neutral-300">Loading…</p>
             )}
           </div>
           {topSpec && (
-            <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="mt-6 rounded-xl border border-primary-75 bg-white p-4">
               <VegaChart spec={topSpec} className="w-full" />
             </div>
           )}
@@ -107,23 +108,23 @@ export function BiocViews() {
             onChange={(e) => setQ(e.target.value)}
             className={`mb-3 w-full ${INPUT_CLASS}`}
           />
-          <div className="max-h-[28rem] overflow-y-auto rounded-xl border border-slate-200 bg-white">
+          <div className="max-h-[28rem] overflow-y-auto rounded-xl border border-primary-75 bg-white">
             <table className="w-full text-sm">
               <tbody>
                 {filtered.map((t) => (
-                  <tr key={t.term} className="border-b border-slate-100 last:border-0">
+                  <tr key={t.term} className="border-b border-neutral-75 last:border-0">
                     <td className="px-3 py-1.5">
                       <BiocViewChip term={t.term} />
                     </td>
                     <td className="w-28 px-3 py-1.5">
                       <div className="flex items-center gap-2">
-                        <div className="h-1.5 flex-1 rounded bg-slate-100">
+                        <div className="h-1.5 flex-1 rounded bg-neutral-75">
                           <div
-                            className="h-1.5 rounded bg-bioc-500"
+                            className="h-1.5 rounded bg-neutral-200"
                             style={{ width: `${(t.n / maxN) * 100}%` }}
                           />
                         </div>
-                        <span className="w-10 text-right tabular-nums text-xs text-slate-500">
+                        <span className="w-10 text-right tabular-nums text-xs text-neutral-300">
                           {fmtInt(t.n)}
                         </span>
                       </div>
@@ -132,7 +133,7 @@ export function BiocViews() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td className="px-3 py-4 text-center text-sm text-slate-500">no matching terms</td>
+                    <td className="px-3 py-4 text-center text-sm text-neutral-300">no matching terms</td>
                   </tr>
                 )}
               </tbody>

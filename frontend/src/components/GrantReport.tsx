@@ -114,10 +114,12 @@ export function GrantReport({
     );
 
   const num = "px-2 py-1 text-right tabular-nums";
+  const usage = `${num} text-metric-usage`;
+  const pubs = `${num} text-metric-pubs`;
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+    <div className="rounded-lg border border-primary-75 bg-neutral-50 p-3">
       <table className="w-full text-sm">
-        <thead className="text-xs uppercase tracking-wide text-slate-500">
+        <thead className="text-xs uppercase tracking-wide text-neutral-300">
           <tr>
             <th className="px-2 py-1 text-left">Package</th>
             <th className="px-2 py-1 text-right">IPs, 12 mo</th>
@@ -129,34 +131,34 @@ export function GrantReport({
         </thead>
         <tbody>
           {rows.map(({ package_name, i }) => (
-            <tr key={package_name} className="border-t border-slate-200">
+            <tr key={package_name} className="border-t border-primary-75">
               <td className="px-2 py-1">
-                <Link view="package" arg={package_name} className="text-bioc-600 hover:underline">
+                <Link view="package" arg={package_name} className="text-primary-400 hover:underline">
                   {package_name}
                 </Link>
               </td>
-              <td className={num}>{fmtInt(i?.distinct_ips_trailing_12mo)}</td>
-              <td className={num}>{fmtInt(i?.total_distinct_ips)}</td>
-              <td className={num}>{fmtInt(i?.n_primary_pubs)}</td>
-              <td className={num}>{fmtInt(i?.total_citations)}</td>
-              <td className={num}>{fmtFloat(i?.median_rcr, 2)}</td>
+              <td className={usage}>{fmtInt(i?.distinct_ips_trailing_12mo)}</td>
+              <td className={usage}>{fmtInt(i?.total_distinct_ips)}</td>
+              <td className={pubs}>{fmtInt(i?.n_primary_pubs)}</td>
+              <td className={pubs}>{fmtInt(i?.total_citations)}</td>
+              <td className={pubs}>{fmtFloat(i?.median_rcr, 2)}</td>
             </tr>
           ))}
         </tbody>
-        <tfoot className="font-medium text-slate-700">
-          <tr className="border-t-2 border-slate-300">
+        <tfoot className="font-medium text-neutral-400">
+          <tr className="border-t-2 border-neutral-100">
             <td className="px-2 py-1">
               {included.length} package{included.length === 1 ? "" : "s"}
             </td>
-            <td className={num}>{fmtInt(total.ips12)}</td>
-            <td className={num}>{fmtInt(total.ipsAll)}</td>
-            <td className={num}>{fmtInt(total.papers)}</td>
-            <td className={num}>{fmtInt(total.citations)}</td>
-            <td className={num}>{fmtFloat(total.rcr, 2)}</td>
+            <td className={usage}>{fmtInt(total.ips12)}</td>
+            <td className={usage}>{fmtInt(total.ipsAll)}</td>
+            <td className={pubs}>{fmtInt(total.papers)}</td>
+            <td className={pubs}>{fmtInt(total.citations)}</td>
+            <td className={pubs}>{fmtFloat(total.rcr, 2)}</td>
           </tr>
         </tfoot>
       </table>
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-neutral-300">
         Packages whose cite-me paper acknowledges this award in NIH RePORTER publication links; this
         does not mean the funded research used the package. IP totals sum each package's distinct IPs
         (an address that downloads two packages counts twice); the paper, citation and median-RCR
@@ -166,17 +168,17 @@ export function GrantReport({
       <div className="mt-2 flex items-center gap-2">
         <button
           onClick={copy}
-          className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-100"
+          className="rounded border border-neutral-100 bg-white px-2 py-1 text-xs text-neutral-400 hover:bg-neutral-75"
         >
           Copy summary
         </button>
         <button
           onClick={csv}
-          className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-100"
+          className="rounded border border-neutral-100 bg-white px-2 py-1 text-xs text-neutral-400 hover:bg-neutral-75"
         >
           Download CSV
         </button>
-        {copied && <span className="text-xs text-slate-500">{copied}</span>}
+        {copied && <span className="text-xs text-neutral-300">{copied}</span>}
       </div>
     </div>
   );

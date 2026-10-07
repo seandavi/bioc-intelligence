@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* One colour per metric family (docs/branding.md). Text shades pass 4.5:1 on white;
+   fills are for bars, borders and chart series. Mirrored by METRIC in components/charts.ts. */
+:root {
+  --metric-pubs: #035771;
+  --metric-pubs-fill: #0087af;
+  --metric-usage: #547b17;
+  --metric-usage-fill: #18a603;
+  --metric-grants: #7d671c; /* w500 darkened 15%: #937921 is only 4.20:1 on white */
+  --metric-grants-fill: #f1c736;
+  --metric-people: #414757;
+  --metric-people-fill: #5d657c;
+}
+
 html,
 body,
 #root {
@@ -9,6 +22,15 @@ body,
 }
 body {
   margin: 0;
+  color: #070707;
   font-family:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Landing hero only: --gradient-brand under a 30% p500 (#003242) scrim, so white body text
+   stays >= 4.5:1 across the whole band (4.90:1 at the green end). */
+.hero-brand {
+  background:
+    linear-gradient(rgb(0 50 66 / 0.3), rgb(0 50 66 / 0.3)),
+    linear-gradient(to right, #0087af, #0484a9, #18a603);
 }

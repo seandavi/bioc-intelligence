@@ -12,7 +12,7 @@ declare module "@tanstack/react-table" {
 
 // Visible keyboard focus ring shared by every text input and select.
 export const INPUT_CLASS =
-  "rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-bioc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bioc-500";
+  "rounded-md border border-neutral-100 px-3 py-1.5 text-sm focus:border-brand-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal";
 
 // Visually hidden text that screen readers still announce (input labels).
 export function SrLabel({ htmlFor, children }: { htmlFor: string; children: ReactNode }) {
@@ -55,10 +55,10 @@ export function SortableTh({
       <button
         type="button"
         onClick={onToggle}
-        className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bioc-500"
+        className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal"
       >
         {children}
-        <span aria-hidden className={sorted ? "" : "text-slate-500"}>
+        <span aria-hidden className={sorted ? "" : "text-neutral-300"}>
           {sorted === "asc" ? "↑" : sorted === "desc" ? "↓" : "↕"}
         </span>
       </button>
@@ -76,7 +76,7 @@ export const REPO_LABEL: Record<string, string> = {
 
 export function RepoBadge({ repo }: { repo: string }) {
   return (
-    <span className="inline-block rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
+    <span className="inline-block rounded bg-primary-50 px-1.5 py-0.5 text-xs text-primary-400">
       {REPO_LABEL[repo] ?? repo}
     </span>
   );
@@ -84,7 +84,7 @@ export function RepoBadge({ repo }: { repo: string }) {
 
 export function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-block rounded bg-bioc-50 px-1.5 py-0.5 text-xs text-bioc-700">
+    <span className="inline-block rounded bg-primary-50 px-1.5 py-0.5 text-xs text-primary-400">
       {children}
     </span>
   );
@@ -96,7 +96,7 @@ export function BiocViewChip({ term }: { term: string }) {
     <Link
       view="explorer"
       params={{ view: term }}
-      className="inline-block rounded bg-bioc-50 px-1.5 py-0.5 text-xs text-bioc-700 hover:bg-bioc-100 hover:underline"
+      className="inline-block rounded bg-secondary-75 px-1.5 py-0.5 text-xs text-secondary-600 hover:bg-secondary-100 hover:underline"
     >
       {term}
     </Link>

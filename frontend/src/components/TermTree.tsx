@@ -31,18 +31,18 @@ function TermRow({ term, maxN, depth, filtering }: { term: Term; maxN: number; d
     <span className="flex items-center gap-2 py-0.5 text-sm">
       <a
         href={`#/explorer?view=${encodeURIComponent(term.id)}`}
-        className="text-bioc-700 hover:underline"
+        className="text-primary-400 hover:underline"
         onClick={(e) => e.stopPropagation()}
       >
         {term.id}
       </a>
-      <span className="ml-auto h-1.5 w-24 shrink-0 rounded bg-slate-100">
+      <span className="ml-auto h-1.5 w-24 shrink-0 rounded bg-neutral-75">
         <span
-          className="block h-1.5 rounded bg-bioc-500"
+          className="block h-1.5 rounded bg-neutral-200"
           style={{ width: `${(term.n / maxN) * 100}%` }}
         />
       </span>
-      <span className="w-12 shrink-0 text-right text-xs tabular-nums text-slate-500">
+      <span className="w-12 shrink-0 text-right text-xs tabular-nums text-neutral-300">
         {fmtInt(term.n)}
       </span>
     </span>
@@ -67,7 +67,7 @@ export function TermTree({ roots, filter }: { roots: TreeNode[]; filter: string 
     () => (q ? terms.map((t) => prune(t, q)).filter((t): t is Term => t !== null) : terms),
     [terms, q],
   );
-  if (!shown.length) return <p className="px-3 py-4 text-center text-sm text-slate-400">no matching terms</p>;
+  if (!shown.length) return <p className="px-3 py-4 text-center text-sm text-neutral-300">no matching terms</p>;
   return (
     <div className="-ml-4">
       {shown.map((t) => (
