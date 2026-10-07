@@ -39,33 +39,33 @@ const METHODS: [string, string, string][] = [
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <section id={id} className="mt-8">
-      <h2 className="mb-3 text-lg font-semibold text-slate-900">{title}</h2>
-      <div className="space-y-3 text-sm leading-relaxed text-slate-700">{children}</div>
+      <h2 className="mb-3 text-lg font-semibold text-ink">{title}</h2>
+      <div className="space-y-3 text-sm leading-relaxed text-neutral-400">{children}</div>
     </section>
   );
 }
 
 const Term = ({ id, children }: { id: string; children: ReactNode }) => (
   <div id={id}>
-    <h3 className="font-semibold text-slate-900">{children}</h3>
+    <h3 className="font-semibold text-ink">{children}</h3>
   </div>
 );
 
 const A = ({ href, children }: { href: string; children: ReactNode }) => (
-  <a className="text-bioc-600 underline" href={href}>
+  <a className="text-primary-400 underline" href={href}>
     {children}
   </a>
 );
 
-const TH = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500";
+const TH = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-neutral-300";
 const TD = "px-3 py-2 align-top";
 
 export function About({ manifest }: { manifest: Manifest | null }) {
   const snapshot = manifest?.snapshot ?? "unknown";
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-semibold text-slate-900">About and methods</h1>
-      <p className="mt-1 text-sm text-slate-500">
+      <h1 className="text-2xl font-semibold text-ink">About and methods</h1>
+      <p className="mt-1 text-sm text-neutral-300">
         What this site shows, where the numbers come from, and how to cite or correct them.
       </p>
 
@@ -85,18 +85,18 @@ export function About({ manifest }: { manifest: Manifest | null }) {
       </Section>
 
       <Section id="sources" title="Data sources">
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50">
+        <div className="overflow-x-auto rounded-lg border border-primary-75 bg-white">
+          <table className="min-w-full divide-y divide-primary-75 text-sm">
+            <thead className="bg-primary-50">
               <tr>
                 <th className={TH}>Source</th>
                 <th className={TH}>What we use it for</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-neutral-75">
               {SOURCES.map(([name, role]) => (
                 <tr key={name}>
-                  <td className={`${TD} font-medium text-slate-900`}>{name}</td>
+                  <td className={`${TD} font-medium text-ink`}>{name}</td>
                   <td className={TD}>{role}</td>
                 </tr>
               ))}
@@ -131,16 +131,16 @@ export function About({ manifest }: { manifest: Manifest | null }) {
           A package is linked to a paper when the package's authors name it, mainly in the CITATION
           file. Each link records how it was found and how far to trust it:
         </p>
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50">
+        <div className="overflow-x-auto rounded-lg border border-primary-75 bg-white">
+          <table className="min-w-full divide-y divide-primary-75 text-sm">
+            <thead className="bg-primary-50">
               <tr>
                 <th className={TH}>Match method</th>
                 <th className={TH}>Confidence</th>
                 <th className={TH}>Meaning</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-neutral-75">
               {METHODS.map(([m, c, d]) => (
                 <tr key={m}>
                   <td className={`${TD} font-mono text-xs`}>{m}</td>
@@ -176,7 +176,7 @@ export function About({ manifest }: { manifest: Manifest | null }) {
       </Section>
 
       <Section id="cite" title="How to cite">
-        <p className="rounded-lg border border-slate-200 bg-white p-4">
+        <p className="rounded-lg border border-primary-75 bg-white p-4">
           Davis S. Bioconductor Intelligence: usage, publication and grant impact of Bioconductor
           packages. Snapshot {snapshot}. <A href="https://seandavi.github.io/bioc-intelligence/">https://seandavi.github.io/bioc-intelligence/</A>
         </p>

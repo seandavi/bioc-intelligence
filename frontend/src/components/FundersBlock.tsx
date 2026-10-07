@@ -18,26 +18,26 @@ export function FundersBlock({ name, repo }: { name: string; repo: string }) {
     ORDER BY funder_name, grant_number`);
 
   if (error) return <p className="text-sm text-red-700">Failed to load funders: {error.message}</p>;
-  if (loading) return <p className="text-sm text-slate-400">Loading funders…</p>;
-  if (!data?.length) return <p className="text-sm text-slate-500">No funders declared.</p>;
+  if (loading) return <p className="text-sm text-neutral-300">Loading funders…</p>;
+  if (!data?.length) return <p className="text-sm text-neutral-300">No funders declared.</p>;
   return (
     <ul className="space-y-1 text-sm">
       {data.map((f, i) => (
         <li key={i} className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-medium text-slate-800">{f.funder_name}</span>
+          <span className="font-medium text-neutral-500">{f.funder_name}</span>
           {f.declared_name && f.declared_name !== f.funder_name && (
-            <span className="text-xs text-slate-500">declared as “{f.declared_name}”</span>
+            <span className="text-xs text-neutral-300">declared as “{f.declared_name}”</span>
           )}
           {f.grant_id ? (
             <Link
               view="grants"
               params={{ q: f.grant_id }}
-              className="text-xs text-bioc-600 hover:underline"
+              className="text-xs text-primary-400 hover:underline"
             >
               {f.grant_number ?? f.grant_id}
             </Link>
           ) : (
-            f.grant_number && <span className="text-xs text-slate-500">{f.grant_number}</span>
+            f.grant_number && <span className="text-xs text-neutral-300">{f.grant_number}</span>
           )}
         </li>
       ))}

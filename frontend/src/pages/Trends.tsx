@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { VisualizationSpec } from "vega-embed";
 import { useQuery } from "../db/useQuery";
 import { VegaChart } from "../components/VegaChart";
+import { CATEGORY, TITLE_COLOR } from "../components/charts";
 import { ERA_START, eraBand, monthlyIpsSpec, Sparkline, type MonthlyRow } from "../components/Sparkline";
 import { Chip, INPUT_CLASS, REPO_LABEL, RepoBadge, SrLabel } from "../components/ui";
 import { Link, parseList, setParams, useRoute } from "../lib/router";
@@ -67,7 +68,7 @@ function yearlySpec(rows: YearRow[], field: keyof YearRow, title: string): Visua
   const first = `${Math.min(...rows.map((r) => r.year))}-01-01`;
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
-    title: { text: title, fontSize: 13, color: "#334155" },
+    title: { text: title, fontSize: 13, color: TITLE_COLOR },
     width: "container",
     height: 260,
     layer: [
@@ -78,7 +79,12 @@ function yearlySpec(rows: YearRow[], field: keyof YearRow, title: string): Visua
         encoding: {
           x: { field: "x", type: "temporal", axis: { title: null, format: "%Y" } },
           y: { field, type: "quantitative", axis: { title: null } },
-          color: { field: "repo", type: "nominal", legend: { orient: "top", title: null } },
+          color: {
+            field: "repo",
+            type: "nominal",
+            scale: { range: CATEGORY },
+            legend: { orient: "top", title: null },
+          },
           detail: { field: "methodology_era" },
           tooltip: [
             { field: "repo", type: "nominal", title: "Repo" },
@@ -95,7 +101,7 @@ function yearlySpec(rows: YearRow[], field: keyof YearRow, title: string): Visua
 
 function EraCaption() {
   return (
-    <p className="mt-2 text-xs text-slate-500">
+    <p className="mt-2 text-xs text-neutral-300">
       The shaded region is before {ERA_START.slice(0, 7)}, when download-log collection changed;
       counts either side are not comparable, so lines break at the boundary. 2015 appears as two
       partial-year points (Jan–Sep, Oct–Dec), and the latest year is year-to-date.
@@ -125,9 +131,9 @@ function Compare() {
   };
 
   return (
-    <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-slate-700">Compare packages</h2>
-      <p className="mt-1 text-xs text-slate-500">
+    <section className="mt-6 rounded-xl border border-primary-75 bg-white p-4">
+      <h2 className="text-sm font-semibold text-neutral-400">Compare packages</h2>
+      <p className="mt-1 text-xs text-neutral-300">
         Monthly distinct IPs for up to {MAX_COMPARE} packages.
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -150,7 +156,7 @@ function Compare() {
         <button
           onClick={add}
           disabled={!known.has(draft.trim()) || picked.length >= MAX_COMPARE}
-          className="rounded-md bg-bioc-500 px-3 py-1.5 text-sm font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bioc-700 focus-visible:ring-offset-2 disabled:opacity-40"
+          className="rounded-md bg-primary-400 px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 disabled:opacity-40"
         >
           Add
         </button>
@@ -158,7 +164,7 @@ function Compare() {
           <Chip key={p}>
             {p}
             <button
-              className="ml-1 text-bioc-700 hover:text-slate-900"
+              className="ml-1 text-primary-400 hover:text-ink"
               aria-label={`remove ${p}`}
               onClick={() => setPicked(picked.filter((x) => x !== p))}
             >
@@ -166,7 +172,7 @@ function Compare() {
             </button>
           </Chip>
         ))}
-        <label className="ml-auto flex items-center gap-2 text-sm text-slate-600">
+        <label className="ml-auto flex items-center gap-2 text-sm text-neutral-400">
           <input
             type="checkbox"
             checked={log}
@@ -179,16 +185,16 @@ function Compare() {
         <p className="mt-3 text-sm text-red-700">Failed to load monthly data: {series.error.message}</p>
       )}
       {picked.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-500">Add a package to plot its monthly usage.</p>
+        <p className="mt-4 text-sm text-neutral-300">Add a package to plot its monthly usage.</p>
       ) : series.loading ? (
-        <p className="mt-4 text-sm text-slate-500">Loading…</p>
+        <p className="mt-4 text-sm text-neutral-300">Loading…</p>
       ) : spec ? (
         <div className="mt-4">
           <VegaChart spec={spec} className="w-full" />
           <EraCaption />
         </div>
       ) : (
-        <p className="mt-4 text-sm text-slate-500">No download history for these packages.</p>
+        <p className="mt-4 text-sm text-neutral-300">No download history for these packages.</p>
       )}
     </section>
   );
@@ -209,19 +215,19 @@ function Trending() {
   }, [series.data]);
 
   return (
-    <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-slate-700">Trending</h2>
-      <p className="mt-1 text-xs text-slate-500">
+    <section className="mt-6 rounded-xl border border-primary-75 bg-white p-4">
+      <h2 className="text-sm font-semibold text-neutral-400">Trending</h2>
+      <p className="mt-1 text-xs text-neutral-300">
         Distinct IPs in the last 12 months over the 12 before. Packages need at least 24 months of
         history and 1,200 distinct IPs in the prior 12; packages tagged Infrastructure are excluded.
       </p>
       {error ? (
         <p className="mt-3 text-sm text-red-700">Failed to load trending packages: {error.message}</p>
       ) : loading ? (
-        <p className="mt-3 text-sm text-slate-500">Loading…</p>
+        <p className="mt-3 text-sm text-neutral-300">Loading…</p>
       ) : (
         <table className="mt-3 w-full text-left text-sm">
-          <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+          <thead className="border-b border-primary-75 text-xs uppercase tracking-wide text-neutral-300">
             <tr>
               <th scope="col" className="px-3 py-2">Package</th>
               <th scope="col" className="px-3 py-2">Repo</th>
@@ -233,18 +239,18 @@ function Trending() {
           </thead>
           <tbody>
             {(data ?? []).map((r) => (
-              <tr key={r.package_name} className="border-b border-slate-100 last:border-0">
+              <tr key={r.package_name} className="border-b border-neutral-75 last:border-0">
                 <td className="px-3 py-2">
-                  <Link view="package" arg={r.package_name} className="font-medium text-bioc-700 hover:underline">
+                  <Link view="package" arg={r.package_name} className="font-medium text-primary-400 hover:underline">
                     {r.package_name}
                   </Link>
                 </td>
                 <td className="px-3 py-2">
                   <RepoBadge repo={r.repo} />
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">{fmtInt(r.prior)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{fmtInt(r.trailing)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{fmtFloat(r.ratio, 2)}×</td>
+                <td className="px-3 py-2 text-right tabular-nums text-metric-usage">{fmtInt(r.prior)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-metric-usage">{fmtInt(r.trailing)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-metric-usage">{fmtFloat(r.ratio, 2)}×</td>
                 <td className="w-48 px-3 py-1">
                   {byPkg.has(r.package_name) && <Sparkline rows={byPkg.get(r.package_name)!} />}
                 </td>
@@ -273,8 +279,8 @@ export function Trends() {
   return (
     <div>
       <div className="mb-5">
-        <h1 className="text-2xl font-semibold text-slate-900">Usage trends</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-semibold text-ink">Usage trends</h1>
+        <p className="mt-1 text-sm text-neutral-300">
           Download telemetry from the Bioconductor stats logs. Distinct IPs are the usage proxy.
         </p>
       </div>
@@ -286,7 +292,7 @@ export function Trends() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {specs.map((s, i) => (
-            <div key={i} className="rounded-xl border border-slate-200 bg-white p-4">
+            <div key={i} className="rounded-xl border border-primary-75 bg-white p-4">
               <VegaChart spec={s} className="w-full" />
               <EraCaption />
             </div>

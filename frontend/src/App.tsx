@@ -39,7 +39,7 @@ export default function App() {
     route.view === "package" ? "" : NAV.some((n) => n.id === route.view) ? route.view : "numbers";
 
   return (
-    <div className="min-h-full bg-slate-50">
+    <div className="min-h-full bg-primary-50">
       <a
         href="#main"
         onClick={(e) => {
@@ -47,15 +47,15 @@ export default function App() {
           e.preventDefault();
           document.getElementById("main")?.focus();
         }}
-        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-bioc-700 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-bioc-500"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-400 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-teal"
       >
         Skip to content
       </a>
-      <header className="border-b border-slate-200 bg-white">
+      <header className="bg-primary-400 text-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-6 py-3">
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-semibold text-slate-900">Bioconductor</span>
-            <span className="text-lg font-light text-bioc-600">Intelligence</span>
+            <span className="text-lg font-semibold">Bioconductor</span>
+            <span className="text-lg font-light text-primary-75">Intelligence</span>
           </div>
           <nav
             aria-label="Main"
@@ -65,17 +65,17 @@ export default function App() {
               <Link
                 key={n.id}
                 view={n.id}
-                className={`shrink-0 rounded-md px-3 py-1.5 font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bioc-500 ${
+                className={`shrink-0 rounded-md px-3 py-1.5 font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
                   active === n.id
-                    ? "bg-bioc-50 text-bioc-700"
-                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                    ? "bg-white text-primary-400"
+                    : "text-primary-50 hover:bg-primary-500 hover:text-white"
                 }`}
               >
                 {n.label}
               </Link>
             ))}
           </nav>
-          <div className="ml-auto text-xs text-slate-500">
+          <div className="ml-auto text-xs text-primary-75">
             {manifest ? `snapshot ${manifest.snapshot}` : ""}
           </div>
         </div>
@@ -107,18 +107,18 @@ export default function App() {
         )}
       </main>
 
-      <footer className="mx-auto max-w-6xl px-6 py-8 text-xs text-slate-500">
+      <footer className="mx-auto max-w-6xl px-6 py-8 text-xs text-neutral-300">
         Built from Bioconductor, OpenAlex, NIH iCite and NIH RePORTER data; refreshed monthly.{" "}
-        <Link view="about" className="text-bioc-600 underline">
+        <Link view="about" className="text-primary-400 underline">
           About
         </Link>
         {" · "}
-        <Link view="data" className="text-bioc-600 underline">
+        <Link view="data" className="text-primary-400 underline">
           Data
         </Link>
         {" · "}
         <a
-          className="text-bioc-600 underline"
+          className="text-primary-400 underline"
           href="https://github.com/seandavi/bioc-intelligence"
         >
           Source on GitHub

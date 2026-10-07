@@ -274,6 +274,8 @@ release-over-release growth, and cross-view navigation — is tracked in
 DuckDB · Parquet · Python ([uv](https://docs.astral.sh/uv/), ruff, pytest) · React · TypeScript ·
 Vite · Tailwind · [DuckDB-WASM](https://duckdb.org/docs/api/wasm/overview.html) · Vega-Lite ·
 [TanStack Table](https://tanstack.com/table) · GitHub Actions (CI) + Pages · systemd timer (refresh).
+The SPA's Bioconductor palette and semantic metric colours are documented in
+[docs/branding.md](docs/branding.md).
 
 ## Acknowledgments
 

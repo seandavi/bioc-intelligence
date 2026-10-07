@@ -5,7 +5,7 @@ import { FundersBlock } from "../components/FundersBlock";
 import { InfoDot } from "../components/InfoDot";
 import { PeopleBlock } from "../components/PeopleBlock";
 import { monthlyIpsSpec, type MonthlyRow } from "../components/Sparkline";
-import { StatCard } from "../components/StatCard";
+import { METRIC_TEXT, type Metric, StatCard } from "../components/StatCard";
 import { BiocViewChip, Chip, REPO_LABEL, RepoBadge } from "../components/ui";
 import { VegaChart } from "../components/VegaChart";
 import { LOW_CONFIDENCE_METHODS } from "../lib/confidence";
@@ -94,10 +94,24 @@ const KIND_LABEL: Record<string, string> = {
   suggests: "Suggests",
 };
 
-function Section({ title, info, children }: { title: string; info?: string; children: ReactNode }) {
+function Section({
+  title,
+  info,
+  metric,
+  children,
+}: {
+  title: string;
+  info?: string;
+  metric?: Metric;
+  children: ReactNode;
+}) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+    <section className="rounded-xl border border-primary-75 bg-white p-5">
+      <h2
+        className={`mb-3 text-sm font-semibold uppercase tracking-wide ${
+          metric ? METRIC_TEXT[metric] : "text-neutral-300"
+        }`}
+      >
         {title}
         {info && <InfoDot tip={info} />}
       </h2>
@@ -117,7 +131,7 @@ function CopyButton({ text, label = "Copy" }: { text: () => string; label?: stri
           () => setStatus("Copy failed"),
         )
       }
-      className="shrink-0 rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
+      className="shrink-0 rounded border border-neutral-100 px-2 py-1 text-xs text-neutral-400 hover:bg-neutral-75"
     >
       {status ?? label}
     </button>
@@ -125,7 +139,7 @@ function CopyButton({ text, label = "Copy" }: { text: () => string; label?: stri
 }
 
 const Muted = ({ children }: { children: ReactNode }) => (
-  <p className="text-sm text-slate-500">{children}</p>
+  <p className="text-sm text-neutral-300">{children}</p>
 );
 
 function QueryError({ what, error }: { what: string; error: Error }) {
@@ -142,7 +156,7 @@ function DepList({ deps, field }: { deps: Dep[]; field: "dep" | "package_name" }
     <dl className="space-y-2 text-sm">
       {kinds.map((k) => (
         <div key={k}>
-          <dt className="text-xs text-slate-500">{KIND_LABEL[k] ?? k}</dt>
+          <dt className="text-xs text-neutral-300">{KIND_LABEL[k] ?? k}</dt>
           <dd className="flex flex-wrap gap-x-2 gap-y-0.5">
             {deps
               .filter((d) => d.kind === k)
@@ -152,12 +166,12 @@ function DepList({ deps, field }: { deps: Dep[]; field: "dep" | "package_name" }
                     key={d[field]}
                     view="package"
                     arg={d[field]}
-                    className="text-bioc-600 hover:underline"
+                    className="text-primary-400 hover:underline"
                   >
                     {d[field]}
                   </Link>
                 ) : (
-                  <span key={d[field]} className="text-slate-600" title="Not a Bioconductor package">
+                  <span key={d[field]} className="text-neutral-400" title="Not a Bioconductor package">
                     {d[field]}
                   </span>
                 ),
@@ -251,38 +265,38 @@ function Profile({ pkg }: { pkg: Pkg }) {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <header className="rounded-xl border border-slate-200 bg-white p-5">
+      <header className="rounded-xl border border-primary-75 bg-white p-5">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold text-slate-900">{pkg.package_name}</h1>
+          <h1 className="text-2xl font-semibold text-ink">{pkg.package_name}</h1>
           <RepoBadge repo={pkg.repo} />
-          <span className="text-xs text-slate-500">release {pkg.latest_release}</span>
+          <span className="text-xs text-neutral-300">release {pkg.latest_release}</span>
           {pkg.package_status === "Deprecated" && (
             <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
               Deprecated
             </span>
           )}
         </div>
-        {pkg.title && <p className="mt-1 text-slate-700">{pkg.title}</p>}
+        {pkg.title && <p className="mt-1 text-neutral-400">{pkg.title}</p>}
         {pkg.description && (
-          <p className="mt-2 text-sm text-slate-600">{pkg.description}</p>
+          <p className="mt-2 text-sm text-neutral-400">{pkg.description}</p>
         )}
         <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
           {pkg.maintainer && (
             <div>
-              <dt className="inline text-slate-500">Maintainer: </dt>
-              <dd className="inline text-slate-700">{pkg.maintainer}</dd>
+              <dt className="inline text-neutral-300">Maintainer: </dt>
+              <dd className="inline text-neutral-400">{pkg.maintainer}</dd>
             </div>
           )}
           {lastCommit && (
             <div>
-              <dt className="inline text-slate-500">Last commit: </dt>
-              <dd className="inline text-slate-700">{lastCommit}</dd>
+              <dt className="inline text-neutral-300">Last commit: </dt>
+              <dd className="inline text-neutral-400">{lastCommit}</dd>
             </div>
           )}
           {pkg.license && (
             <div>
-              <dt className="inline text-slate-500">License: </dt>
-              <dd className="inline text-slate-700">{pkg.license}</dd>
+              <dt className="inline text-neutral-300">License: </dt>
+              <dd className="inline text-neutral-400">{pkg.license}</dd>
             </div>
           )}
           {(pkg.n_vignettes != null || pkg.has_news != null) && (
@@ -297,12 +311,12 @@ function Profile({ pkg }: { pkg: Pkg }) {
           )}
         </dl>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <code className="rounded bg-slate-100 px-2 py-1 font-mono text-sm text-slate-800">
+          <code className="rounded bg-neutral-75 px-2 py-1 font-mono text-sm text-neutral-500">
             {install}
           </code>
           <CopyButton text={() => install} />
           <a
-            className="text-sm text-bioc-600 hover:underline"
+            className="text-sm text-primary-400 hover:underline"
             href={bioc}
             target="_blank"
             rel="noreferrer"
@@ -311,7 +325,7 @@ function Profile({ pkg }: { pkg: Pkg }) {
           </a>
           {pkg.bug_reports && (
             <a
-              className="text-sm text-bioc-600 hover:underline"
+              className="text-sm text-primary-400 hover:underline"
               href={pkg.bug_reports}
               target="_blank"
               rel="noreferrer"
@@ -325,6 +339,7 @@ function Profile({ pkg }: { pkg: Pkg }) {
       {/* Usage */}
       <Section
         title="Usage"
+        metric="usage"
         info="Distinct IP addresses downloading the package, summed over months. Counts before Oct 2015 used an older methodology (shaded) and are not comparable."
       >
         {impact.error ? (
@@ -333,14 +348,14 @@ function Profile({ pkg }: { pkg: Pkg }) {
           <Muted>Loading usage…</Muted>
         ) : (
           <div className="grid gap-3 sm:grid-cols-4">
-            <StatCard label="Distinct IPs, 12 mo" value={fmtInt(t12)} />
+            <StatCard label="Distinct IPs, 12 mo" metric="usage" value={fmtInt(t12)} />
             <StatCard
-              label="vs prior 12 mo"
+              label="vs prior 12 mo" metric="usage"
               value={change == null ? "—" : `${change >= 0 ? "+" : ""}${(change * 100).toFixed(0)}%`}
               sub={`${fmtInt(p12)} the year before`}
             />
             <StatCard
-              label="Rank in repo"
+              label="Rank in repo" metric="usage"
               value={t12 > 0 && imp?.usage_rank_in_repo ? fmtInt(imp.usage_rank_in_repo) : "—"}
               sub={
                 t12 > 0 && imp
@@ -349,7 +364,7 @@ function Profile({ pkg }: { pkg: Pkg }) {
               }
             />
             <StatCard
-              label="All-time"
+              label="All-time" metric="usage"
               value={fmtInt(imp?.total_distinct_ips ?? 0)}
               sub="summed across methodology eras"
             />
@@ -371,6 +386,7 @@ function Profile({ pkg }: { pkg: Pkg }) {
       {/* Papers */}
       <Section
         title="Papers"
+        metric="pubs"
         info="Papers the package asks users to cite, from its CITATION file and DESCRIPTION. Links found only in the Description text are greyed: they may cite a dependency or related work."
       >
         {papers.error ? (
@@ -396,7 +412,7 @@ function Profile({ pkg }: { pkg: Pkg }) {
                 <li key={w.work_id} className={low ? "opacity-60" : ""}>
                   {href ? (
                     <a
-                      className="text-bioc-600 hover:underline"
+                      className="text-primary-400 hover:underline"
                       href={href}
                       target="_blank"
                       rel="noreferrer"
@@ -404,11 +420,11 @@ function Profile({ pkg }: { pkg: Pkg }) {
                       {w.title ?? w.doi ?? w.work_id}
                     </a>
                   ) : (
-                    <span className="text-slate-800">{w.title ?? w.work_id}</span>
+                    <span className="text-neutral-500">{w.title ?? w.work_id}</span>
                   )}
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-neutral-300">
                     <span
-                      className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600"
+                      className="rounded bg-neutral-75 px-1.5 py-0.5 font-mono text-[10px] text-neutral-400"
                       title={`match_method ${w.match_method}, confidence ${w.confidence}`}
                     >
                       {METHOD_LABEL[w.match_method] ?? w.match_method}
@@ -419,7 +435,7 @@ function Profile({ pkg }: { pkg: Pkg }) {
                     </span>
                   </div>
                   {low && (
-                    <div className="mt-0.5 text-xs italic text-slate-500">
+                    <div className="mt-0.5 text-xs italic text-neutral-300">
                       Low confidence: found only as a DOI in the Description text, which sometimes
                       cites a dependency or related work. Excluded from the summary below.
                     </div>
@@ -434,9 +450,10 @@ function Profile({ pkg }: { pkg: Pkg }) {
       {/* Funding */}
       <Section
         title="Funding"
+        metric="grants"
         info="NIH grants acknowledged by the papers this package asks users to cite (via RePORTER), and funders declared in Authors@R."
       >
-        <h3 className="mb-1 text-xs font-medium text-slate-500">NIH grants via linked papers</h3>
+        <h3 className="mb-1 text-xs font-medium text-neutral-300">NIH grants via linked papers</h3>
         {grants.error ? (
           <QueryError what="grants" error={grants.error} />
         ) : grants.loading ? (
@@ -451,13 +468,13 @@ function Profile({ pkg }: { pkg: Pkg }) {
                   href={`https://reporter.nih.gov/project-details/${g.grant_id}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="font-medium text-bioc-600 hover:underline"
+                  className="font-medium text-primary-400 hover:underline"
                 >
                   {g.grant_id}
                 </a>
-                {g.title && <span className="text-slate-700">{g.title}</span>}
+                {g.title && <span className="text-neutral-400">{g.title}</span>}
                 {g.agency && (
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-neutral-300">
                     {g.ic_name ?? nihIcName(g.agency)}
                   </span>
                 )}
@@ -465,7 +482,7 @@ function Profile({ pkg }: { pkg: Pkg }) {
             ))}
           </ul>
         )}
-        <h3 className="mb-1 mt-4 text-xs font-medium text-slate-500">Declared funders</h3>
+        <h3 className="mb-1 mt-4 text-xs font-medium text-neutral-300">Declared funders</h3>
         <FundersBlock name={pkg.package_name} repo={pkg.repo} />
       </Section>
 
@@ -473,7 +490,7 @@ function Profile({ pkg }: { pkg: Pkg }) {
       <Section title="Ecosystem">
         <div className="grid gap-5 md:grid-cols-2">
           <div>
-            <h3 className="mb-1 text-xs font-medium text-slate-500">
+            <h3 className="mb-1 text-xs font-medium text-neutral-300">
               Used by
               {pkg.n_reverse_deps != null && ` · ${fmtInt(pkg.n_reverse_deps)} packages`}
               <InfoDot tip="Packages that depend on, import or link to this one (reverse dependencies, from VIEWS). The list adds packages that only suggest it." />
@@ -489,7 +506,7 @@ function Profile({ pkg }: { pkg: Pkg }) {
             )}
           </div>
           <div>
-            <h3 className="mb-1 text-xs font-medium text-slate-500">
+            <h3 className="mb-1 text-xs font-medium text-neutral-300">
               Depends on
               {pkg.n_deps != null && ` · ${fmtInt(pkg.n_deps)} packages`}
             </h3>
@@ -506,7 +523,7 @@ function Profile({ pkg }: { pkg: Pkg }) {
         </div>
         {views.length > 0 && (
           <>
-            <h3 className="mb-1 mt-4 text-xs font-medium text-slate-500">biocViews</h3>
+            <h3 className="mb-1 mt-4 text-xs font-medium text-neutral-300">biocViews</h3>
             <div className="flex flex-wrap gap-1">
               {views.map((v) => (
                 <BiocViewChip key={v} term={v} />
@@ -517,16 +534,16 @@ function Profile({ pkg }: { pkg: Pkg }) {
       </Section>
 
       {/* People */}
-      <Section title="People">
+      <Section title="People" metric="people">
         <PeopleBlock name={pkg.package_name} repo={pkg.repo} />
       </Section>
 
       {/* Cite this */}
       <Section title="Cite this">
-        <p className="text-sm text-slate-700">{summary()}</p>
+        <p className="text-sm text-neutral-400">{summary()}</p>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <CopyButton text={summary} label="Copy summary" />
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-neutral-300">
             The usage chart's “…” menu exports it as PNG or SVG.
           </span>
         </div>
@@ -553,11 +570,11 @@ export function PackagePage({ name }: { name: string }) {
   if (loading) return <Muted>Loading {name}…</Muted>;
   if (!data?.length) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <h1 className="text-lg font-semibold text-slate-900">No package named “{name}”</h1>
-        <p className="mt-1 text-sm text-slate-600">
+      <div className="rounded-xl border border-primary-75 bg-white p-6">
+        <h1 className="text-lg font-semibold text-ink">No package named “{name}”</h1>
+        <p className="mt-1 text-sm text-neutral-400">
           It is not in the current Bioconductor release.{" "}
-          <Link view="explorer" params={{ q: name }} className="text-bioc-600 underline">
+          <Link view="explorer" params={{ q: name }} className="text-primary-400 underline">
             Search the Explorer
           </Link>
         </p>

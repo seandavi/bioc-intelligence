@@ -14,7 +14,7 @@ import { InfoDot } from "../components/InfoDot";
 import { StatCard } from "../components/StatCard";
 import { INPUT_CLASS, SortableTh, SrLabel } from "../components/ui";
 import { VegaChart } from "../components/VegaChart";
-import { horizontalBar } from "../components/charts";
+import { horizontalBar, METRIC } from "../components/charts";
 import { GrantReport, type PackageImpact, type PackageWork } from "../components/GrantReport";
 import { fmtInt } from "../lib/format";
 import { downloadCsv } from "../lib/csv";
@@ -96,6 +96,7 @@ export function Grants() {
         "awards",
         "ic",
         "Awards per Institute/Center (top 15)",
+        METRIC.grants,
       ),
     [agencyCounts],
   );
@@ -114,7 +115,7 @@ export function Grants() {
           <button
             aria-label="Show grant report"
             aria-expanded={open === row.original.grant_id}
-            className="text-slate-500 hover:text-slate-700"
+            className="text-neutral-300 hover:text-neutral-400"
           >
             {open === row.original.grant_id ? "▾" : "▸"}
           </button>
@@ -129,7 +130,7 @@ export function Grants() {
             target="_blank"
             rel="noreferrer"
             title="Open in NIH RePORTER (linked by core project number, so RePORTER may list several fiscal years)"
-            className="font-medium text-bioc-600 hover:underline"
+            className="font-medium text-primary-400 hover:underline"
           >
             {getValue<string>()}
           </a>
@@ -143,7 +144,7 @@ export function Grants() {
           return ic == null ? (
             <Missing />
           ) : (
-            <span title={nihIcName(ic)} className="inline-block rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
+            <span title={nihIcName(ic)} className="inline-block rounded bg-neutral-75 px-1.5 py-0.5 text-xs text-neutral-400">
               {ic}
             </span>
           );
@@ -157,7 +158,7 @@ export function Grants() {
           return t == null ? (
             <Missing />
           ) : (
-            <span title={t} className="block max-w-xs truncate text-slate-700">
+            <span title={t} className="block max-w-xs truncate text-neutral-400">
               {t}
             </span>
           );
@@ -176,14 +177,14 @@ export function Grants() {
         header: "Supported packages",
         enableSorting: false,
         cell: ({ getValue }) => (
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-neutral-300">
             {getValue<string>()
               .split(", ")
               .filter(Boolean)
               .map((name, i) => (
                 <span key={name}>
                   {i > 0 && ", "}
-                  <Link view="package" arg={name} className="text-bioc-600 hover:underline">
+                  <Link view="package" arg={name} className="text-primary-400 hover:underline">
                     {name}
                   </Link>
                 </span>
@@ -220,15 +221,15 @@ export function Grants() {
     <div>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Grant attribution</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-semibold text-ink">Grant attribution</h1>
+          <p className="mt-1 text-sm text-neutral-300">
             {loading ? "Loading…" : `${filtered.length.toLocaleString()} grants`} · NIH awards
             acknowledged by the papers these packages ask users to cite.
           </p>
         </div>
         <button
           onClick={() => downloadCsv("bioc-grant-attribution.csv", exportRows)}
-          className="rounded-md bg-bioc-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-bioc-600"
+          className="rounded-md bg-primary-400 px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-500"
         >
           Export CSV
         </button>
@@ -236,11 +237,11 @@ export function Grants() {
 
       <div className="mb-5 grid gap-4 lg:grid-cols-3">
         <div className="grid grid-cols-3 gap-3 lg:col-span-1 lg:grid-cols-1">
-          <StatCard label="Awards" value={fmtInt(filtered.length)} pending={loading} sub="core project numbers" />
-          <StatCard label="ICs" value={fmtInt(new Set(filtered.flatMap((g) => (g.agency ? [g.agency] : []))).size)} pending={loading} sub="Institutes/Centers" />
+          <StatCard label="Awards" metric="grants" value={fmtInt(filtered.length)} pending={loading} sub="core project numbers" />
+          <StatCard label="ICs" metric="grants" value={fmtInt(new Set(filtered.flatMap((g) => (g.agency ? [g.agency] : []))).size)} pending={loading} sub="Institutes/Centers" />
           <StatCard label="Packages supported" value={fmtInt(nPackages)} pending={loading} sub="distinct" />
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 lg:col-span-2">
+        <div className="rounded-xl border border-primary-75 bg-white p-4 lg:col-span-2">
           {data && <VegaChart spec={icSpec} className="w-full" />}
         </div>
       </div>
@@ -256,7 +257,7 @@ export function Grants() {
             onChange={(e) => setParams("grants", { q: e.target.value })}
             className={`w-full ${INPUT_CLASS}`}
           />
-          <label className="mt-4 flex items-start gap-2 text-sm text-slate-600">
+          <label className="mt-4 flex items-start gap-2 text-sm text-neutral-400">
             <input
               type="checkbox"
               className="mt-1"
@@ -268,24 +269,24 @@ export function Grants() {
               <InfoDot tip="Off: the per-grant report drops packages linked to papers only through a DOI in their DESCRIPTION, which sometimes cites a dependency or related work rather than the package's own paper. Links from CITATION files or the package's own DOI are always kept." />
             </span>
           </label>
-          <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">Institute/Center</div>
+          <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-neutral-300">Institute/Center</div>
           <div className="mt-2 max-h-72 space-y-1 overflow-y-auto">
             {[...agencyCounts.entries()]
               .sort((a, b) => b[1] - a[1])
               .map(([a, n]) => (
-                <label key={a} className="flex items-center gap-2 text-sm text-slate-600" title={icLabel(a)}>
+                <label key={a} className="flex items-center gap-2 text-sm text-neutral-400" title={icLabel(a)}>
                   <input type="checkbox" checked={agencies.has(a)} onChange={() => setParams("grants", { agency: toggleInList(agencyParam, a) })} />
                   <span className="truncate">{icLabel(a)}</span>
-                  <span className="ml-auto text-xs text-slate-500">{n}</span>
+                  <span className="ml-auto text-xs text-neutral-300">{n}</span>
                 </label>
               ))}
           </div>
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded-xl border border-primary-75 bg-white">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-primary-75 text-xs uppercase tracking-wide text-neutral-300">
                 {table.getHeaderGroups().map((hg) => (
                   <tr key={hg.id}>
                     {hg.headers.map((h) => (
@@ -310,7 +311,7 @@ export function Grants() {
                         onClick={(e) => {
                           if (!(e.target as HTMLElement).closest("a")) setOpen(open === g.grant_id ? null : g.grant_id);
                         }}
-                        className="cursor-pointer border-b border-slate-100 align-top last:border-0 hover:bg-slate-50"
+                        className="cursor-pointer border-b border-neutral-75 align-top last:border-0 hover:bg-neutral-50"
                       >
                         {row.getVisibleCells().map((cell) => (
                           <td key={cell.id} className="px-3 py-2">
@@ -319,7 +320,7 @@ export function Grants() {
                         ))}
                       </tr>
                       {open === g.grant_id && (
-                        <tr className="border-b border-slate-100">
+                        <tr className="border-b border-neutral-75">
                           <td colSpan={row.getVisibleCells().length} className="px-3 pb-3">
                             <GrantReport
                               grant={{ ...g, packages: g.packages.split(", ").filter(Boolean) }}
@@ -336,9 +337,9 @@ export function Grants() {
               </tbody>
             </table>
           </div>
-          <div className="mt-3 flex items-center gap-3 text-sm text-slate-500">
+          <div className="mt-3 flex items-center gap-3 text-sm text-neutral-300">
             <button
-              className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+              className="rounded border border-neutral-100 px-2 py-1 disabled:opacity-40"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
             >
@@ -348,7 +349,7 @@ export function Grants() {
               Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount().toLocaleString()}
             </span>
             <button
-              className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+              className="rounded border border-neutral-100 px-2 py-1 disabled:opacity-40"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
             >

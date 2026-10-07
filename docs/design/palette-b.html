@@ -1,0 +1,48 @@
+<!doctype html><meta charset=utf-8><style>
+body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#ddd}
+.scheme{padding:18px 18px 28px;background:var(--page);color:var(--text)}
+.label{font-size:13px;color:#222;background:#fff;border:1px solid #bbb;border-radius:6px;padding:8px 10px;margin:0 0 12px;max-width:1180px}
+.page{max-width:1180px;margin:0 auto}
+header{display:flex;align-items:center;gap:22px;background:var(--header);color:var(--headerText);padding:10px 18px;border-radius:10px 10px 0 0}
+.brand{font-weight:700;font-size:17px}.brand em{font-style:normal;font-weight:300;opacity:.9}
+nav{display:flex;gap:4px;font-size:12.5px}nav a{padding:5px 9px;border-radius:6px;opacity:.85}nav a.active{background:var(--navActive);color:var(--navActiveText);opacity:1;font-weight:600}
+.snap{margin-left:auto;font-size:11px;opacity:.7}
+.hero{display:flex;align-items:center;justify-content:space-between;gap:20px;background:var(--heroBg);color:var(--heroText);padding:22px 24px;border:1px solid var(--border);border-top:0}
+.hero h1{margin:0 0 4px;font-size:22px}.hero p{margin:0;font-size:13px;opacity:.9}
+.cta{display:flex;gap:8px}.cta a{font-size:12px;padding:8px 11px;border-radius:8px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);color:inherit;white-space:nowrap}
+#a .cta a{background:var(--blueBg);border-color:var(--border);color:var(--accentDark)}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.card .k{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+.card .v{font-size:30px;font-weight:700;margin-top:4px;color:var(--text);font-variant-numeric:tabular-nums}
+.card .s{font-size:11.5px;color:var(--muted);margin-top:4px}
+.card.green{border-top:4px solid var(--green)}.card.green .v{color:var(--green)}
+.card.blue{border-top:4px solid var(--accent)}.card.blue .v{color:var(--accentDark)}
+.card.amber{border-top:4px solid var(--amber)}.card.amber .v{color:var(--amber)}
+.grid{display:grid;grid-template-columns:1fr 1.4fr;gap:12px}
+.row{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:12px}.lbl{width:110px;text-align:right;color:var(--muted)}
+.track{flex:1;height:14px;background:var(--border);border-radius:4px;overflow:hidden}.fill{height:100%;background:linear-gradient(to right,var(--bar1),var(--bar2));border-radius:4px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:6px 8px;border-bottom:2px solid var(--border)}
+td{padding:8px;border-bottom:1px solid var(--border)}td a{color:var(--link);font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.num{text-align:right;font-variant-numeric:tabular-nums}.blue{color:var(--accentDark)}.green{color:var(--green);font-weight:600}
+.badge{font-size:11px;padding:2px 6px;border-radius:4px;background:var(--blueBg);color:var(--accentDark)}
+.chips{margin-top:12px;display:flex;gap:6px}.chip{font-size:11px;padding:3px 8px;border-radius:999px;background:var(--chipBg);color:var(--chipText);font-weight:500}
+</style>
+<section class="scheme" id="b" style="--page:#ebf4f7;--card:#ffffff;--border:#add2dd;--header:#035771;--headerText:#ffffff;--navActive:#ffffff;--navActiveText:#035771;--text:#070707;--muted:#414757;--accent:#0087af;--accentDark:#035771;--link:#0087af;--green:#547b17;--greenBg:#f3fae9;--blueBg:#ebf4f7;--amber:#937921;--amberBg:#fef9eb;--chipBg:#cfe9a6;--chipText:#3f5d10;--bar1:#0087af;--bar2:#18a603;--heroBg:linear-gradient(to right, #0087af, #0484a9, #18a603);--heroText:#ffffff">
+ <div class="label"><b>B · Brand gradient + semantic colours</b> — A gradient hero band (the site's --gradient-brand), and one colour per metric family everywhere: teal = publications and citations, green = usage, amber = grants, slate = people. Readers learn the code once.</div>
+ <div class="page">
+  <header><span class="brand">Bioconductor <em>Impact</em></span><nav><a class="active">By the Numbers</a><a>Explorer</a><a>biocViews</a><a>Impact</a><a>Grants</a><a>People</a><a>Trends</a><a>Growth</a><a>Data</a><a>About</a></nav><span class="snap">snapshot 2026-10-07</span></header>
+  <div class="hero"><div><h1>Impact analytics for the Bioconductor ecosystem</h1><p>Packages, usage, publications and grants. Updated monthly.</p></div><div class="cta"><a>Writing a grant renewal</a><a>Maintaining a package</a><a>Choosing a tool</a></div></div>
+  <div class="cards">
+   <div class="card"><div class="k">Packages</div><div class="v">3,810</div><div class="s">4 repositories · release 3.23</div></div>
+   <div class="card green"><div class="k">Distinct IPs, last 12 months</div><div class="v">57.0M</div><div class="s">259.6M all-time · usage proxy</div></div>
+   <div class="card blue"><div class="k">Total citations</div><div class="v">560.6K</div><div class="s">1,017 papers · DOI and CITATION links</div></div>
+   <div class="card amber"><div class="k">NIH awards</div><div class="v">613</div><div class="s">25 Institutes/Centers</div></div>
+  </div>
+  <div class="grid">
+   <div class="card"><div class="k">Top packages by median RCR</div><div class="row"><span class="lbl">DESeq2</span><div class="track"><div class="fill" style="width:100%"></div></div></div><div class="row"><span class="lbl">limma</span><div class="track"><div class="fill" style="width:43%"></div></div></div><div class="row"><span class="lbl">dada2</span><div class="track"><div class="fill" style="width:42%"></div></div></div><div class="row"><span class="lbl">muscle</span><div class="track"><div class="fill" style="width:31%"></div></div></div><div class="row"><span class="lbl">clusterProfiler</span><div class="track"><div class="fill" style="width:29%"></div></div></div><div class="row"><span class="lbl">GSVA</span><div class="track"><div class="fill" style="width:13%"></div></div></div></div>
+   <div class="card"><table><thead><tr><th>Package</th><th>Repo</th><th class="num">Median RCR</th><th class="num">Citations</th><th class="num">Papers</th><th class="num">Last 12 mo</th></tr></thead><tbody><tr><td><a>limma</a></td><td><span class="badge">Software</span></td><td class="num blue">1,099.8</td><td class="num blue">41.8K</td><td class="num">1</td><td class="num green">523K</td></tr><tr><td><a>DESeq2</a></td><td><span class="badge">Software</span></td><td class="num blue">2,562.2</td><td class="num blue">97.2K</td><td class="num">1</td><td class="num green">1.2M</td></tr><tr><td><a>edgeR</a></td><td><span class="badge">Software</span></td><td class="num blue">151.8</td><td class="num blue">441</td><td class="num">5</td><td class="num green">1.1M</td></tr><tr><td><a>scater</a></td><td><span class="badge">Software</span></td><td class="num blue">148.0</td><td class="num blue">2.0K</td><td class="num">1</td><td class="num green">118K</td></tr></tbody></table>
+     <div class="chips"><span class="chip">DifferentialExpression</span><span class="chip">RNASeq</span><span class="chip">GeneExpression</span><span class="chip">+4</span></div></div>
+  </div>
+ </div>
+</section>

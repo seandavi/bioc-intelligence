@@ -13,7 +13,7 @@ import type { VisualizationSpec } from "vega-embed";
 import { useQuery } from "../db/useQuery";
 import { StatCard } from "../components/StatCard";
 import { VegaChart } from "../components/VegaChart";
-import { ACCENT } from "../components/charts";
+import { METRIC, TITLE_COLOR } from "../components/charts";
 import { OrcidLink } from "../components/PeopleBlock";
 import { fmtInt } from "../lib/format";
 import { Link, setParams, useRoute } from "../lib/router";
@@ -57,9 +57,9 @@ const histogramSpec = (people: Person[]): VisualizationSpec => {
   for (const p of people) counts.set(bucket(p.n_packages), (counts.get(bucket(p.n_packages)) ?? 0) + 1);
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
-    title: { text: "Packages per person", fontSize: 13, color: "#334155" },
+    title: { text: "Packages per person", fontSize: 13, color: TITLE_COLOR },
     data: { values: BUCKETS.map((b) => ({ packages: b, people: counts.get(b) ?? 0 })) },
-    mark: { type: "bar", color: ACCENT, cornerRadiusEnd: 3 },
+    mark: { type: "bar", color: METRIC.people, cornerRadiusEnd: 3 },
     encoding: {
       x: { field: "packages", type: "ordinal", sort: BUCKETS, axis: { title: "packages", labelAngle: 0 } },
       y: { field: "people", type: "quantitative", axis: { title: "people" } },
@@ -87,15 +87,15 @@ export function People() {
 
   const columns = useMemo<ColumnDef<Person>[]>(
     () => [
-      { accessorKey: "name", header: "Name", cell: ({ getValue }) => <span className="font-medium text-slate-800">{getValue<string>()}</span> },
+      { accessorKey: "name", header: "Name", cell: ({ getValue }) => <span className="font-medium text-neutral-500">{getValue<string>()}</span> },
       {
         accessorKey: "orcid",
         header: "ORCID",
-        cell: ({ row }) => (row.original.orcid ? <OrcidLink orcid={row.original.orcid} /> : <span className="text-slate-300">—</span>),
+        cell: ({ row }) => (row.original.orcid ? <OrcidLink orcid={row.original.orcid} /> : <span className="text-neutral-300">—</span>),
       },
-      { accessorKey: "n_packages", header: "Packages", cell: ({ getValue }) => <span className="tabular-nums">{fmtInt(getValue<number>())}</span> },
-      { accessorKey: "n_maintained", header: "Maintained", cell: ({ getValue }) => <span className="tabular-nums">{fmtInt(getValue<number>())}</span> },
-      { accessorKey: "n_authored", header: "Authored", cell: ({ getValue }) => <span className="tabular-nums">{fmtInt(getValue<number>())}</span> },
+      { accessorKey: "n_packages", header: "Packages", cell: ({ getValue }) => <span className="tabular-nums text-metric-people">{fmtInt(getValue<number>())}</span> },
+      { accessorKey: "n_maintained", header: "Maintained", cell: ({ getValue }) => <span className="tabular-nums text-metric-people">{fmtInt(getValue<number>())}</span> },
+      { accessorKey: "n_authored", header: "Authored", cell: ({ getValue }) => <span className="tabular-nums text-metric-people">{fmtInt(getValue<number>())}</span> },
       {
         accessorKey: "packages",
         header: "Package names",
@@ -103,11 +103,11 @@ export function People() {
         cell: ({ getValue }) => {
           const names = getValue<string>().split(", ").filter(Boolean);
           return (
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-neutral-300">
               {names.slice(0, SHOWN_PACKAGES).map((name, i) => (
                 <span key={name}>
                   {i > 0 && ", "}
-                  <Link view="package" arg={name} className="text-bioc-600 hover:underline">
+                  <Link view="package" arg={name} className="text-primary-400 hover:underline">
                     {name}
                   </Link>
                 </span>
@@ -145,8 +145,8 @@ export function People() {
   return (
     <div>
       <div className="mb-5">
-        <h1 className="text-2xl font-semibold text-slate-900">People</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-semibold text-ink">People</h1>
+        <p className="mt-1 text-sm text-neutral-300">
           {loading ? "Loading…" : `${fmtInt(table.getFilteredRowModel().rows.length)} people`} · authors and
           maintainers parsed from each package's <code>Authors@R</code>.
         </p>
@@ -154,27 +154,27 @@ export function People() {
 
       <div className="mb-5 grid gap-4 lg:grid-cols-3">
         <div className="grid grid-cols-2 gap-3 lg:col-span-1">
-          <StatCard label="People" value={fmtInt(people.length)} pending={loading} sub="distinct identities" />
-          <StatCard label="With ORCID" value={fmtInt(nOrcid)} pending={loading} sub={pct(nOrcid, people.length)} />
+          <StatCard label="People" metric="people" value={fmtInt(people.length)} pending={loading} sub="distinct identities" />
+          <StatCard label="With ORCID" metric="people" value={fmtInt(nOrcid)} pending={loading} sub={pct(nOrcid, people.length)} />
           <StatCard
-            label="Packages with ORCID"
+            label="Packages with ORCID" metric="people"
             value={fmtInt(coverage?.orcid_packages)}
             pending={!coverage}
             sub={`${pct(coverage?.orcid_packages ?? 0, coverage?.total_packages ?? 0)} of packages have an author with an ORCID`}
           />
           <StatCard
-            label="Shared mailbox"
+            label="Shared mailbox" metric="people"
             value={pct(coverage?.shared_mailbox ?? 0, coverage?.total_packages ?? 0)}
             pending={!coverage}
             sub={`${fmtInt(coverage?.shared_mailbox)} packages list a “Package Maintainer” mailbox`}
           />
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 lg:col-span-2">
+        <div className="rounded-xl border border-primary-75 bg-white p-4 lg:col-span-2">
           {data && <VegaChart spec={spec} className="w-full" />}
         </div>
       </div>
 
-      <p className="mb-4 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-500">
+      <p className="mb-4 rounded-lg border border-primary-75 bg-white p-3 text-xs text-neutral-300">
         Identity is the ORCID when a package declares one, otherwise a normalised name. People who share a
         name may be merged into one row, and one person who spells their name differently across packages
         may be split into several.
@@ -185,19 +185,19 @@ export function People() {
         placeholder="Search name, ORCID or package…"
         value={globalFilter}
         onChange={(e) => setParams("people", { q: e.target.value })}
-        className="mb-3 w-full max-w-sm rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-bioc-500 focus:outline-none"
+        className="mb-3 w-full max-w-sm rounded-md border border-neutral-100 px-3 py-1.5 text-sm focus:border-brand-teal focus:outline-none"
       />
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-primary-75 bg-white">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+          <thead className="border-b border-primary-75 text-xs uppercase tracking-wide text-neutral-300">
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((h) => (
                   <th
                     key={h.id}
                     onClick={h.column.getToggleSortingHandler()}
-                    className={`px-3 py-2 ${h.column.getCanSort() ? "cursor-pointer select-none hover:text-slate-700" : ""}`}
+                    className={`px-3 py-2 ${h.column.getCanSort() ? "cursor-pointer select-none hover:text-neutral-400" : ""}`}
                   >
                     {flexRender(h.column.columnDef.header, h.getContext())}
                     {{ asc: " ↑", desc: " ↓" }[h.column.getIsSorted() as string] ?? ""}
@@ -208,7 +208,7 @@ export function People() {
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-b border-slate-100 align-top last:border-0 hover:bg-slate-50">
+              <tr key={row.id} className="border-b border-neutral-75 align-top last:border-0 hover:bg-neutral-50">
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className="px-3 py-2">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -219,9 +219,9 @@ export function People() {
           </tbody>
         </table>
       </div>
-      <div className="mt-3 flex items-center gap-3 text-sm text-slate-500">
+      <div className="mt-3 flex items-center gap-3 text-sm text-neutral-300">
         <button
-          className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+          className="rounded border border-neutral-100 px-2 py-1 disabled:opacity-40"
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
         >
@@ -231,7 +231,7 @@ export function People() {
           Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount().toLocaleString()}
         </span>
         <button
-          className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+          className="rounded border border-neutral-100 px-2 py-1 disabled:opacity-40"
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
         >

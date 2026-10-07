@@ -4,12 +4,11 @@ import { fetchManifest } from "../db/duckdb";
 import { useQuery } from "../db/useQuery";
 import { StatCard } from "../components/StatCard";
 import { VegaChart } from "../components/VegaChart";
+import { METRIC, NEUTRAL, TITLE_COLOR } from "../components/charts";
 import { REPO_LABEL } from "../components/ui";
 import { Link } from "../lib/router";
 import { fmtCompact, fmtFloat, fmtInt } from "../lib/format";
 import { HIGH_CONFIDENCE_SQL } from "../lib/confidence";
-
-const ACCENT = "#1f7bbf";
 
 const ECOSYSTEM = `
   SELECT
@@ -117,12 +116,13 @@ function barSpec(
   field: string,
   label: string,
   title: string,
+  color: string,
 ): VisualizationSpec {
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
-    title: { text: title, fontSize: 13, color: "#334155" },
+    title: { text: title, fontSize: 13, color: TITLE_COLOR },
     data: { values },
-    mark: { type: "bar", color: ACCENT, cornerRadiusEnd: 3 },
+    mark: { type: "bar", color, cornerRadiusEnd: 3 },
     encoding: {
       y: { field: label, type: "nominal", sort: "-x", axis: { title: null, labelLimit: 160 } },
       x: { field, type: "quantitative", axis: { title: null, grid: false } },
@@ -141,12 +141,13 @@ function yearSpec(
   values: Record<string, unknown>[],
   field: string,
   title: string,
+  color: string,
 ): VisualizationSpec {
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
-    title: { text: title, fontSize: 13, color: "#334155" },
+    title: { text: title, fontSize: 13, color: TITLE_COLOR },
     data: { values },
-    mark: { type: "bar", color: ACCENT },
+    mark: { type: "bar", color },
     encoding: {
       x: { field: "year", type: "ordinal", axis: { title: null, labelAngle: 0, labelOverlap: true } },
       y: { field, type: "quantitative", axis: { title: null, grid: false } },
@@ -165,8 +166,8 @@ function Section({ title, note, children }: { title: string; note?: string; chil
   return (
     <section className="mt-8 first:mt-0">
       <div className="mb-3 flex items-baseline gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">{title}</h2>
-        {note && <span className="text-xs text-slate-500">{note}</span>}
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">{title}</h2>
+        {note && <span className="text-xs text-neutral-300">{note}</span>}
       </div>
       {children}
     </section>
@@ -217,32 +218,44 @@ export function ByTheNumbers() {
             "n",
             "repo",
             "Packages per repository",
+            NEUTRAL,
           )
         : null,
     [byRepo.data],
   );
   const bvSpec = useMemo(
-    () => (bvTop.data ? barSpec(bvTop.data, "n", "term", "Top biocViews terms") : null),
+    () => (bvTop.data ? barSpec(bvTop.data, "n", "term", "Top biocViews terms", NEUTRAL) : null),
     [bvTop.data],
   );
   const rcrSpec = useMemo(
     () =>
       topRcr.data
-        ? barSpec(topRcr.data, "median_rcr", "package_name", "Top packages by median RCR")
+        ? barSpec(
+            topRcr.data,
+            "median_rcr",
+            "package_name",
+            "Top packages by median RCR",
+            METRIC.pubs,
+          )
         : null,
     [topRcr.data],
   );
   const yearChart = useMemo(
     () =>
       byYear.data
-        ? yearSpec(byYear.data, "citations", "Citations to describing papers, by the paper's publication year")
+        ? yearSpec(
+            byYear.data,
+            "citations",
+            "Citations to describing papers, by the paper's publication year",
+            METRIC.pubs,
+          )
         : null,
     [byYear.data],
   );
   const papersChart = useMemo(
     () =>
       papersByYear.data
-        ? yearSpec(papersByYear.data, "papers", "Describing papers published per year")
+        ? yearSpec(papersByYear.data, "papers", "Describing papers published per year", METRIC.pubs)
         : null,
     [papersByYear.data],
   );
@@ -255,7 +268,7 @@ export function ByTheNumbers() {
     );
   }
   if (!eco.data) {
-    return <div className="py-24 text-center text-slate-400">Booting DuckDB-WASM…</div>;
+    return <div className="py-24 text-center text-neutral-300">Booting DuckDB-WASM…</div>;
   }
 
   const e = eco.data[0];
@@ -271,15 +284,12 @@ export function ByTheNumbers() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900">The Bioconductor ecosystem, by the numbers</h1>
-        <p className="mt-1 text-sm text-slate-500">
+      <div className="hero-brand mb-8 rounded-xl p-6 text-white">
+        <h1 className="text-2xl font-semibold">The Bioconductor ecosystem, by the numbers</h1>
+        <p className="mt-1 text-sm">
           Computed live in your browser from the published marts.
         </p>
-      </div>
-
-      <div className="mb-8">
-        <p className="text-sm text-slate-600">
+        <p className="mt-4 text-sm">
           Impact analytics for the Bioconductor ecosystem: packages, usage, publications, grants.
           Updated monthly.
         </p>
@@ -288,10 +298,10 @@ export function ByTheNumbers() {
             <Link
               key={c.title}
               view={c.view}
-              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-bioc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bioc-500"
+              className="rounded-xl border border-white/40 bg-primary-500/25 p-4 transition hover:bg-primary-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
-              <div className="text-sm font-semibold text-slate-900">{c.title}</div>
-              <div className="mt-1 text-xs text-slate-500">{c.text}</div>
+              <div className="text-sm font-semibold">{c.title}</div>
+              <div className="mt-1 text-xs">{c.text}</div>
             </Link>
           ))}
         </div>
@@ -302,16 +312,16 @@ export function ByTheNumbers() {
           <StatCard label="Packages" value={fmtInt(e.n_packages)} sub={`${e.n_repos} repositories`}
             info="Distinct packages across all four Bioconductor repositories (software, experiment data, annotation, workflows)." />
           <StatCard label="Current release" value={e.current_release} sub="Bioconductor" />
-          <StatCard label="Maintainers" value={fmtInt(e.n_maintainers)} sub="distinct"
+          <StatCard label="Maintainers" metric="people" value={fmtInt(e.n_maintainers)} sub="distinct"
             info="Distinct package maintainers (by the DESCRIPTION Maintainer field)." />
           <StatCard label="biocViews terms" value={fmtInt(bvCount.data?.[0]?.n)} sub="distinct"
             info="Distinct terms in Bioconductor's controlled vocabulary that classifies what each package does." />
         </div>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-primary-75 bg-white p-4">
             {repoSpec && <VegaChart spec={repoSpec} subtitle={snapshotNote} className="w-full" />}
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-primary-75 bg-white p-4">
             {bvSpec && <VegaChart spec={bvSpec} subtitle={snapshotNote} className="w-full" />}
           </div>
         </div>
@@ -319,18 +329,18 @@ export function ByTheNumbers() {
 
       <Section title="Impact" note="DOI and CITATION links only">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <StatCard label="Pkgs w/ publication" value={fmtInt(w?.n_pkgs_with_pub)}
+          <StatCard label="Pkgs w/ publication" metric="pubs" value={fmtInt(w?.n_pkgs_with_pub)}
             info="Packages linked to at least one paper the package asks users to cite (via an embedded DOI or the package's CITATION file)." />
-          <StatCard label="Linked works" value={fmtInt(w?.n_works)} sub="papers to cite"
+          <StatCard label="Linked works" metric="pubs" value={fmtInt(w?.n_works)} sub="papers to cite"
             info="Distinct publications linked to packages as papers the package asks users to cite." />
-          <StatCard label="Total citations" value={fmtCompact(w?.total_citations)} sub="OpenAlex"
+          <StatCard label="Total citations" metric="pubs" value={fmtCompact(w?.total_citations)} sub="OpenAlex"
             info="Sum of OpenAlex citation counts across all linked papers the packages ask users to cite. Citations are counts, so summing is meaningful." />
-          <StatCard label="Median RCR" value={fmtFloat(w?.median_rcr ?? null, 2)} sub={rcrSub || undefined}
+          <StatCard label="Median RCR" metric="pubs" value={fmtFloat(w?.median_rcr ?? null, 2)} sub={rcrSub || undefined}
             info="Relative Citation Ratio (NIH iCite): a field- and time-normalized citation rate where 1.0 = the NIH-wide average. Shown as the median across linked papers, with the 10th–90th percentile spread." />
-          <StatCard label="NIH grants" value={fmtInt(g?.n_grants)} sub={`${g?.n_institutes ?? 0} NIH Institutes/Centers`}
+          <StatCard label="NIH grants" metric="grants" value={fmtInt(g?.n_grants)} sub={`${g?.n_institutes ?? 0} NIH Institutes/Centers`}
             info="Distinct NIH awards whose publications are described by a Bioconductor package (linked via NIH RePORTER)." />
           <StatCard
-            label="Distinct-IP downloads"
+            label="Distinct-IP downloads" metric="usage"
             value={downloadsLive ? fmtCompact(im?.ips_12mo) : "pending"}
             sub={downloadsLive ? `last 12 months · ${fmtCompact(im?.total_ips)} all-time` : "stats endpoint offline"}
             pending={!downloadsLive}
@@ -338,13 +348,13 @@ export function ByTheNumbers() {
           />
         </div>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-primary-75 bg-white p-4">
             {papersChart && <VegaChart spec={papersChart} subtitle={snapshotNote} className="w-full" />}
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-primary-75 bg-white p-4">
             {yearChart && <VegaChart spec={yearChart} subtitle={snapshotNote} className="w-full" />}
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-primary-75 bg-white p-4">
             {rcrSpec && <VegaChart spec={rcrSpec} subtitle={snapshotNote} className="w-full" />}
           </div>
         </div>

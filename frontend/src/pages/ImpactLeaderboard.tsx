@@ -71,20 +71,20 @@ const formatSort = (s: SortingState) => (s[0] ? `${s[0].id}${s[0].desc ? "" : ":
 
 function PaperLinks({ agg }: { agg: PackageAgg }) {
   return (
-    <ul className="space-y-1.5 text-xs text-slate-600">
+    <ul className="space-y-1.5 text-xs text-neutral-400">
       {agg.works.map((w) => (
         <li key={w.work_id}>
-          <span className="font-medium text-slate-800">{w.title ?? w.work_id}</span>
+          <span className="font-medium text-neutral-500">{w.title ?? w.work_id}</span>
           <span className="ml-2 tabular-nums">
             {fmtInt(w.citation_count)} citations · RCR {fmtFloat(w.icite_rcr, 2)}
           </span>
           {w.methods.map((m) => (
-            <span key={m} className="ml-1.5 rounded bg-slate-200 px-1.5 py-0.5 text-slate-600">
+            <span key={m} className="ml-1.5 rounded bg-neutral-75 px-1.5 py-0.5 text-neutral-400">
               {METHOD_LABEL[m] ?? m}
             </span>
           ))}
           {w.others.length > 0 && (
-            <span className="ml-2 text-amber-700">⇄ also linked to {w.others.join(", ")}</span>
+            <span className="ml-2 text-neutral-400">⇄ also linked to {w.others.join(", ")}</span>
           )}
         </li>
       ))}
@@ -150,12 +150,15 @@ export function ImpactLeaderboard() {
     key: keyof Row,
     fmt: (n: number | null) => string,
     header: string,
-    info?: string,
+    info: string,
+    tone: string,
   ): ColumnDef<Row> => ({
     accessorKey: key as string,
     header,
     meta: { info },
-    cell: ({ getValue }) => <span className="tabular-nums">{fmt(getValue<number | null>())}</span>,
+    cell: ({ getValue }) => (
+      <span className={`tabular-nums ${tone}`}>{fmt(getValue<number | null>())}</span>
+    ),
     sortUndefined: "last",
     sortingFn: "basic",
   });
@@ -175,13 +178,13 @@ export function ImpactLeaderboard() {
               <Link
                 view="package"
                 arg={getValue<string>()}
-                className="font-medium text-bioc-700 hover:underline"
+                className="font-medium text-primary-400 hover:underline"
               >
                 {getValue<string>()}
               </Link>
               {agg?.shared && (
                 <span
-                  className="ml-1.5 cursor-help text-xs text-amber-600"
+                  className="ml-1.5 cursor-help text-xs text-neutral-400"
                   title={`Shared: a linked paper is also linked to ${others.join(", ")}`}
                   aria-label={`Shared paper with ${others.join(", ")}`}
                 >
@@ -200,7 +203,7 @@ export function ImpactLeaderboard() {
                       return n;
                     })
                   }
-                  className="ml-1.5 text-xs text-slate-500 hover:text-slate-900"
+                  className="ml-1.5 text-xs text-neutral-300 hover:text-ink"
                 >
                   {open ? "▾" : "▸"}
                 </button>
@@ -211,19 +214,24 @@ export function ImpactLeaderboard() {
       },
       { accessorKey: "repo", header: "Repo", cell: ({ getValue }) => <RepoBadge repo={getValue<string>()} /> },
       num("median_rcr", (n) => fmtFloat(n, 2), "Median RCR",
-        "Relative Citation Ratio (NIH iCite), field-normalized so 1.0 = average. Median across the package's describing papers (distinct works)."),
+        "Relative Citation Ratio (NIH iCite), field-normalized so 1.0 = average. Median across the package's describing papers (distinct works).",
+        "text-metric-pubs"),
       num("total_citations", (n) => fmtCompact(n), "Citations",
-        "Total OpenAlex citations of the package's describing papers."),
+        "Total OpenAlex citations of the package's describing papers.", "text-metric-pubs"),
       num("n_primary_pubs", (n) => fmtInt(n), "Pubs",
-        "Number of describing publications linked to the package."),
+        "Number of describing publications linked to the package.", "text-metric-pubs"),
       num("n_distinct_grants_citing", (n) => fmtInt(n), "Grants",
-        "Distinct NIH grants whose publications are described by this package (via RePORTER)."),
+        "Distinct NIH grants whose publications are described by this package (via RePORTER).",
+        "text-metric-grants"),
       num("total_distinct_ips", (n) => (downloadsLive ? fmtCompact(n) : "—"), "Distinct IPs",
-        "Sum of monthly distinct downloading IPs — the usage proxy (less gameable than raw downloads). An IP active in several months counts once per month."),
+        "Sum of monthly distinct downloading IPs — the usage proxy (less gameable than raw downloads). An IP active in several months counts once per month.",
+        "text-metric-usage"),
       num("distinct_ips_trailing_12mo", (n) => (downloadsLive ? fmtCompact(n) : "—"), "Last 12 mo",
-        "Sum of monthly distinct IPs over the latest 12 months of download stats."),
+        "Sum of monthly distinct IPs over the latest 12 months of download stats.",
+        "text-metric-usage"),
       num("usage_rank_in_repo", (n) => (downloadsLive && n != null ? `#${fmtInt(n)}` : "—"), "Repo rank",
-        "Rank by last-12-month distinct IPs within the package's repository (1 = most used)."),
+        "Rank by last-12-month distinct IPs within the package's repository (1 = most used).",
+        "text-metric-usage"),
     ],
     [downloadsLive, expanded],
   );
@@ -255,14 +263,14 @@ export function ImpactLeaderboard() {
   return (
     <div>
       <div className="mb-5">
-        <h1 className="text-2xl font-semibold text-slate-900">Impact leaderboard</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-semibold text-ink">Impact leaderboard</h1>
+        <p className="mt-1 text-sm text-neutral-300">
           {loading ? "Loading…" : `${filtered.length.toLocaleString()} packages`} · rank by impact
           signal. Paper columns use{" "}
           {includeLow ? "all paper links" : "DOI and CITATION links only"}; ⇄ marks papers
           shared with other packages.{" "}
           {!downloadsLive && (
-            <span className="text-slate-500">Download stats pending (endpoint offline).</span>
+            <span className="text-neutral-300">Download stats pending (endpoint offline).</span>
           )}
         </p>
       </div>
@@ -274,8 +282,8 @@ export function ImpactLeaderboard() {
             onClick={() => applyPreset(p.col)}
             className={`rounded-full px-3 py-1 text-xs font-medium transition ${
               activeSort === p.col
-                ? "bg-bioc-500 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                ? "bg-primary-400 text-white"
+                : "bg-neutral-75 text-neutral-400 hover:bg-primary-75"
             }`}
           >
             {p.label}
@@ -294,19 +302,19 @@ export function ImpactLeaderboard() {
             onChange={(e) => setParams("impact", { q: e.target.value })}
             className={`w-full ${INPUT_CLASS}`}
           />
-          <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">Repo</div>
+          <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-neutral-300">Repo</div>
           <div className="mt-2 space-y-1">
             {[...repoCounts.entries()]
               .sort((a, b) => b[1] - a[1])
               .map(([r, n]) => (
-                <label key={r} className="flex items-center gap-2 text-sm text-slate-600">
+                <label key={r} className="flex items-center gap-2 text-sm text-neutral-400">
                   <input type="checkbox" checked={repos.has(r)} onChange={() => setParams("impact", { repo: toggleInList(repoParam, r) })} />
                   <RepoBadge repo={r} />
-                  <span className="ml-auto text-xs text-slate-500">{n}</span>
+                  <span className="ml-auto text-xs text-neutral-300">{n}</span>
                 </label>
               ))}
           </div>
-          <label className="mt-4 flex items-center gap-2 text-sm text-slate-600">
+          <label className="mt-4 flex items-center gap-2 text-sm text-neutral-400">
             <input
               type="checkbox"
               checked={includeLow}
@@ -314,7 +322,7 @@ export function ImpactLeaderboard() {
             />
             Include lower-confidence paper links
           </label>
-          <label className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+          <label className="mt-2 flex items-center gap-2 text-sm text-neutral-400">
             <input
               type="checkbox"
               checked={noInfra}
@@ -322,13 +330,13 @@ export function ImpactLeaderboard() {
             />
             Exclude Infrastructure
           </label>
-          <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">biocViews</div>
+          <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-neutral-300">biocViews</div>
           {viewTerm ? (
             <div className="mt-2">
               <Chip>
                 {viewTerm}
                 <button
-                  className="ml-1 text-bioc-700 hover:text-slate-900"
+                  className="ml-1 text-primary-400 hover:text-ink"
                   aria-label={`remove ${viewTerm} filter`}
                   onClick={() => setParams("impact", { view: "" })}
                 >
@@ -341,7 +349,7 @@ export function ImpactLeaderboard() {
               aria-label="Filter by biocViews term"
               value=""
               onChange={(e) => setParams("impact", { view: e.target.value })}
-              className="mt-2 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bioc-500"
+              className="mt-2 w-full rounded-md border border-neutral-100 bg-white px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal"
             >
               <option value="">Any term</option>
               {viewCounts.map(([v, n]) => (
@@ -354,9 +362,9 @@ export function ImpactLeaderboard() {
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded-xl border border-primary-75 bg-white">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-primary-75 text-xs uppercase tracking-wide text-neutral-300">
                 {table.getHeaderGroups().map((hg) => (
                   <tr key={hg.id}>
                     {hg.headers.map((h) => (
@@ -375,11 +383,11 @@ export function ImpactLeaderboard() {
               <tbody>
                 {table.getRowModel().rows.map((row, i) => (
                   <Fragment key={row.id}>
-                    <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                    <tr className="border-b border-neutral-75 last:border-0 hover:bg-neutral-50">
                       {row.getVisibleCells().map((cell, j) => (
                         <td key={cell.id} className="px-3 py-2">
                           {j === 0 && (
-                            <span className="mr-2 text-xs text-slate-500">
+                            <span className="mr-2 text-xs text-neutral-300">
                               {table.getState().pagination.pageIndex * 25 + i + 1}
                             </span>
                           )}
@@ -388,7 +396,7 @@ export function ImpactLeaderboard() {
                       ))}
                     </tr>
                     {row.original.agg && expanded.has(pkgKey(row.original.repo, row.original.package_name)) && (
-                      <tr className="border-b border-slate-100 bg-slate-50">
+                      <tr className="border-b border-neutral-75 bg-neutral-50">
                         <td colSpan={columns.length} className="px-3 py-2">
                           <PaperLinks agg={row.original.agg} />
                         </td>
@@ -399,9 +407,9 @@ export function ImpactLeaderboard() {
               </tbody>
             </table>
           </div>
-          <div className="mt-3 flex items-center gap-3 text-sm text-slate-500">
+          <div className="mt-3 flex items-center gap-3 text-sm text-neutral-300">
             <button
-              className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+              className="rounded border border-neutral-100 px-2 py-1 disabled:opacity-40"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
             >
@@ -411,7 +419,7 @@ export function ImpactLeaderboard() {
               Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount().toLocaleString()}
             </span>
             <button
-              className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+              className="rounded border border-neutral-100 px-2 py-1 disabled:opacity-40"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
             >
