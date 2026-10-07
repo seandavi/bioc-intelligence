@@ -1,0 +1,37 @@
+{
+ "meta": {
+  "count": 3,
+  "per_page": 200,
+  "next_cursor": null
+ },
+ "results": [
+  {
+   "id": "https://openalex.org/W4391876502",
+   "doi": "https://doi.org/10.1038/s41467-024-45778-y",
+   "ids": {
+    "openalex": "https://openalex.org/W4391876502",
+    "doi": "https://doi.org/10.1038/s41467-024-45778-y",
+    "pmid": "https://pubmed.ncbi.nlm.nih.gov/38365920"
+   }
+  },
+  {
+   "id": "https://openalex.org/W4414346695",
+   "doi": "https://doi.org/10.1093/bib/bbaf468",
+   "ids": {
+    "openalex": "https://openalex.org/W4414346695",
+    "doi": "https://doi.org/10.1093/bib/bbaf468",
+    "pmid": "https://pubmed.ncbi.nlm.nih.gov/40966651"
+   }
+  },
+  {
+   "id": "https://openalex.org/W4396760044",
+   "doi": "https://doi.org/10.1016/j.toxrep.2024.05.001",
+   "ids": {
+    "openalex": "https://openalex.org/W4396760044",
+    "doi": "https://doi.org/10.1016/j.toxrep.2024.05.001",
+    "pmid": "https://pubmed.ncbi.nlm.nih.gov/38798987"
+   }
+  }
+ ],
+ "group_by": []
+}

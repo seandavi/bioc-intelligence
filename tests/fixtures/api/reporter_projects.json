@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "total": 2
+ },
+ "results": [
+  {
+   "subproject_id": null,
+   "fiscal_year": 2024,
+   "project_num": "5F31HG012892-02",
+   "organization": {
+    "org_name": "UNIVERSITY OF PENNSYLVANIA",
+    "org_country": "UNITED STATES"
+   },
+   "principal_investigators": [
+    {
+     "profile_id": 15015624,
+     "first_name": "Christian",
+     "middle_name": "Ethan",
+     "last_name": "Loo",
+     "is_contact_pi": true,
+     "full_name": "Christian Ethan Loo",
+     "title": "GRADUATE STUDENT"
+    }
+   ],
+   "agency_ic_admin": {
+    "code": "HG",
+    "abbreviation": "NHGRI",
+    "name": "National Human Genome Research Institute"
+   },
+   "core_project_num": "F31HG012892",
+   "project_title": "Advancing Epigenetic Sequencing Through Solid-Phase Enzymatic Approaches"
+  },
+  {
+   "subproject_id": null,
+   "fiscal_year": 2023,
+   "project_num": "1F31HG012892-01",
+   "organization": {
+    "org_name": "UNIVERSITY OF PENNSYLVANIA",
+    "org_country": "UNITED STATES"
+   },
+   "principal_investigators": [
+    {
+     "profile_id": 15015624,
+     "first_name": "Christian",
+     "middle_name": "Ethan",
+     "last_name": "Loo",
+     "is_contact_pi": true,
+     "full_name": "Christian Ethan Loo",
+     "title": "GRADUATE STUDENT"
+    }
+   ],
+   "agency_ic_admin": {
+    "code": "HG",
+    "abbreviation": "NHGRI",
+    "name": "National Human Genome Research Institute"
+   },
+   "core_project_num": "F31HG012892",
+   "project_title": "Advancing Epigenetic Sequencing Through Solid-Phase Enzymatic Approaches"
+  }
+ ]
+}

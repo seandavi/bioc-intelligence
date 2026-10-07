@@ -131,3 +131,67 @@ def test_init_schema_adds_work_columns_to_old_store():
     fresh = duckdb.connect()
     db.init_schema(fresh)
     assert cols == [r[0] for r in fresh.execute("DESCRIBE dim_work").fetchall()]
+
+
+def test_works_rekeys_doi_to_pmid_and_prunes_unlinked():
+    """When a work gains a PMID its DOI-keyed dim_work row must not linger (the marts
+    would count it twice), and its cited-by edges follow it to the PMID key."""
+    import duckdb
+
+    from biocintel import db
+
+    con = duckdb.connect()
+    con.execute("ATTACH ':memory:' AS lake")
+    con.execute("ATTACH ':memory:' AS bi")
+    con.execute("USE bi")
+    db.init_schema(con)
+    con.execute(
+        "CREATE TEMP TABLE linked AS SELECT * FROM (VALUES "
+        "('W1', 111::BIGINT, '10.1/a', '111', 't', 2020, 'J', 5::BIGINT, false)) "
+        "t(oa_id, pmid, doi, work_id, title, year, journal, cited_by_count, is_retracted)"
+    )
+    con.execute("CREATE SCHEMA lake.icite")
+    con.execute("CREATE TABLE lake.icite.metadata (pmid BIGINT, rcr DOUBLE, "
+                "nih_percentile DOUBLE, apt DOUBLE, is_clinical BOOLEAN, "
+                "citations_per_year DOUBLE)")
+    # earlier runs keyed the work by DOI, then by a since-corrected PMID ('999', same
+    # OpenAlex id); '10.9/gone' is no longer linked at all
+    con.execute("INSERT INTO bi.dim_work (work_id, doi, openalex_id) VALUES "
+                "('10.1/a', '10.1/a', NULL), ('999', NULL, 'W1'), ('10.9/gone', '10.9/gone', NULL)")
+    con.execute("INSERT INTO bi.fact_citation_edge (cited_work_id, citing_work_id) "
+                "VALUES ('10.1/a', 'C1'), ('999', 'C3'), ('10.9/gone', 'C2')")
+
+    enrich_from_lake._enrich_works(con, patents=False)
+
+    assert con.execute("SELECT work_id FROM bi.dim_work").fetchall() == [("111",)]
+    assert sorted(con.execute(
+        "SELECT cited_work_id, citing_work_id FROM bi.fact_citation_edge").fetchall()
+    ) == [("10.9/gone", "C2"), ("111", "C1"), ("111", "C3")]
+
+
+def test_linked_keeps_one_work_per_doi():
+    """OpenAlex can hold a preprint and its PubMed record as two works sharing one DOI;
+    linking both would count the package's paper twice (TSAR)."""
+    import duckdb
+
+    from biocintel import db
+
+    con = duckdb.connect()
+    con.execute("ATTACH ':memory:' AS lake")
+    con.execute("ATTACH ':memory:' AS bi")
+    con.execute("CREATE SCHEMA lake.openalex")
+    con.execute(
+        "CREATE TABLE lake.openalex.works (id VARCHAR, pmid BIGINT, doi VARCHAR, title VARCHAR, "
+        "publication_year INTEGER, source_name VARCHAR, cited_by_count BIGINT, "
+        "is_retracted BOOLEAN)"
+    )
+    con.execute("USE bi")
+    db.init_schema(con)
+    con.execute("INSERT INTO lake.openalex.works VALUES "
+                "('W1', NULL, '10.1/x', 'preprint', 2023, 'bioRxiv', 1, false), "
+                "('W2', 38076946, '10.1/x', 'pubmed', 2023, 'bioRxiv', 2, false)")
+    con.execute("INSERT INTO bi.bridge_package_pub (package_name, repo, work_id, role, "
+                "match_method, confidence) VALUES ('TSAR', 'bioc', '10.1/x', 'primary', "
+                "'citation_file', 0.9)")
+    con.execute(enrich_from_lake._LINKED_SQL)
+    assert con.execute("SELECT oa_id, work_id FROM linked").fetchall() == [("W2", "38076946")]

@@ -9,6 +9,9 @@ CITATION-derived titles, deferred). Every edge carries ``match_method`` +
 ``confidence`` so the dashboard can filter to DOI-only for grant reporting.
 
 work_id follows the spine rule: PMID preferred, else DOI.
+
+``--source api`` (default) fills ``lake`` from the OpenAlex API for just these DOIs
+(and title-search hits); ``--source lake`` reads cdsci-lake. Same SQL either way.
 """
 
 from __future__ import annotations
@@ -19,6 +22,9 @@ import re
 import duckdb
 
 from ..lake import connect_with_lake
+from ..sources import connect_with_sources
+
+SOURCES = ("api", "lake")
 
 _DOI_PREFIX_RE = re.compile(r"^(https?://(dx\.)?doi\.org/|doi:)", re.IGNORECASE)
 
@@ -58,8 +64,11 @@ def normalize_doi(value: str | None) -> str | None:
     return _DOI_PREFIX_RE.sub("", value.strip()).lower() or None
 
 
-def run(*, title_fallback: bool = False) -> dict[str, int]:
-    con = connect_with_lake()
+def run(*, title_fallback: bool = False, source: str = "api") -> dict[str, int]:
+    con = (
+        connect_with_sources(link=True, title_fallback=title_fallback)
+        if source == "api" else connect_with_lake()
+    )
     counts: dict[str, int] = {}
     try:
         # Idempotent: clear automated rows (keep any 'manual' overrides), then rebuild.
@@ -84,14 +93,18 @@ def _rowcount(con: duckdb.DuckDBPyConnection, sql: str) -> int:
 
 
 def main(argv: list[str] | None = None) -> None:
-    ap = argparse.ArgumentParser(description="Link packages to OpenAlex works (lake).")
+    ap = argparse.ArgumentParser(description="Link packages to OpenAlex works.")
     ap.add_argument(
         "--title-fallback", action="store_true",
         help="also attempt low-confidence exact-title matches (off by default)",
     )
+    ap.add_argument(
+        "--source", choices=SOURCES, default="api",
+        help="api: OpenAlex API for our DOIs (default); lake: cdsci-lake",
+    )
     args = ap.parse_args(argv)
-    print("link_works:")
-    run(title_fallback=args.title_fallback)
+    print(f"link_works (source={args.source}):")
+    run(title_fallback=args.title_fallback, source=args.source)
 
 
 if __name__ == "__main__":

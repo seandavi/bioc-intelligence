@@ -59,7 +59,7 @@ def get_text(url: str, *, use_cache: bool = True, force_cache: bool = False) -> 
             if force_cache and resp.status_code == 404:
                 missing.parent.mkdir(parents=True, exist_ok=True)
                 missing.touch()
-            if 400 <= resp.status_code < 500:
+            if 400 <= resp.status_code < 500 and resp.status_code != 429:  # 429: back off
                 raise HttpError(url, resp.status_code)
             resp.raise_for_status()
             text = resp.text
@@ -73,3 +73,24 @@ def get_text(url: str, *, use_cache: bool = True, force_cache: bool = False) -> 
             last_exc = exc
             time.sleep(_BACKOFF**attempt)
     raise RuntimeError(f"GET failed after {_RETRIES} attempts: {url}") from last_exc
+
+
+def post_json(url: str, payload: dict) -> dict:
+    """POST ``payload`` as JSON and return the decoded response (uncached; RePORTER).
+
+    Same retry policy as :func:`get_text`; a 4xx raises :class:`HttpError`.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(_RETRIES):
+        try:
+            resp = httpx.post(url, json=payload, timeout=_TIMEOUT, follow_redirects=True)
+            if 400 <= resp.status_code < 500 and resp.status_code != 429:  # 429: back off
+                raise HttpError(url, resp.status_code)
+            resp.raise_for_status()
+            return resp.json()
+        except HttpError:
+            raise
+        except (httpx.TransportError, httpx.HTTPStatusError) as exc:
+            last_exc = exc
+            time.sleep(_BACKOFF**attempt)
+    raise RuntimeError(f"POST failed after {_RETRIES} attempts: {url}") from last_exc

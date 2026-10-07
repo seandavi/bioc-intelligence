@@ -1,0 +1,94 @@
+{
+ "meta": {
+  "count": 6,
+  "per_page": 200,
+  "next_cursor": null
+ },
+ "results": [
+  {
+   "id": "https://openalex.org/I79576946",
+   "ror": "https://ror.org/00b30xv10",
+   "display_name": "University of Pennsylvania",
+   "country_code": "US",
+   "type": "education",
+   "geo": {
+    "city": "Philadelphia",
+    "region": "Pennsylvania",
+    "country": "United States",
+    "latitude": 39.95238,
+    "longitude": -75.16362
+   }
+  },
+  {
+   "id": "https://openalex.org/I165779595",
+   "ror": "https://ror.org/01ej9dk98",
+   "display_name": "The University of Melbourne",
+   "country_code": "AU",
+   "type": "education",
+   "geo": {
+    "city": "Melbourne",
+    "region": "Victoria",
+    "country": "Australia",
+    "latitude": -37.814,
+    "longitude": 144.96332
+   }
+  },
+  {
+   "id": "https://openalex.org/I1335321130",
+   "ror": "https://ror.org/01z7r7q48",
+   "display_name": "Children's Hospital of Philadelphia",
+   "country_code": "US",
+   "type": "funder",
+   "geo": {
+    "city": "Philadelphia",
+    "region": null,
+    "country": "United States",
+    "latitude": 39.9523811340332,
+    "longitude": -75.16361999511719
+   }
+  },
+  {
+   "id": "https://openalex.org/I1321649718",
+   "ror": "https://ror.org/02rktxt32",
+   "display_name": "Royal Children's Hospital",
+   "country_code": "AU",
+   "type": "healthcare",
+   "geo": {
+    "city": "Melbourne",
+    "region": "Victoria",
+    "country": "Australia",
+    "latitude": -37.814,
+    "longitude": 144.96332
+   }
+  },
+  {
+   "id": "https://openalex.org/I4210150290",
+   "ror": "https://ror.org/048fyec77",
+   "display_name": "Murdoch Children's Research Institute",
+   "country_code": "AU",
+   "type": "nonprofit",
+   "geo": {
+    "city": "Melbourne",
+    "region": "Victoria",
+    "country": "Australia",
+    "latitude": -37.814,
+    "longitude": 144.96332
+   }
+  },
+  {
+   "id": "https://openalex.org/I196021976",
+   "ror": "https://ror.org/01b6kha49",
+   "display_name": "Walter and Eliza Hall Institute of Medical Research",
+   "country_code": "AU",
+   "type": "nonprofit",
+   "geo": {
+    "city": "Melbourne",
+    "region": "Victoria",
+    "country": "Australia",
+    "latitude": -37.814,
+    "longitude": 144.96332
+   }
+  }
+ ],
+ "group_by": []
+}

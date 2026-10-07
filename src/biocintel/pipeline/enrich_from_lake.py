@@ -20,6 +20,12 @@ first). Steps:
   default step set) to respect R2 egress. Run it deliberately for a full refresh.
 
 Idempotent per step (scoped deletes / INSERT OR REPLACE), keyed to the linked works.
+
+``--source api`` (default) fills ``lake`` from OpenAlex, iCite and RePORTER for just
+the working set (``biocintel.sources``) — seconds instead of the scans above, except
+``citations`` (~one OpenAlex call per 200 citing works; set ``OPENALEX_API_KEY``).
+Patent counts are lake-only and skipped under ``api``. ``--source lake`` reads
+cdsci-lake. The SQL is the same either way.
 """
 
 from __future__ import annotations
@@ -29,6 +35,9 @@ import argparse
 import duckdb
 
 from ..lake import connect_with_lake
+from ..sources import connect_with_sources
+
+SOURCES = ("api", "lake")
 
 DEFAULT_STEPS = ("works", "institutions", "grants")
 ALL_STEPS = ("works", "institutions", "grants", "citations")
@@ -45,7 +54,12 @@ FROM lake.openalex.works w
 -- A bridge work_id is PMID-or-DOI; match EITHER side (a citation link stores the
 -- DOI even when the work also has a PMID, so a single COALESCE key would miss it).
 JOIN bi.bridge_package_pub b
-  ON b.work_id = CAST(w.pmid AS VARCHAR) OR b.work_id = w.doi;
+  ON b.work_id = CAST(w.pmid AS VARCHAR) OR b.work_id = w.doi
+-- One work per DOI: OpenAlex can hold a preprint and its PubMed record as two works
+-- sharing a DOI (TSAR); keep the one with a PMID.
+QUALIFY row_number() OVER (
+    PARTITION BY COALESCE(w.doi, w.id) ORDER BY w.pmid NULLS LAST, w.id
+) = 1;
 """
 
 # iCite fallback (#24): bridge DOIs absent from openalex.works.doi but present in
@@ -188,8 +202,27 @@ FROM work_institution;
 """
 
 
-def _enrich_works(con: duckdb.DuckDBPyConnection) -> int:
+# A work's spine id changes when a source learns or corrects its PMID (DOI -> PMID for
+# 23 works, PMID -> PMID for one, when the API replaced the lake). Re-key its cited-by
+# edges via the old row's OpenAlex id or DOI, then drop dim_work rows no longer linked:
+# a stale twin would double-count in the marts, which also join bridge rows on doi.
+_REKEY_EDGES_SQL = """
+UPDATE bi.fact_citation_edge e SET cited_work_id = l.work_id
+FROM bi.dim_work old
+JOIN linked l ON old.openalex_id = l.oa_id OR old.doi = l.doi
+WHERE e.cited_work_id = old.work_id AND old.work_id <> l.work_id;
+"""
+
+_PRUNE_WORKS_SQL = "DELETE FROM bi.dim_work WHERE work_id NOT IN (SELECT work_id FROM linked);"
+
+
+def _enrich_works(con: duckdb.DuckDBPyConnection, *, patents: bool = True) -> int:
     con.execute(_WORKS_SQL)
+    con.execute(_REKEY_EDGES_SQL)
+    con.execute(_PRUNE_WORKS_SQL)
+    if not patents:
+        print("  patents: skipped (reliance.patent_citations is lake-only; use --source lake)")
+        return con.execute("SELECT count(*) FROM bi.dim_work").fetchone()[0]
     # Best-effort (spec §3): patent counts never fail the works step.
     try:
         con.execute(_WORK_PATENTS_SQL)
@@ -242,8 +275,8 @@ def _enrich_citations(con: duckdb.DuckDBPyConnection) -> int:
     ).fetchone()[0]
 
 
-def run(steps: tuple[str, ...] = DEFAULT_STEPS) -> dict[str, int]:
-    con = connect_with_lake()
+def run(steps: tuple[str, ...] = DEFAULT_STEPS, source: str = "api") -> dict[str, int]:
+    con = connect_with_sources(steps=steps) if source == "api" else connect_with_lake()
     counts: dict[str, int] = {}
     try:
         con.execute(_LINKED_SQL)
@@ -252,7 +285,7 @@ def run(steps: tuple[str, ...] = DEFAULT_STEPS) -> dict[str, int]:
         n_linked = con.execute("SELECT count(*) FROM linked").fetchone()[0]
         print(f"  linked primary works: {n_linked} ({n_linked - n_oa} via iCite fallback)")
         if "works" in steps:
-            counts["dim_work"] = _enrich_works(con)
+            counts["dim_work"] = _enrich_works(con, patents=source == "lake")
             print(f"  dim_work: {counts['dim_work']}")
         if "institutions" in steps:
             # Best-effort (spec §3): never fail the refresh on affiliations.
@@ -265,7 +298,8 @@ def run(steps: tuple[str, ...] = DEFAULT_STEPS) -> dict[str, int]:
             counts["bridge_work_grant"] = _enrich_grants(con)
             print(f"  bridge_work_grant (reporter): {counts['bridge_work_grant']}")
         if "citations" in steps:
-            print("  citations: scanning work_references (1.29B rows) — this is the heavy step…")
+            if source == "lake":
+                print("  citations: scanning work_references (1.29B rows) — the heavy step…")
             counts["fact_citation_edge"] = _enrich_citations(con)
             print(f"  fact_citation_edge (openalex): {counts['fact_citation_edge']}")
     finally:
@@ -274,19 +308,24 @@ def run(steps: tuple[str, ...] = DEFAULT_STEPS) -> dict[str, int]:
 
 
 def main(argv: list[str] | None = None) -> None:
-    ap = argparse.ArgumentParser(description="Enrich works/grants/citations from the lake.")
+    ap = argparse.ArgumentParser(description="Enrich works/grants/citations.")
     ap.add_argument(
         "--steps", default=",".join(DEFAULT_STEPS),
         help=f"comma-separated subset of {ALL_STEPS} (default: {','.join(DEFAULT_STEPS)}; "
-             "'citations' is the heavy 1.29B-row scan, opt-in)",
+             "'citations' is the heavy one, opt-in)",
+    )
+    ap.add_argument(
+        "--source", choices=SOURCES, default="api",
+        help="api: OpenAlex/iCite/RePORTER APIs for the working set (default); "
+             "lake: cdsci-lake (adds patent counts)",
     )
     args = ap.parse_args(argv)
     steps = tuple(s.strip() for s in args.steps.split(",") if s.strip())
     bad = set(steps) - set(ALL_STEPS)
     if bad:
         ap.error(f"unknown steps: {sorted(bad)}; valid: {ALL_STEPS}")
-    print("enrich_from_lake:")
-    run(steps)
+    print(f"enrich_from_lake (source={args.source}):")
+    run(steps, args.source)
 
 
 if __name__ == "__main__":
