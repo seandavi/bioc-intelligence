@@ -16,15 +16,17 @@ SPA frontend.
 
 ## 2. Storage
 
-**Upstream source:** [cdsci-lake](../cdsci-lake) (read-only) for all shared
-enrichment corpora — see §4. **Canonical store:** a single DuckDB file holding
+**Upstream sources:** the OpenAlex, iCite and NIH RePORTER public APIs for the
+working set, with [cdsci-lake](../cdsci-lake) (read-only) optional for full-text
+mentions and patent counts — see §4. **Canonical store:** a single DuckDB file holding
 this project's own Bioconductor-native spine, facts, and marts. **Distribution:**
 Parquet marts for the WASM frontend (and any external consumers).
 
 The "no lake" decision below governs **this project's own store**, not its
-sourcing: we read the shared DuckLake, we don't build one. Both are DuckDB, so
-the lake attaches alongside the local file and enrichment is cross-catalog SQL
-(`lake.openalex.works` joined to local `dim_package`), not an API client.
+sourcing. Enrichment is SQL over a catalog named `lake` (`lake.openalex.works`
+joined to local `dim_package`). By default (#83) that catalog is in-memory and
+filled from the APIs with only the rows the SQL reads; `--source lake` attaches
+cdsci-lake instead and runs the same SQL.
 
 No DuckLake / catalog time-travel for the local store. This is a single-writer, batch-refresh,
 canonical-data workload — there are no concurrent writers, no cross-table
@@ -75,6 +77,15 @@ main `cdsci` data lifecycle.
 | Field-normalized impact       | `icite.metadata` (RCR, citation counts)                    | lake     | monthly    |
 | Grants (describing + citing)  | `reporter.publink`/`reporter.projects`; `openalex.works.grants` | lake | monthly    |
 | Version/release history       | `git.bioconductor.org` tags                                | git      | per release |
+
+**Amended 2026-10-07 (#83):** the "lake" rows above now come from the public
+APIs by default (OpenAlex works/`cites:` filter, iCite `/api/pubs`, RePORTER v2
+search) for the working set (~1.2k works), into an in-memory `lake` catalog with
+the same tables. Only `pmc.passages` (mention mining) and
+`reliance.patent_citations` (patent counts) still need cdsci-lake. The lake's
+`openalex.works.grants` is empty: OpenAlex replaced it with `works.funders` /
+`works.awards` (cdsci-lake#133; funders as entities is #85). The original
+lake-only rationale follows.
 
 **Source of record for all "lake" rows: [cdsci-lake](../cdsci-lake)** — the
 shared cancerdatasci research-data lake (DuckLake: Postgres catalog + R2 data),
@@ -238,29 +249,31 @@ than silently concatenating eras.
 ## 7. Pipeline
 
 Thin orchestrator over framework-free extract modules (omicidx pattern). Each
-module writes into the DuckDB file; marts export to Parquet. Enrichment is no
-longer an API client — it's cross-catalog SQL against an `ATTACH`ed cdsci-lake
-(read-only), so the former `enrich_openalex` / `enrich_icite` / `enrich_reporter`
-modules collapse into one lake-read step.
+module writes into the DuckDB file; marts export to Parquet. Enrichment is one
+SQL step over a `lake` catalog, so the former `enrich_openalex` / `enrich_icite` /
+`enrich_reporter` modules collapse into it. Since #83, `biocintel.sources` fills
+that catalog from the APIs by default; `--source lake` ATTACHes cdsci-lake.
 
 ```text
 -- Bioconductor-native extracts (bespoke HTTP/parse):
 extract_packages.py        manifest + DESCRIPTION         -> dim_package*
 extract_downloads.py       stats tabs (incremental)       -> fact_download
 
--- Lake-sourced (read-only SQL against ATTACHed cdsci-lake):
+-- Enrichment SQL over `lake` (API-filled by default; cdsci-lake with --source lake):
 link_works.py              DOI/title -> lake.openalex.works         -> bridge_package_pub
 enrich_from_lake.py        icite.metadata -> dim_work; openalex.work_references
                            -> fact_citation_edge; reporter.* + works.grants
                            -> dim_grant / bridge_work_grant
-mine_mentions.py           FTS over lake.pmc.passages               -> fact_mention_candidate
+mine_mentions.py           FTS over lake.pmc.passages (cdsci-lake only) -> fact_mention_candidate
 
 -- Judge + export:
 judge_mentions.py          LLM judge over stored text     -> promote to fact_citation_edge
 build_marts.py             DuckDB SQL                      -> mart_* Parquet
 ```
 
-Orchestration: GitHub Actions. Monthly cron for telemetry/enrichment; on-release
+Orchestration: a monthly systemd `--user` timer on onclappc02 (it left GitHub
+Actions when the runner could not reach the lake's Postgres; the API default
+makes Actions viable again). Originally: GitHub Actions monthly cron for telemetry/enrichment; on-release
 trigger for dimensions. `judge_mentions.py` runs on its own cadence (independent
 of mining).
 

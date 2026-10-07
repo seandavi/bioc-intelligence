@@ -23,10 +23,10 @@ const SOURCES: [string, string][] = [
 const LIMITATIONS: [string, ReactNode][] = [
   ["Download stats measure distinct IPs per month, summed.", "Bioconductor publishes monthly distinct-IP counts, so an IP active in several months counts once per month — treat totals as a usage proxy, not unique users. Only complete months load (the in-progress month and the source's zero-fill rows are dropped), and collection methodology changed in Oct 2015. The extractor logs-and-skips a 404 (the endpoints were down for a while after BioC 3.23)."],
   ["Linkage favors precision over recall.", "Package→manuscript links come from DESCRIPTION DOIs and CITATION files (author-asserted, authoritative), read from package source on the bioconductor-source GitHub org's devel branch (a few packages with another default branch fall back to the rendered release page). DOIs cited in the DESCRIPTION Description: field are kept as a separate, lower-confidence description_doi method — they sometimes cite dependencies rather than the package's own paper. Naive title-matching against OpenAlex is deliberately not used — many package names are common words (muscle, gage, tuberculosis), so it floods with false positives (empirically ~1,500 matches, mostly wrong). Consequently, some packages that do have a paper remain unlinked until they ship a DOI/CITATION; a precision-filtered title-candidate → LLM-judge path is on the roadmap."],
-  ["Impact coverage is partial.", "RCR and citation counts exist only for linked works present in iCite / OpenAlex. Cited-by edges (fact_citation_edge) and full-text mention mining are built but run on demand (the references table is ~1.3B rows), so the “citing works” surfaces are not yet populated at scale."],
+  ["Impact coverage is partial.", "RCR and citation counts exist only for linked works present in iCite / OpenAlex. Cited-by edges (fact_citation_edge) are refreshed on demand rather than monthly (about 3,000 OpenAlex calls), so “citing works” counts can lag the other figures. Full-text mention mining is built but not yet run at scale."],
   ["Release-over-release growth is limited", "to the current release until per-package version history is backfilled from git.bioconductor.org tags."],
   ["The dashboard reflects a dated snapshot.", "Marts are committed Parquet (see the snapshot stamp in the header), not live data. A refresh re-runs the pipeline and re-bundles the marts."],
-  ["Enrichment requires the private cdsci-lake", "(credentials via Google Secret Manager). The public dashboard ships only the derived marts — no credentials or raw lake access needed to view it."],
+  ["Patent counts and full-text mention mining need the private cdsci-lake.", "Everything else is fetched from public APIs. Patent counts are therefore not refreshed every month. The dashboard ships only the derived marts, so viewing it needs no credentials."],
   ["Upstream accuracy applies.", "Figures are only as good as OpenAlex / iCite / RePORTER / Bioconductor; a few landmark papers carry very high RCRs, and metadata gaps propagate."],
 ];
 
@@ -118,8 +118,8 @@ export function About({ manifest }: { manifest: Manifest | null }) {
           </table>
         </div>
         <p>
-          The OpenAlex, iCite and RePORTER data are read from the cdsci-lake, a shared research data
-          lake, in read-only mode. The data is refreshed monthly. This copy is the{" "}
+          The OpenAlex, iCite and RePORTER data are fetched from their public APIs for the linked
+          papers. The data is refreshed monthly. This copy is the{" "}
           <span className="font-medium">{snapshot}</span> snapshot.
         </p>
       </Section>
