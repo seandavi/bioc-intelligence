@@ -103,13 +103,34 @@ WITH fd AS (
     SELECT * FROM fact_download
     QUALIFY _snapshot = MAX(_snapshot) OVER (PARTITION BY repo)
 )
+-- sum_package_distinct_ips is a SUM over packages (one address installing 50 packages
+-- counts 50 times): a volume measure, never a count of users. The project-level count
+-- is the installer proxy below (#80).
 SELECT year, repo, methodology_era,
-       SUM(distinct_ips) AS distinct_ips,
+       SUM(distinct_ips) AS sum_package_distinct_ips,
        SUM(downloads)    AS downloads,
        COUNT(DISTINCT package_name) FILTER (WHERE downloads > 0) AS n_packages_with_downloads
 FROM fd
 GROUP BY year, repo, methodology_era
 ORDER BY repo, year, methodology_era;
+
+-- Project-level installs: distinct IPs of the installer package, the convention Bioconductor
+-- uses for "how many machines installed Bioconductor". BiocInstaller carried it 2011-2018,
+-- BiocVersion (installed by the CRAN package BiocManager) since 2018; in overlap months the
+-- larger of the two is taken. One row per month across both eras.
+CREATE OR REPLACE TABLE mart_installer_downloads_monthly AS
+WITH fd AS (
+    SELECT * FROM fact_download
+    WHERE repo = 'bioc' AND package_name IN ('BiocInstaller', 'BiocVersion')
+    QUALIFY _snapshot = MAX(_snapshot) OVER (PARTITION BY repo)
+)
+SELECT year, month, methodology_era,
+       arg_max(package_name, distinct_ips) AS installer_package,
+       MAX(distinct_ips) AS installer_distinct_ips,
+       MAX(downloads)    AS installer_downloads
+FROM fd
+GROUP BY year, month, methodology_era
+ORDER BY year, month;
 
 -- Per-package monthly series. Sorted so each package sits in a few row groups
 -- (exported with a small ROW_GROUP_SIZE) and the browser can range-read one package.
@@ -318,6 +339,7 @@ _MARTS = [
     "mart_package_funder",
     "mart_package_dependency",
     "mart_ecosystem_downloads_yearly",
+    "mart_installer_downloads_monthly",
     "mart_package_downloads_monthly",
     "mart_work_institution",
 ]
@@ -526,8 +548,26 @@ DEFINITIONS: dict[str, dict] = {
     "mart_ecosystem_downloads_yearly": {
         "description": "Downloads per year x repo x methodology era (2015 has a row per era).",
         "columns": {
-            "year": "Calendar year.", "repo": _PKG["repo"], **_DL,
+            "year": "Calendar year.", "repo": _PKG["repo"],
+            "methodology_era": _DL["methodology_era"],
+            "sum_package_distinct_ips": "SUM of per-package monthly distinct IPs: a volume "
+            "measure (one address x 50 packages counts 50 times), never a count of users. "
+            "For project-level installs use mart_installer_downloads_monthly.",
+            "downloads": _DL["downloads"],
             "n_packages_with_downloads": "Packages with at least one download that year.",
+        },
+    },
+    "mart_installer_downloads_monthly": {
+        "description": "Project-level installs per month: distinct IPs of the installer package "
+        "(BiocInstaller 2011-2018, then BiocVersion, which BiocManager installs). The "
+        "Bioconductor convention for 'machines that installed Bioconductor'.",
+        "columns": {
+            "year": "Calendar year.", "month": "Month 1-12.",
+            "methodology_era": _DL["methodology_era"],
+            "installer_package": "Which installer package the row comes from.",
+            "installer_distinct_ips": "Distinct IPs that downloaded the installer package "
+            "that month: the project-level usage proxy.",
+            "installer_downloads": "Raw downloads of the installer package that month.",
         },
     },
     "mart_package_downloads_monthly": {
