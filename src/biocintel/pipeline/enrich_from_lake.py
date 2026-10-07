@@ -144,8 +144,10 @@ WHERE pl.project_number IS NOT NULL;
 
 _CITATION_SQL = """
 INSERT INTO bi.fact_citation_edge (cited_work_id, citing_work_id, source, mention_type, _snapshot)
-SELECT l.work_id AS cited_work_id,
-       COALESCE(CAST(citing.pmid AS VARCHAR), citing.doi) AS citing_work_id,
+SELECT DISTINCT l.work_id AS cited_work_id,
+       -- PMID, else DOI, else the OpenAlex id: ~some citing works carry neither,
+       -- and a NULL here aborted the whole 1.29B-row scan (2026-10-06).
+       COALESCE(CAST(citing.pmid AS VARCHAR), citing.doi, citing.id) AS citing_work_id,
        'openalex', 'formal', current_date
 FROM linked l
 JOIN lake.openalex.work_references wr ON wr.referenced_work_id = l.oa_id
