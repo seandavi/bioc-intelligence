@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import type { VisualizationSpec } from "vega-embed";
 import { useQuery } from "../db/useQuery";
 import { VegaChart } from "../components/VegaChart";
-import { CATEGORY, TITLE_COLOR } from "../components/charts";
+import { CATEGORY, METRIC, TITLE_COLOR } from "../components/charts";
 import { ERA_START, eraBand, monthlyIpsSpec, Sparkline, type MonthlyRow } from "../components/Sparkline";
 import { Chip, INPUT_CLASS, REPO_LABEL, RepoBadge, SrLabel } from "../components/ui";
 import { Link, parseList, setParams, useRoute } from "../lib/router";
@@ -12,8 +12,13 @@ interface YearRow {
   year: number;
   repo: string;
   methodology_era: string;
-  distinct_ips: number;
   n_packages_with_downloads: number;
+}
+
+interface InstallerRow {
+  year: number;
+  methodology_era: string;
+  installer_distinct_ips: number;
 }
 
 interface TrendRow {
@@ -25,8 +30,18 @@ interface TrendRow {
 }
 
 const YEARLY_SQL = `
-  SELECT year, repo, methodology_era, distinct_ips, n_packages_with_downloads
+  SELECT year, repo, methodology_era, n_packages_with_downloads
   FROM 'mart_ecosystem_downloads_yearly.parquet' ORDER BY year, repo`;
+
+// Project-level installs per year: the installer package's monthly distinct IPs, summed. Only
+// calendar years with all 12 months loaded, so the first partial year and the current one drop.
+const INSTALLER_SQL = `
+  WITH full_years AS (
+    SELECT year FROM 'mart_installer_downloads_monthly.parquet' GROUP BY year HAVING count(*) = 12)
+  SELECT year, methodology_era, sum(installer_distinct_ips)::BIGINT AS installer_distinct_ips
+  FROM 'mart_installer_downloads_monthly.parquet'
+  WHERE year IN (SELECT year FROM full_years)
+  GROUP BY year, methodology_era ORDER BY year`;
 
 const NAMES_SQL = `SELECT package_name FROM 'mart_package_directory.parquet' ORDER BY package_name`;
 
@@ -58,6 +73,35 @@ const monthlySql = (names: string[]) => `
 // the months it covers so they fall either side of the band.
 const yearX = (year: number, era: string) =>
   year === 2015 ? (era === "modern" ? "2015-11-15" : "2015-05-01") : `${year}-07-01`;
+
+function installerSpec(rows: InstallerRow[]): VisualizationSpec {
+  const values = rows.map((r) => ({ ...r, x: yearX(r.year, r.methodology_era) }));
+  const title = "Machines installing Bioconductor per year";
+  return {
+    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+    title: { text: title, fontSize: 13, color: TITLE_COLOR },
+    width: "container",
+    height: 260,
+    layer: [
+      eraBand(`${Math.min(...rows.map((r) => r.year))}-01-01`),
+      {
+        data: { values },
+        mark: { type: "line", point: true, color: METRIC.usage },
+        encoding: {
+          x: { field: "x", type: "temporal", axis: { title: null, format: "%Y" } },
+          y: { field: "installer_distinct_ips", type: "quantitative", axis: { title: null } },
+          detail: { field: "methodology_era" },
+          tooltip: [
+            { field: "year", type: "ordinal", title: "Year" },
+            { field: "methodology_era", type: "nominal", title: "Era" },
+            { field: "installer_distinct_ips", type: "quantitative", format: ",", title: "Distinct IPs (installer)" },
+          ],
+        },
+      },
+    ],
+    config: { view: { stroke: null } },
+  } as VisualizationSpec;
+}
 
 function yearlySpec(rows: YearRow[], field: keyof YearRow, title: string): VisualizationSpec {
   const values = rows.map((r) => ({
@@ -99,12 +143,13 @@ function yearlySpec(rows: YearRow[], field: keyof YearRow, title: string): Visua
   } as VisualizationSpec;
 }
 
-function EraCaption() {
+function EraCaption({ fullYears = false }: { fullYears?: boolean }) {
   return (
     <p className="mt-2 text-xs text-neutral-300">
       The shaded region is before {ERA_START.slice(0, 7)}, when download-log collection changed;
       counts either side are not comparable, so lines break at the boundary. 2015 appears as two
-      partial-year points (Jan–Sep, Oct–Dec), and the latest year is year-to-date.
+      partial-year points (Jan–Sep, Oct–Dec)
+      {fullYears ? "; only complete calendar years are shown." : ", and the latest year is year-to-date."}
     </p>
   );
 }
@@ -265,16 +310,19 @@ function Trending() {
 
 export function Trends() {
   const yearly = useQuery<YearRow>(YEARLY_SQL);
-  const specs = useMemo(
+  const installer = useQuery<InstallerRow>(INSTALLER_SQL);
+  const installsSpec = useMemo(
+    () => (installer.data?.length ? installerSpec(installer.data) : null),
+    [installer.data],
+  );
+  const packagesSpec = useMemo(
     () =>
       yearly.data?.length
-        ? [
-            yearlySpec(yearly.data, "distinct_ips", "Distinct IPs per year"),
-            yearlySpec(yearly.data, "n_packages_with_downloads", "Packages with downloads per year"),
-          ]
-        : [],
+        ? yearlySpec(yearly.data, "n_packages_with_downloads", "Packages with downloads per year")
+        : null,
     [yearly.data],
   );
+  const error = yearly.error ?? installer.error;
 
   return (
     <div>
@@ -285,20 +333,30 @@ export function Trends() {
         </p>
       </div>
 
-      {yearly.error ? (
+      {error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-          Failed to load yearly downloads: {yearly.error.message}
+          Failed to load yearly downloads: {error.message}
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {specs.map((s, i) => (
-            <div key={i} className="rounded-xl border border-primary-75 bg-white p-4">
-              <VegaChart spec={s} className="w-full" />
-              <EraCaption />
-            </div>
-          ))}
+          <div className="rounded-xl border border-primary-75 bg-white p-4">
+            {installsSpec && <VegaChart spec={installsSpec} className="w-full" />}
+            <p className="mt-2 text-xs text-neutral-300">
+              Distinct IPs downloading the installer package each month, summed over the year:
+              BiocVersion (installed by BiocManager) since 2018, BiocInstaller before it.
+            </p>
+            <EraCaption fullYears />
+          </div>
+          <div className="rounded-xl border border-primary-75 bg-white p-4">
+            {packagesSpec && <VegaChart spec={packagesSpec} className="w-full" />}
+            <EraCaption />
+          </div>
         </div>
       )}
+      <p className="mt-3 text-xs text-neutral-300">
+        The series below are per package. Distinct IPs do not add up across packages: one machine
+        installing 50 packages counts once in each.
+      </p>
 
       <Compare />
       <Trending />

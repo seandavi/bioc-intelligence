@@ -14,6 +14,7 @@ export const MARTS = [
   "mart_work.parquet",
   "mart_package_work.parquet",
   "mart_ecosystem_downloads_yearly.parquet",
+  "mart_installer_downloads_monthly.parquet",
   "mart_person.parquet",
   "mart_package_person.parquet",
   "mart_package_funder.parquet",

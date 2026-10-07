@@ -31,7 +31,8 @@ column names stable once published (mirror the lake's versioned-view discipline)
 | `mart_release_history` | bioc_release × repo | `release_date`, `n_packages`, `n_new`, `n_removed` | per-repo VIEWS diffs; new = first release listing the package in that repo, removed = in the repo's previous loaded release and not this one; needs `extract-packages --all-releases` once, else current release only |
 | `mart_package_person` | package × repo × person | `person_id`, name, `orcid`, `roles[]`, `is_maintainer`, `source` | people credited on a package; no emails (not stored upstream) |
 | `mart_person` | person | name, `orcid`, `n_packages`, `n_maintained`, `n_authored`, `package_names[]` | "developers with more than N packages"; identity = ORCID, else normalized name |
-| `mart_ecosystem_downloads_yearly` | year × repo × methodology_era | `distinct_ips`, `downloads`, `n_packages_with_downloads` | latest `_snapshot` per repo; eras stay separate rows (2015 has one per era) — draw the boundary, don't join across it; `distinct_ips` is summed over months |
+| `mart_ecosystem_downloads_yearly` | year × repo × methodology_era | `sum_package_distinct_ips`, `downloads`, `n_packages_with_downloads` | latest `_snapshot` per repo; eras stay separate rows (2015 has one per era) — draw the boundary, don't join across it; `sum_package_distinct_ips` is summed over packages and months, a volume measure, never a count of users |
+| `mart_installer_downloads_monthly` | year × month | `methodology_era`, `installer_package`, `installer_distinct_ips`, `installer_downloads` | project-level installs (#80): BiocInstaller 2011–2018, BiocVersion since; the larger in overlap months. Drives the By the Numbers usage card and the Trends/Growth yearly installs charts |
 | `mart_package_downloads_monthly` | package × repo × year × month | `distinct_ips`, `downloads`, `methodology_era` | sorted by `package_name, repo, year, month` and written with 2,048-row row groups so DuckDB-WASM can range-read one package; filter on `package_name` |
 | `mart_package_funder` | package × repo × funder | `funder_id`, `funder_name`, `curated`, `declared_name`, `grant_number`, `grant_id` | declared (`fnd`) funders only; `grant_id` set when the NIH grant matches a RePORTER core project in `dim_grant`; `curated=false` rows are as-written (many are PIs, not agencies) |
 | `mart_work_institution` | work × institution × author position | `ror`, `name`, `country_code`, `country`, `author_position`, `is_corresponding`, `latitude`, `longitude` | OpenAlex authorship affiliations of linked works (`dim_work` rows with an OpenAlex id); best-effort; `author_position='last'` gives senior-author countries; join `mart_package_work` on `work_id` for a package's institutions |
@@ -73,7 +74,8 @@ the column set up front so the table just gains columns, not a redesign.
 ### 5. Ecosystem growth (metaresearch) — **partial now**
 Built (#44): packages per release by repo from `mart_release_history` (2002 onwards,
 with 1.0–1.7 drawn dashed from `n_software_announced`), new vs removed per release, and
-distinct IPs per year from `mart_ecosystem_downloads_yearly` with the era band.
+machines installing Bioconductor per year (installer proxy, `mart_installer_downloads_monthly`)
+with the era band.
 `net_downloads`, deprecated-per-release and maintainers-per-release are still open
 (VIEWS history keeps only package and version per release).
 

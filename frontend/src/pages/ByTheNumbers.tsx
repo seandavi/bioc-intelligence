@@ -35,11 +35,16 @@ const BIOCVIEWS_COUNT = `
   SELECT count(DISTINCT term)::INT AS n
   FROM (SELECT unnest(biocviews) AS term FROM 'mart_package_directory.parquet')`;
 
-const IMPACT = `
-  SELECT
-    (sum(total_distinct_ips))::BIGINT AS total_ips,
-    (sum(distinct_ips_trailing_12mo))::BIGINT AS ips_12mo
-  FROM 'mart_package_impact.parquet'`;
+// Project-level installs: the installer package's distinct IPs (BiocInstaller, then BiocVersion),
+// never a sum over packages. The mart holds complete months only, so the newest 12 rows are the
+// last 12 complete months.
+const INSTALLS = `
+  WITH m AS (
+    SELECT installer_distinct_ips AS ips, row_number() OVER (ORDER BY year DESC, month DESC) AS rn
+    FROM 'mart_installer_downloads_monthly.parquet')
+  SELECT (sum(ips) FILTER (WHERE rn <= 12))::BIGINT AS ips_12mo,
+         (sum(ips) FILTER (WHERE rn BETWEEN 13 AND 24))::BIGINT AS ips_prior_12mo
+  FROM m`;
 
 const GRANTS = `
   SELECT count(*)::INT AS n_grants, count(DISTINCT agency)::INT AS n_institutes
@@ -97,9 +102,9 @@ interface Eco {
   n_maintainers: number;
   current_release: string;
 }
-interface Impact {
-  total_ips: number;
-  ips_12mo: number;
+interface Installs {
+  ips_12mo: number | null;
+  ips_prior_12mo: number | null;
 }
 interface Works {
   median_rcr: number | null;
@@ -203,7 +208,7 @@ export function ByTheNumbers() {
   const byRepo = useQuery<Record<string, unknown>>(BY_REPO);
   const bvTop = useQuery<Record<string, unknown>>(BIOCVIEWS_TOP);
   const bvCount = useQuery<{ n: number }>(BIOCVIEWS_COUNT);
-  const impact = useQuery<Impact>(IMPACT);
+  const installs = useQuery<Installs>(INSTALLS);
   const grants = useQuery<{ n_grants: number; n_institutes: number }>(GRANTS);
   const works = useQuery<Works>(WORKS);
   const byYear = useQuery<Record<string, unknown>>(CITES_BY_YEAR);
@@ -272,10 +277,13 @@ export function ByTheNumbers() {
   }
 
   const e = eco.data[0];
-  const im = impact.data?.[0];
+  const inst = installs.data?.[0];
   const g = grants.data?.[0];
   const w = works.data?.[0];
-  const downloadsLive = (im?.total_ips ?? 0) > 0;
+  const downloadsLive = (inst?.ips_12mo ?? 0) > 0;
+  const installsChange = inst?.ips_prior_12mo
+    ? `${inst.ips_12mo! >= inst.ips_prior_12mo ? "+" : ""}${fmtFloat((100 * inst.ips_12mo!) / inst.ips_prior_12mo - 100)}%`
+    : null;
   const rcrSpread =
     w?.p10 != null && w?.p90 != null ? `p10–p90 ${fmtFloat(w.p10)}–${fmtFloat(w.p90)}` : null;
   const rcrSub = [w ? `n = ${fmtInt(w.n_with_rcr)} of ${fmtInt(w.n_works)}` : null, rcrSpread]
@@ -340,11 +348,15 @@ export function ByTheNumbers() {
           <StatCard label="NIH grants" metric="grants" value={fmtInt(g?.n_grants)} sub={`${g?.n_institutes ?? 0} NIH Institutes/Centers`}
             info="Distinct NIH awards whose publications are described by a Bioconductor package (linked via NIH RePORTER)." />
           <StatCard
-            label="Distinct-IP downloads" metric="usage"
-            value={downloadsLive ? fmtCompact(im?.ips_12mo) : "pending"}
-            sub={downloadsLive ? `last 12 months · ${fmtCompact(im?.total_ips)} all-time` : "stats endpoint offline"}
+            label="Machines installing Bioconductor" metric="usage"
+            value={downloadsLive ? fmtCompact(inst?.ips_12mo) : "pending"}
+            sub={
+              downloadsLive
+                ? `last 12 months · ${fmtCompact(inst?.ips_prior_12mo)} the 12 before${installsChange ? ` (${installsChange})` : ""}`
+                : "stats endpoint offline"
+            }
             pending={!downloadsLive}
-            info="Sum of monthly distinct downloading IPs — the usage proxy (less gameable than raw downloads). An IP active in several months counts once per month. Collection methodology changed in Oct 2015, so all-time totals span two eras."
+            info="Distinct IPs downloading the installer package, summed over the last 12 complete months: BiocVersion (installed by BiocManager on every setup) since 2018, BiocInstaller before it. This is Bioconductor's convention for project-level installs; summing distinct IPs over packages would count one machine once per package. An address active in several months counts once per month."
           />
         </div>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
