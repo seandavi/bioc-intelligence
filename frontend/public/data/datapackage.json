@@ -71,7 +71,7 @@
       "path": "https://impact.bioconductor.org/data/mart_grant_attribution.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 48378,
+      "bytes": 54709,
       "description": "One row per NIH grant acknowledged by a paper linked to a package.",
       "schema": {
         "fields": [
@@ -175,7 +175,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_dependency.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 177603,
+      "bytes": 177803,
       "description": "Forward dependency edges (Depends/Imports/Suggests/LinkingTo; R excluded).",
       "schema": {
         "fields": [
@@ -207,7 +207,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_directory.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 991216,
+      "bytes": 992533,
       "description": "One row per package: DESCRIPTION metadata from the repository VIEWS file.",
       "schema": {
         "fields": [
@@ -356,7 +356,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_funder.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 10461,
+      "bytes": 10450,
       "description": "One row per package x declared funder (the Authors@R fnd role).",
       "schema": {
         "fields": [
@@ -408,7 +408,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_impact.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 146901,
+      "bytes": 149244,
       "description": "One row per package: downloads, linked publications, citations, RCR and grants.",
       "schema": {
         "fields": [
@@ -537,7 +537,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_work.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 132507,
+      "bytes": 135902,
       "description": "One row per package x linked publication, with the link's provenance.",
       "schema": {
         "fields": [
@@ -785,7 +785,7 @@
       "path": "https://impact.bioconductor.org/data/mart_work.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 116167,
+      "bytes": 119085,
       "description": "One row per linked publication, with iCite metrics, citations and patent citations.",
       "schema": {
         "fields": [
@@ -872,7 +872,7 @@
       "path": "https://impact.bioconductor.org/data/mart_work_institution.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 121138,
+      "bytes": 124127,
       "description": "One row per linked publication x author institution x author position.",
       "schema": {
         "fields": [
