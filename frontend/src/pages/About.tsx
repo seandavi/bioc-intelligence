@@ -87,8 +87,14 @@ export function About({ manifest }: { manifest: Manifest | null }) {
           <a className="text-primary-400 underline" href="https://seandavis.net">
             Sean Davis
           </a>{" "}
-          (University of Colorado Anschutz) and funded in part by the NIH. The definitions on this
-          page are documented and open to correction.
+          (University of Colorado Anschutz) and funded in part by the NIH. The code is at{" "}
+          <a
+            className="text-primary-400 underline"
+            href="https://github.com/seandavi/bioc-intelligence"
+          >
+            github.com/seandavi/bioc-intelligence
+          </a>
+          . The definitions on this page are documented and open to correction.
         </p>
       </Section>
 
