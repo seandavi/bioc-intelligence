@@ -1,12 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// GitHub Pages serves a project site under /<repo>/. Use that as the base in
-// production so asset + mart URLs resolve; dev stays at root.
-export default defineConfig(({ command }) => ({
-  base: command === "build" ? "/bioc-intelligence/" : "/",
+// The site is served from the root of the custom domain impact.bioconductor.org
+// (frontend/public/CNAME), so the base is "/" for dev and production alike.
+export default defineConfig({
+  base: "/",
   plugins: [react()],
   // duckdb-wasm ships large prebuilt wasm; don't let Vite try to inline/optimize it.
   optimizeDeps: { exclude: ["@duckdb/duckdb-wasm"] },
   worker: { format: "es" },
-}));
+});

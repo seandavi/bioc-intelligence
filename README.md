@@ -4,7 +4,9 @@
 ecosystem** — packages, downloads, publications, citations, and grant linkages, computed into a
 zero-backend dashboard you can explore in your browser.
 
-### 🔗 [**Live dashboard → seandavi.github.io/bioc-intelligence**](https://seandavi.github.io/bioc-intelligence/)
+### 🔗 [**Live dashboard → impact.bioconductor.org**](https://impact.bioconductor.org/)
+
+The old URL, https://seandavi.github.io/bioc-intelligence/, redirects here.
 
 [![CI](https://github.com/seandavi/bioc-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/seandavi/bioc-intelligence/actions/workflows/ci.yml)
 [![Frontend CI](https://github.com/seandavi/bioc-intelligence/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/seandavi/bioc-intelligence/actions/workflows/frontend-ci.yml)
@@ -161,15 +163,15 @@ journalctl --user -u biocintel-refresh.service         # what happened
 
 ## Programmatic access
 
-Every mart is public Parquet under `https://seandavi.github.io/bioc-intelligence/data/`, and
+Every mart is public Parquet under `https://impact.bioconductor.org/data/`, and
 `bioc-intelligence.duckdb` there is a small views-only database over them: one view per mart
 (`package_impact`, `package_work`, ...), views with the methodology built in
 (`package_pubs_confident`, `downloads_modern_era`, `ecosystem_yearly`, `package_impact_ranked`), and
 a comment on every view and column. It opens in DuckDB 1.0 or newer. The site's
-[Data page](https://seandavi.github.io/bioc-intelligence/#/data) has the dictionary and CSV exports.
+[Data page](https://impact.bioconductor.org/#/data) has the dictionary and CSV exports.
 
 ```sql
-ATTACH 'https://seandavi.github.io/bioc-intelligence/data/bioc-intelligence.duckdb' AS bi (READ_ONLY);
+ATTACH 'https://impact.bioconductor.org/data/bioc-intelligence.duckdb' AS bi (READ_ONLY);
 SELECT * FROM bi.package_impact WHERE package_name = 'limma';
 SELECT view_name, comment FROM duckdb_views() WHERE database_name = 'bi';
 ```
@@ -179,7 +181,7 @@ library(duckdb)
 con <- dbConnect(duckdb())
 dbExecute(con, "INSTALL httpfs")
 dbExecute(con, "LOAD httpfs")
-dbExecute(con, "ATTACH 'https://seandavi.github.io/bioc-intelligence/data/bioc-intelligence.duckdb' AS bi (READ_ONLY)")
+dbExecute(con, "ATTACH 'https://impact.bioconductor.org/data/bioc-intelligence.duckdb' AS bi (READ_ONLY)")
 dbGetQuery(con, "SELECT * FROM bi.package_impact WHERE package_name = 'limma'")
 ```
 
@@ -187,7 +189,7 @@ dbGetQuery(con, "SELECT * FROM bi.package_impact WHERE package_name = 'limma'")
 import duckdb
 con = duckdb.connect()
 con.sql("INSTALL httpfs; LOAD httpfs")
-con.sql("ATTACH 'https://seandavi.github.io/bioc-intelligence/data/bioc-intelligence.duckdb' AS bi (READ_ONLY)")
+con.sql("ATTACH 'https://impact.bioconductor.org/data/bioc-intelligence.duckdb' AS bi (READ_ONLY)")
 con.sql("SELECT * FROM bi.package_impact WHERE package_name = 'limma'").show()
 ```
 
@@ -201,7 +203,7 @@ files.
 For no SQL at all, the same marts are rendered to static JSON at each deploy (rebuilt from the
 current snapshot, not versioned):
 
-- `https://seandavi.github.io/bioc-intelligence/api/v1/index.json`: snapshot date, counts, URL
+- `https://impact.bioconductor.org/api/v1/index.json`: snapshot date, counts, URL
   patterns, every package name and grant id.
 - `.../api/v1/package/<name>.json`: directory and impact row, linked papers, grants, people,
   funders, `confident_citations` (doi + CITATION links) and the last 36 months of downloads.
@@ -210,8 +212,8 @@ current snapshot, not versioned):
   badges (average monthly distinct IPs over the trailing 12 months; confident citations):
 
 ```markdown
-![usage](https://img.shields.io/endpoint?url=https://seandavi.github.io/bioc-intelligence/badges/limma/downloads.json)
-![citations](https://img.shields.io/endpoint?url=https://seandavi.github.io/bioc-intelligence/badges/limma/citations.json)
+![usage](https://img.shields.io/endpoint?url=https://impact.bioconductor.org/badges/limma/downloads.json)
+![citations](https://img.shields.io/endpoint?url=https://impact.bioconductor.org/badges/limma/citations.json)
 ```
 
 ## Repository layout

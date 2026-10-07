@@ -8,7 +8,7 @@ set -euo pipefail
 # Bump when a new release ships.
 RELEASE="${RELEASE:-3.23}"
 # Where the published marts live; the views file bakes these URLs in.
-PUBLIC_BASE="${PUBLIC_BASE:-https://seandavi.github.io/bioc-intelligence/data}"
+PUBLIC_BASE="${PUBLIC_BASE:-https://impact.bioconductor.org/data}"
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 src="$here/../../data/marts"

@@ -4,7 +4,7 @@ Possible future work, grouped by theme. This is a backlog of ideas, not a commit
 are not yet run at scale; _(new)_ items are not started.
 
 Current state: pipeline (packages → CITATION/DOI linkage → lake enrichment → Parquet marts) and a
-6-view zero-backend dashboard, live at <https://seandavi.github.io/bioc-intelligence/> and refreshed
+6-view zero-backend dashboard, live at <https://impact.bioconductor.org/> and refreshed
 monthly by a systemd timer on onclappc02. See
 [`bioc-intelligence-spec.md`](bioc-intelligence-spec.md) for the design and the README for caveats.
 
