@@ -1,5 +1,11 @@
 # Improvements: UI/UX and content review
 
+> **Status (2026-10-07).** Implemented via tracking issue
+> [#30](https://github.com/seandavi/bioc-intelligence/issues/30): every child issue except the
+> cited-by scan (#49, running) and the open architecture discussion (#50) landed in PRs #55 to #77
+> and the marts were refreshed. The findings below describe the site as it was on 2026-10-06; use
+> them as the record of why things changed, and the tracking issue for what changed.
+
 Review of the live dashboard (<https://seandavi.github.io/bioc-intelligence/>, snapshot
 2026-10-01) carried out 2026-10-06. Everything below was checked against the deployed site
 (screenshots at 1280 px and 390 px, DOM and performance probes), the bundled marts (identical to
