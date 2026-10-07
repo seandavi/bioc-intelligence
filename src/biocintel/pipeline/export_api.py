@@ -50,7 +50,7 @@ def _src(marts: Path, mart: str) -> str:
 
 
 def _write(path: Path, obj) -> int:
-    data = json.dumps(obj, separators=(",", ":"), sort_keys=True).encode()
+    data = json.dumps(obj, separators=(",", ":"), sort_keys=True, default=str).encode()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
     return len(data)
