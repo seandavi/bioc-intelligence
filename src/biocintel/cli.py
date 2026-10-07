@@ -7,6 +7,7 @@ import argparse
 from . import db
 from .pipeline import (
     build_marts,
+    export_api,
     extract_citation_files,
     extract_downloads,
     extract_packages,
@@ -48,6 +49,10 @@ def main(argv: list[str] | None = None) -> None:
 
     p_marts = sub.add_parser("build-marts", help="derive mart_* and export Parquet")
     build_marts.add_arguments(p_marts)
+    p_api = sub.add_parser(
+        "export-api", help="Parquet marts -> static JSON API + shields.io badges"
+    )
+    export_api.add_arguments(p_api)
     sub.add_parser("all", help="extract-packages + extract-downloads + build-marts")
 
     args = ap.parse_args(argv)
@@ -66,6 +71,8 @@ def main(argv: list[str] | None = None) -> None:
         extract_citation_files.run(args.repos, args.packages, args.releases)
     elif args.cmd == "build-marts":
         build_marts.run_from_args(args)
+    elif args.cmd == "export-api":
+        export_api.run(args.marts, args.out, args.badges)
     elif args.cmd == "all":
         extract_packages.run(None, devel=False)
         extract_downloads.run(None)

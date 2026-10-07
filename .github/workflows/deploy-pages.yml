@@ -3,7 +3,10 @@ name: Deploy Pages
 on:
   push:
     branches: [main]
-    paths: ["frontend/**", ".github/workflows/deploy-pages.yml"]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/deploy-pages.yml"
+      - "src/biocintel/pipeline/export_api.py"
   workflow_dispatch:
 
 permissions:
@@ -31,6 +34,12 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run build
+      # Static JSON API + shields.io badges from the same marts, into dist only (#52).
+      - uses: astral-sh/setup-uv@v5
+      - run: >-
+          uv run biocintel export-api --marts frontend/public/data
+          --out frontend/dist/api --badges frontend/dist/badges
+        working-directory: .
       - uses: actions/upload-pages-artifact@v3
         with:
           path: frontend/dist

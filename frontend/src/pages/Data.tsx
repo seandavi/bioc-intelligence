@@ -5,7 +5,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { query, type Manifest } from "../db/duckdb";
 import { downloadCsv } from "../lib/csv";
 
-const PUBLIC_BASE = "https://seandavi.github.io/bioc-intelligence/data";
+const SITE = "https://seandavi.github.io/bioc-intelligence";
+const PUBLIC_BASE = `${SITE}/data`;
 const VIEWS_URL = `${PUBLIC_BASE}/bioc-intelligence.duckdb`;
 
 interface Field {
@@ -180,6 +181,32 @@ con.sql("SELECT * FROM bi.package_impact WHERE package_name = 'limma'").show()`}
           <A href={`${PUBLIC_BASE}/datapackage.json`}>datapackage.json</A> (Frictionless Data
           Package).
         </p>
+      </Section>
+
+      <Section id="json" title="JSON and badges">
+        <p>
+          The same marts are rendered to static JSON at each deploy, for use without SQL. Start
+          at <A href={`${SITE}/api/v1/index.json`}>{`${SITE}/api/v1/index.json`}</A> (snapshot,
+          counts, every package name and grant id).
+        </p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            <code>{`${SITE}/api/v1/package/<name>.json`}</code>: directory and impact, papers,
+            grants, people, funders, <code>confident_citations</code> (doi and CITATION links) and
+            the last 36 months of downloads.
+          </li>
+          <li>
+            <code>{`${SITE}/api/v1/grant/<core project number>.json`}</code>: the grant and its
+            packages with their impact.
+          </li>
+          <li>
+            <code>{`${SITE}/badges/<name>/downloads.json`}</code> and{" "}
+            <code>citations.json</code>: shields.io endpoint badges (average monthly distinct IPs
+            over the trailing 12 months; confident citations).
+          </li>
+        </ul>
+        <Code label="Badge in a README (Markdown)">{`![usage](https://img.shields.io/endpoint?url=${SITE}/badges/limma/downloads.json)
+![citations](https://img.shields.io/endpoint?url=${SITE}/badges/limma/citations.json)`}</Code>
       </Section>
 
       <Section id="dictionary" title="Data dictionary">

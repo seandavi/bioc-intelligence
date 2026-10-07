@@ -95,6 +95,17 @@ file: one view per mart, the honest-default views `package_pubs_confident`,
 and column definitions live. Add a definition there when a mart gains a column:
 the test fails, and so would the refresh.
 
+### 8. Static JSON API and badges — **now** (#52)
+`biocintel export-api` (`pipeline/export_api.py`) runs in `deploy-pages.yml` after
+`npm run build` and writes into `dist` only, never git: `api/v1/index.json`,
+`api/v1/package/<name>.json` (directory, impact, papers, grants, people, funders,
+`confident_citations` under the doi + citation_file rule, dependencies once
+`mart_package_dependency` is published, last 36 months of downloads),
+`api/v1/grant/<id>.json`, and shields.io badges `badges/<name>/{downloads,citations}.json`.
+Inputs are the same `public/data` marts the SPA reads. About 12k files and 18 MB at 3,810
+packages, rendered in about 2 s. The Data page lists the URL patterns. Follow-ups: dated
+snapshot directories (`data/<YYYY-MM-DD>/`) and a Zenodo DOI per snapshot.
+
 ## Cross-cutting ideas worth capturing
 
 - **Confidence-aware linkage UI.** `bridge_package_pub` carries `match_method` +
