@@ -83,9 +83,12 @@ export function About({ manifest }: { manifest: Manifest | null }) {
           ))}
         </ul>
         <p>
-          impact.bioconductor.org is maintained by Sean Davis (University of Colorado Anschutz) and
-          funded in part by the NIH; it is independent of the Bioconductor core team, and the
-          definitions on this page are open to correction.
+          impact.bioconductor.org is maintained by{" "}
+          <a className="text-primary-400 underline" href="https://seandavis.net">
+            Sean Davis
+          </a>{" "}
+          (University of Colorado Anschutz) and funded in part by the NIH. The definitions on this
+          page are documented and open to correction.
         </p>
       </Section>
 

@@ -123,6 +123,10 @@ export default function App() {
         >
           Source on GitHub
         </a>
+        {" · Maintained by "}
+        <a className="text-primary-400 underline" href="https://seandavis.net">
+          Sean Davis
+        </a>
       </footer>
     </div>
   );
