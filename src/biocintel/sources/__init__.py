@@ -21,7 +21,9 @@ from . import icite, openalex, reporter
 
 _DDL = (
     openalex.WORKS_DDL, openalex.AUTHORSHIPS_DDL, openalex.INSTITUTIONS_DDL,
-    openalex.REFERENCES_DDL, icite.METADATA_DDL, reporter.PUBLINK_DDL, reporter.PROJECTS_DDL,
+    openalex.WORKS_FUNDERS_DDL,
+    openalex.WORKS_AWARDS_DDL, openalex.FUNDERS_DDL, openalex.REFERENCES_DDL,
+    icite.METADATA_DDL, reporter.PUBLINK_DDL, reporter.PROJECTS_DDL,
 )
 
 # link_works' DOI join key, computed with the same expression its SQL uses.
@@ -97,6 +99,14 @@ def _load_works(con: duckdb.DuckDBPyConnection, records: Iterable[dict]) -> None
         con, "openalex.works_authorships",
         [row for r in works.values() for row in openalex.authorship_rows(r)],
     )
+    _insert(
+        con, "openalex.works_funders",
+        [row for r in works.values() for row in openalex.funder_rows(r)],
+    )
+    _insert(
+        con, "openalex.works_awards",
+        [row for r in works.values() for row in openalex.award_rows(r)],
+    )
 
 
 def _fill_for_link(con: duckdb.DuckDBPyConnection, title_fallback: bool) -> None:
@@ -115,8 +125,8 @@ def _fill_for_enrich(con: duckdb.DuckDBPyConnection, steps: tuple[str, ...]) -> 
     bridge_dois = [i for i in bridge_ids if not i.isdigit()]
     _load_works(con, openalex.fetch_by("works", "pmid", bridge_pmids, openalex.WORK_FIELDS))
     _load_works(con, openalex.fetch_by("works", "doi", bridge_dois, openalex.WORK_FIELDS))
-    if "institutions" in steps:
-        # The step reads every dim_work row, not just this run's linked works.
+    if "institutions" in steps or "funders" in steps:
+        # These steps read every dim_work row, not just this run's linked works.
         _load_works(con, openalex.fetch_by(
             "works", "openalex_id",
             _column(con, "SELECT DISTINCT openalex_id FROM bi.dim_work "
@@ -148,6 +158,22 @@ def _fill_for_enrich(con: duckdb.DuckDBPyConnection, steps: tuple[str, ...]) -> 
             # leaving last run's dim_institution intact.
             con.execute("DROP TABLE lake.openalex.institutions")
             print(f"  openalex: institutions unavailable ({exc})")
+
+    if "funders" in steps:
+        fids = _column(
+            con, "SELECT funder_id FROM lake.openalex.works_funders UNION "
+                 "SELECT funder_id FROM lake.openalex.works_awards WHERE funder_id IS NOT NULL",
+        )
+        try:
+            _insert(con, "openalex.funders", [
+                openalex.funder_row(r) for r in openalex.fetch_by(
+                    "funders", "openalex_id", fids, openalex.FUNDER_FIELDS)
+            ])
+            print(f"  openalex: {_count(con, 'openalex.funders')} funders")
+        except RuntimeError as exc:
+            # Best-effort, as institutions: the step skips and last run's rows stay.
+            con.execute("DROP TABLE lake.openalex.funders")
+            print(f"  openalex: funders unavailable ({exc})")
 
     if "grants" in steps:
         links = reporter.publinks(pmids)

@@ -69,7 +69,9 @@
      ],
      "is_corresponding": false
     }
-   ]
+   ],
+   "funders": [],
+   "awards": []
   },
   {
    "id": "https://openalex.org/W4392168904",
@@ -121,6 +123,34 @@
       }
      ],
      "is_corresponding": false
+    }
+   ],
+   "funders": [
+    {
+     "id": "https://openalex.org/F4320337348",
+     "display_name": "National Human Genome Research Institute",
+     "ror": "https://ror.org/00baak391"
+    },
+    {
+     "id": "https://openalex.org/F4320315474",
+     "display_name": "Chan Zuckerberg Initiative",
+     "ror": null
+    }
+   ],
+   "awards": [
+    {
+     "id": "https://openalex.org/G111",
+     "display_name": null,
+     "funder_award_id": "5F31HG012892-02",
+     "funder_id": "https://openalex.org/F4320337348",
+     "funder_display_name": "National Human Genome Research Institute"
+    },
+    {
+     "id": "https://openalex.org/G222",
+     "display_name": null,
+     "funder_award_id": "F31HG012892",
+     "funder_id": "https://openalex.org/F4320337348",
+     "funder_display_name": "National Human Genome Research Institute"
     }
    ]
   }

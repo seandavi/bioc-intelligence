@@ -58,6 +58,9 @@ _DIM_WORK_COLUMNS = [
     ("n_patent_citations", "INTEGER"),
 ]
 
+# dim_funder columns added with the OpenAlex funder enrichment (#85).
+_DIM_FUNDER_COLUMNS = [("ror", "VARCHAR"), ("crossref_id", "VARCHAR"), ("country_code", "VARCHAR")]
+
 
 def connect(
     path: Path | str | None = None, *, read_only: bool = False
@@ -80,3 +83,5 @@ def init_schema(con: duckdb.DuckDBPyConnection) -> None:
         con.execute(f"ALTER TABLE dim_grant ADD COLUMN IF NOT EXISTS {name} {typ}")
     for name, typ in _DIM_WORK_COLUMNS:
         con.execute(f"ALTER TABLE dim_work ADD COLUMN IF NOT EXISTS {name} {typ}")
+    for name, typ in _DIM_FUNDER_COLUMNS:
+        con.execute(f"ALTER TABLE dim_funder ADD COLUMN IF NOT EXISTS {name} {typ}")

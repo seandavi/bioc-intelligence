@@ -64,6 +64,13 @@ CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_fro
 - `institutions` (default) — `openalex.works_authorships` + `openalex.institutions` for every
   `dim_work` row with an OpenAlex id → `dim_institution` + `bridge_work_institution` (rebuilt each
   run; seconds under `api`, ~12 min of authorships scan under `lake`). Best-effort: a failure is logged and the run continues.
+- `funders` (default) — `openalex.works_funders`/`works_awards` (+ `openalex.funders`) of every
+  `dim_work` row with an OpenAlex id → `bridge_work_funder` (work, funder, award; NULL award
+  for a funder listed without one) and the OpenAlex funders merged into `dim_funder` (`ror`,
+  `crossref_id`, `country_code`; #85). `dim_funder.funder_id` is the OpenAlex id (`F…`); each
+  `funder_aliases.yaml` entry carries an `openalex:` id so Authors@R funders resolve to the
+  same row. `mart_work_funder` matches NIH awards to `dim_grant` via the core project number
+  inside `funder_award_id`. Best-effort; lake-side `works_funders`/`works_awards` are empty.
 - `grants` (default) — `reporter.publink`/`projects` → `dim_grant` + `bridge_work_grant`.
 - `citations` (**opt-in**) — `openalex.work_references` cited-by → `fact_citation_edge`. Under
   `api`, one `filter=cites:W…` cursor page per 200 citing works (~3k calls for ~580k edges): set

@@ -33,7 +33,7 @@ _NIH_GRANT_RE = re.compile(
 
 @dataclass(frozen=True)
 class Funder:
-    funder_id: str
+    funder_id: str  # OpenAlex funder id ('F…') when known, else alias id or 'name:<normalized>'
     name: str
     curated: bool  # True when the alias table recognised it
     grant_number: str | None = None  # NIH core project number, if one was written
@@ -41,9 +41,13 @@ class Funder:
 
 @cache
 def _aliases() -> tuple[tuple[str, str, tuple[re.Pattern[str], ...]], ...]:
+    """(funder_id, name, patterns): the OpenAlex id when the entry has one, else its ``id``."""
     text = resources.files("biocintel").joinpath("funder_aliases.yaml").read_text(encoding="utf-8")
     return tuple(
-        (e["id"], e["name"], tuple(re.compile(p, re.IGNORECASE) for p in e["match"]))
+        (
+            e.get("openalex", e["id"]), e["name"],
+            tuple(re.compile(p, re.IGNORECASE) for p in e["match"]),
+        )
         for e in yaml.safe_load(text)
     )
 

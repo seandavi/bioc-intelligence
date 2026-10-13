@@ -17,25 +17,25 @@ from biocintel.funders import nih_grant_numbers, resolve_funder
 )
 def test_czi_variants_share_one_funder(declared):
     f = resolve_funder(declared)
-    assert (f.funder_id, f.curated) == ("czi", True)
+    assert (f.funder_id, f.curated) == ("F4320315474", True)
 
 
 @pytest.mark.parametrize(
     ("declared", "funder_id"),
     [
-        ("NIH NHGRI", "nih-nhgri"),
-        ("NHGRI", "nih-nhgri"),
-        ("NHGRI AnVIL Project", "nih-nhgri"),
-        ("NIH NCI ITCR U24CA180996", "nih-nci"),  # institute beats generic NIH
-        ("National Cancer Institute", "nih-nci"),
-        ("National Institutes of Health", "nih"),
-        ("NIH R01CA276286", "nih"),
-        ("RADIANT EU FP7", "eu-fp7"),
-        ("European Research Council", "erc"),
-        ("European Union HORIZON-MSCA-2021 project", "eu-horizon-europe"),
-        ("DFG SFB 1366, Project B04", "dfg"),
-        ("Ministerio de Ciencia e Innovación Spain", "mciu-spain"),
-        ("MCIU/AEI", "mciu-spain"),
+        ("NIH NHGRI", "F4320337348"),
+        ("NHGRI", "F4320337348"),
+        ("NHGRI AnVIL Project", "F4320337348"),
+        ("NIH NCI ITCR U24CA180996", "F4320337351"),  # institute beats generic NIH
+        ("National Cancer Institute", "F4320337351"),
+        ("National Institutes of Health", "F4320332161"),
+        ("NIH R01CA276286", "F4320332161"),
+        ("RADIANT EU FP7", "F4320333065"),
+        ("European Research Council", "F4320334678"),
+        ("European Union HORIZON-MSCA-2021 project", "F4320334322"),
+        ("DFG SFB 1366, Project B04", "F4320320879"),
+        ("Ministerio de Ciencia e Innovación Spain", "F4320315062"),
+        ("MCIU/AEI", "F4320315062"),
     ],
 )
 def test_alias_table(declared, funder_id):
@@ -48,14 +48,14 @@ def test_unknown_funder_is_kept_not_dropped_and_merges_by_normalized_name():
     b = resolve_funder("burroughs  wellcome fund")
     assert not a.curated
     assert a.funder_id == b.funder_id == "name:burroughs wellcome fund"
-    assert resolve_funder("Wellcome Trust").funder_id == "wellcome"
+    assert resolve_funder("Wellcome Trust").funder_id == "F4320311904"
 
 
 def test_comment_text_is_consulted_only_when_the_name_is_unknown():
     note = ("Funded by the DFG – Deutsche Forschungsgemeinschaft",)
-    assert resolve_funder("SFB1588", note).funder_id == "dfg"
+    assert resolve_funder("SFB1588", note).funder_id == "F4320320879"
     # the name already identifies NCI; a note mentioning NSF must not override it
-    assert resolve_funder("NCI", ("not NSF",)).funder_id == "nih-nci"
+    assert resolve_funder("NCI", ("not NSF",)).funder_id == "F4320337351"
 
 
 @pytest.mark.parametrize(

@@ -20,10 +20,12 @@ API = "https://api.openalex.org"
 BATCH = 50  # OR-values per filter
 PER_PAGE = 200  # the API maximum
 WORK_FIELDS = (
-    "id,doi,ids,title,publication_year,primary_location,cited_by_count,is_retracted,authorships"
+    "id,doi,ids,title,publication_year,primary_location,cited_by_count,is_retracted,authorships,"
+    "funders,awards"
 )
 CITING_FIELDS = "id,doi,ids"
 INSTITUTION_FIELDS = "id,ror,display_name,country_code,type,geo"
+FUNDER_FIELDS = "id,display_name,ids,country_code"
 
 WORKS_DDL = """
 CREATE TABLE lake.openalex.works (
@@ -40,6 +42,17 @@ INSTITUTIONS_DDL = """
 CREATE TABLE lake.openalex.institutions (
     id VARCHAR, ror VARCHAR, display_name VARCHAR, country_code VARCHAR, type VARCHAR,
     city VARCHAR, region VARCHAR, country VARCHAR, latitude DOUBLE, longitude DOUBLE)
+"""
+WORKS_FUNDERS_DDL = """
+CREATE TABLE lake.openalex.works_funders (work_id VARCHAR, funder_id VARCHAR, ror VARCHAR)
+"""
+WORKS_AWARDS_DDL = """
+CREATE TABLE lake.openalex.works_awards (
+    work_id VARCHAR, award_id VARCHAR, funder_award_id VARCHAR, funder_id VARCHAR)
+"""
+FUNDERS_DDL = """
+CREATE TABLE lake.openalex.funders (
+    id VARCHAR, display_name VARCHAR, ror VARCHAR, crossref_id VARCHAR, country_code VARCHAR)
 """
 REFERENCES_DDL = """
 CREATE TABLE lake.openalex.work_references (work_id VARCHAR, referenced_work_id VARCHAR)
@@ -149,4 +162,29 @@ def institution_row(r: dict) -> tuple:
         bare_id(r["id"]), r.get("ror"), r.get("display_name"), r.get("country_code"),
         r.get("type"), geo.get("city"), geo.get("region"), geo.get("country"),
         geo.get("latitude"), geo.get("longitude"),
+    )
+
+
+def funder_rows(r: dict) -> list[tuple]:
+    """``openalex.works_funders`` rows: (work_id, funder_id, ror), one per funder."""
+    return [
+        (bare_id(r["id"]), bare_id(f["id"]), f.get("ror"))
+        for f in r.get("funders") or [] if f.get("id")
+    ]
+
+
+def award_rows(r: dict) -> list[tuple]:
+    """``openalex.works_awards`` rows: (work_id, award_id, funder_award_id, funder_id)."""
+    return [
+        (bare_id(r["id"]), bare_id(a["id"]), a.get("funder_award_id"), bare_id(a.get("funder_id")))
+        for a in r.get("awards") or [] if a.get("id")
+    ]
+
+
+def funder_row(r: dict) -> tuple:
+    """``openalex.funders`` row: (id, display_name, ror, crossref_id, country_code)."""
+    ids = r.get("ids") or {}
+    return (
+        bare_id(r["id"]), r.get("display_name"), ids.get("ror"), ids.get("crossref"),
+        r.get("country_code"),
     )

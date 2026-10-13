@@ -190,6 +190,35 @@ def _fetch(package: str) -> str | None:
         return None  # not in the org (e.g. most data-annotation packages)
 
 
+def _write(con, out: Assembled) -> None:
+    """Replace the people/funder tables with ``out`` in one transaction."""
+    tables = [  # (table, rows) — child tables first so a failed insert leaves no orphans
+        ("bridge_package_funder", out.package_funders, 6),
+        ("dim_funder", out.funders, 3),
+        ("bridge_package_person", out.package_persons, 5),
+        ("dim_person", out.persons, 4),
+    ]
+    con.execute("BEGIN")
+    for table, _, _ in tables:
+        # dim_funder also holds the funders OpenAlex lists on works (enrich_from_lake,
+        # #85): keep those, and the registry ids already on a declared one.
+        keep = (
+            " WHERE funder_id NOT IN (SELECT funder_id FROM bridge_work_funder)"
+            if table == "dim_funder" else ""
+        )
+        con.execute(f"DELETE FROM {table}{keep}")
+    for table, data, width in reversed(tables):
+        marks = ", ".join("?" * width)
+        cols = upsert = ""
+        if table == "dim_funder":
+            cols = " (funder_id, name, curated)"
+            upsert = (" ON CONFLICT (funder_id) DO UPDATE SET name = excluded.name, "
+                      "curated = excluded.curated")
+        if data:
+            con.executemany(f"INSERT INTO {table}{cols} VALUES ({marks}){upsert}", data)
+    con.execute("COMMIT")
+
+
 def run() -> dict[str, int]:
     """Rebuild the people/funder tables from every package in ``dim_package``."""
     con = db.connect()
@@ -216,19 +245,7 @@ def run() -> dict[str, int]:
             packages.append(PackageAuthors(name, repo, people, source, maintainer))
 
         out = assemble(packages)
-        tables = [  # (table, rows) — child tables first so a failed insert leaves no orphans
-            ("bridge_package_funder", out.package_funders, 6),
-            ("dim_funder", out.funders, 3),
-            ("bridge_package_person", out.package_persons, 5),
-            ("dim_person", out.persons, 4),
-        ]
-        con.execute("BEGIN")
-        for table, _, _ in tables:
-            con.execute(f"DELETE FROM {table}")
-        for table, data, width in reversed(tables):
-            marks = ", ".join("?" * width)
-            con.executemany(f"INSERT INTO {table} VALUES ({marks})", data)
-        con.execute("COMMIT")
+        _write(con, out)
 
         by_source = Counter(p.source for p in packages)
         n_orcid = con.execute(

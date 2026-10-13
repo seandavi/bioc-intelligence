@@ -183,6 +183,8 @@ def api_store(monkeypatch, tmp_path):
         calls.append(filt)
         if q.path == "/institutions":
             return (FIXTURES / "openalex_institutions.json").read_text()
+        if q.path == "/funders":
+            return (FIXTURES / "openalex_funders.json").read_text()
         if filt.startswith("cites:"):
             if filt == "cites:W4392168904":
                 return (FIXTURES / "openalex_cites.json").read_text()
@@ -240,8 +242,8 @@ def test_enrich_all_steps_from_api(api_store):
     con.close()
 
     counts = enrich_from_lake.run(enrich_from_lake.ALL_STEPS, source="api")
-    assert counts == {"dim_work": 2, "dim_institution": 6, "bridge_work_grant": 2,
-                      "fact_citation_edge": 3}
+    assert counts == {"dim_work": 2, "dim_institution": 6, "bridge_work_funder": 3,
+                      "bridge_work_grant": 2, "fact_citation_edge": 3}
     assert "openalex_id:W999" in calls
     assert {"cites:W2146512944", "cites:W4392168904"} <= set(calls)
 
@@ -261,6 +263,19 @@ def test_enrich_all_steps_from_api(api_store):
         "LOO, CHRISTIAN ETHAN (contact)",
     )
     assert grants["R35GM146978"] == ("GM", None, None, None, None)  # publink, no project row
+    # funders/awards (#85): the funder-only CZI row has no award; NHGRI carries two award ids
+    assert sorted(con.execute(
+        "SELECT work_id, funder_id, award_id, funder_award_id, source FROM bridge_work_funder"
+    ).fetchall(), key=str) == [
+        ("38407446", "F4320315474", None, None, "openalex"),
+        ("38407446", "F4320337348", "G111", "5F31HG012892-02", "openalex"),
+        ("38407446", "F4320337348", "G222", "F31HG012892", "openalex"),
+    ]
+    assert con.execute(
+        "SELECT name, ror, crossref_id, country_code, curated FROM dim_funder "
+        "WHERE funder_id = 'F4320337348'"
+    ).fetchall() == [("National Human Genome Research Institute", "https://ror.org/00baak391",
+                      "100000051", "US", False)]
     assert sorted(con.execute(
         "SELECT cited_work_id, citing_work_id FROM fact_citation_edge").fetchall()) == [
         ("38407446", "38365920"), ("38407446", "38798987"), ("38407446", "40966651"),
@@ -317,3 +332,21 @@ def test_institutions_outage_skips_only_that_step(api_store, monkeypatch):
     con = lake.db.connect(lake.DB_PATH)
     assert con.execute("SELECT ror, name FROM dim_institution").fetchall() == [
         ("https://ror.org/x", "kept")]
+
+
+def test_funders_outage_skips_only_that_step(api_store, monkeypatch):
+    """Funders are best-effort, like institutions: a /funders failure keeps last run's
+    dim_funder and the other steps still land."""
+    con, _ = api_store
+    _seed_bridge(con)
+    con.close()
+    real = openalex.get_text
+
+    def flaky(url, **kw):
+        if urlparse(url).path == "/funders":
+            raise http.HttpError(url, 500)
+        return real(url, **kw)
+
+    monkeypatch.setattr(openalex, "get_text", flaky)
+    counts = enrich_from_lake.run(("works", "funders"), source="api")
+    assert "bridge_work_funder" not in counts and counts["dim_work"] == 2

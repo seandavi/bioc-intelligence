@@ -125,7 +125,7 @@ Phase-2 enrichment calls the OpenAlex, iCite and RePORTER APIs (no credentials; 
 
 ```bash
 uv run python -m biocintel.pipeline.link_works
-uv run python -m biocintel.pipeline.enrich_from_lake          # works, institutions, grants
+uv run python -m biocintel.pipeline.enrich_from_lake          # works, institutions, funders, grants
 ```
 
 `--source lake` reads cdsci-lake instead and adds patent counts (needs its client + credentials):

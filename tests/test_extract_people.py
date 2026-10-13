@@ -31,9 +31,10 @@ def test_deseq2_people_roles_and_funders():
     roles = {pid: r for _, _, pid, r, _ in out.package_persons}
     assert roles["orcid:0000-0001-8401-0545"] == ["aut", "cre"]
     assert roles["name:simon anders"] == ["aut", "ctb"]
-    assert sorted(f[2] for f in out.package_funders) == ["czi", "eu-fp7", "nih-nhgri"]
+    assert sorted(f[2] for f in out.package_funders) == [
+        "F4320315474", "F4320333065", "F4320337348"]
     # funders are organisations, not people
-    assert not any("czi" in pid or "nhgri" in pid for pid in by_pid)
+    assert not any("F4320315474" in pid or "nhgri" in pid for pid in by_pid)
 
 
 def test_no_email_anywhere_in_output():
@@ -85,7 +86,7 @@ def test_funder_with_orcid_is_both_funder_and_person_but_org_is_only_funder():
     out = assemble([_pkg("x", desc)])
     assert [p[0] for p in out.persons] == ["orcid:0000-0003-1111-2222"]
     funders = {(f[2], f[4]) for f in out.package_funders}
-    assert funders == {("name:lab head", None), ("nih-nci", "U24CA289073")}
+    assert funders == {("name:lab head", None), ("F4320337351", "U24CA289073")}
 
 
 def test_maintainer_from_views_when_no_cre_role():
@@ -129,3 +130,32 @@ def test_declared_counts_ignore_orcid_inherited_from_other_packages():
     out = assemble([a, b])
     assert out.counts["packages_declaring_orcid"] == 1  # b inherits the id but did not declare it
     assert out.counts["packages_declaring_fnd"] == 1
+
+
+def test_rerun_keeps_openalex_funders_and_registry_ids(tmp_path, monkeypatch):
+    """dim_funder is shared with enrich_from_lake (#85): extract_people re-declares curated
+    names but neither drops funders listed on works nor the ror/crossref/country they hold."""
+    from biocintel import db
+    from biocintel.pipeline import extract_people
+
+    monkeypatch.setattr(extract_people, "get_text", lambda url, **_: "")
+    con = db.connect(tmp_path / "bi.duckdb")
+    db.init_schema(con)
+    con.execute(
+        "INSERT INTO dim_funder VALUES ('F4320315474','CZI (openalex)',false,'https://ror.org/r',"
+        "'100014989','US'), ('Fstale','Gone',true,NULL,NULL,NULL), ('Fwork','Only on works',false,"
+        "NULL,NULL,NULL)"
+    )
+    con.execute("INSERT INTO bridge_work_funder VALUES ('1','Fwork',NULL,NULL,'openalex')")
+    con.execute("INSERT INTO bridge_work_funder VALUES ('1','F4320315474',NULL,NULL,'openalex')")
+    con.close()
+    # reuse the module's own SQL path with an assembled result
+    out = extract_people.assemble([])
+    out.funders.append(("F4320315474", "Chan Zuckerberg Initiative", True))
+    con = db.connect(tmp_path / "bi.duckdb")
+    extract_people._write(con, out)
+    rows = {r[0]: r[1:] for r in con.execute("SELECT * FROM dim_funder").fetchall()}
+    assert rows == {
+        "F4320315474": ("Chan Zuckerberg Initiative", True, "https://ror.org/r", "100014989", "US"),
+        "Fwork": ("Only on works", False, None, None, None),
+    }

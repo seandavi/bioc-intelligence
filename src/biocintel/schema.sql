@@ -161,9 +161,21 @@ CREATE TABLE IF NOT EXISTS bridge_package_person (
 );
 
 CREATE TABLE IF NOT EXISTS dim_funder (
-    funder_id  VARCHAR PRIMARY KEY,       -- alias-table id (e.g. 'czi') or 'name:<normalized>'
+    funder_id  VARCHAR PRIMARY KEY,       -- OpenAlex funder id ('F…'); else alias id or 'name:<normalized>'
     name       VARCHAR NOT NULL,
-    curated    BOOLEAN NOT NULL           -- true when funder_aliases.yaml recognised it
+    curated    BOOLEAN NOT NULL,          -- true when funder_aliases.yaml recognised it
+    ror          VARCHAR,                 -- from the OpenAlex funders endpoint (#85)
+    crossref_id  VARCHAR,                 -- Crossref Funder Registry id (10.13039/<id>)
+    country_code VARCHAR
+);
+
+-- Funders (and awards) OpenAlex lists on linked works (#85).
+CREATE TABLE IF NOT EXISTS bridge_work_funder (
+    work_id          VARCHAR NOT NULL,
+    funder_id        VARCHAR NOT NULL,    -- dim_funder.funder_id
+    award_id         VARCHAR,             -- OpenAlex award id ('G…'); null when the work lists no award
+    funder_award_id  VARCHAR,             -- the funder's own award number (NIH: matches dim_grant by core number)
+    source           VARCHAR NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS bridge_package_funder (

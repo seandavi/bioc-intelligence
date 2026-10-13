@@ -302,6 +302,18 @@ JOIN dim_funder f USING (funder_id)
 LEFT JOIN dim_grant g ON g.grant_id = bf.grant_number
 ORDER BY bf.package_name, bf.repo, f.name;
 
+-- Funders (and awards) OpenAlex lists on each linked work (#85). grant_id is set for NIH
+-- awards: the core project number inside funder_award_id (5T32CA009337-33 -> T32CA009337)
+-- matched to dim_grant, which carries the RePORTER detail.
+CREATE OR REPLACE TABLE mart_work_funder AS
+SELECT bw.work_id, bw.funder_id, f.name AS funder_name, f.ror, f.crossref_id, f.country_code,
+       bw.award_id, bw.funder_award_id, g.grant_id
+FROM bridge_work_funder bw
+JOIN dim_funder f USING (funder_id)
+LEFT JOIN dim_grant g ON g.grant_id = regexp_extract(
+    upper(bw.funder_award_id), '([A-Z][A-Z0-9][0-9][A-Z]{2}[0-9]{6})', 1)
+ORDER BY bw.work_id, f.name, bw.funder_award_id;
+
 -- Institutions per linked work (one row per work × institution × author position);
 -- filter author_position = 'last' for senior-author countries.
 CREATE OR REPLACE TABLE mart_work_institution AS
@@ -342,6 +354,7 @@ _MARTS = [
     "mart_installer_downloads_monthly",
     "mart_package_downloads_monthly",
     "mart_work_institution",
+    "mart_work_funder",
 ]
 
 # Small row groups let DuckDB-WASM range-read one package from the sorted monthly mart.
@@ -535,6 +548,21 @@ DEFINITIONS: dict[str, dict] = {
             "declared_name": "Funder name as written in Authors@R.",
             "grant_number": "Grant number as declared, when present.",
             "grant_id": "NIH core project number when the declared grant matches RePORTER.",
+        },
+    },
+    "mart_work_funder": {
+        "description": "One row per linked publication x funder x award, from OpenAlex.",
+        "columns": {
+            "work_id": _WORK["work_id"],
+            "funder_id": "OpenAlex funder id (F...); the same id as mart_package_funder for "
+                         "funders in the curated alias list.",
+            "funder_name": "Funder name.",
+            "ror": "ROR identifier of the funder, when known.",
+            "crossref_id": "Crossref Funder Registry id (10.13039/<id>), when known.",
+            "country_code": "ISO country code of the funder.",
+            "award_id": "OpenAlex award id (G...); null when no award is listed.",
+            "funder_award_id": "The funder's own award number as OpenAlex records it.",
+            "grant_id": "NIH core project number when the award matches RePORTER (dim_grant).",
         },
     },
     "mart_package_dependency": {
