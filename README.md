@@ -107,7 +107,7 @@ design and [`docs/frontend-spec.md`](docs/frontend-spec.md) for the UI.
 ### Pipeline (Python, [uv](https://docs.astral.sh/uv/))
 
 ```bash
-uv venv && uv pip install -e '.[dev]'
+uv sync                               # venv + package + dev tools, from uv.lock
 
 uv run biocintel init-db              # create the DuckDB store + schema
 uv run biocintel extract-packages     # VIEWS → dim_package(_version), all 4 repos

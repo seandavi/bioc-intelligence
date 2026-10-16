@@ -20,9 +20,7 @@ jobs:
           enable-cache: true
 
       - name: Install
-        run: |
-          uv venv --python 3.11
-          uv pip install -e '.[dev]'
+        run: uv sync --locked --python 3.11
 
       - name: Lint
         run: uv run ruff check src tests

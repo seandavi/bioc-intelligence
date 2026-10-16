@@ -21,7 +21,7 @@ The site is served from the custom domain https://impact.bioconductor.org (GitHu
 Python project managed with `uv` (Python ≥3.11). Deps: `duckdb`, `httpx`, `pyyaml`.
 
 ```bash
-uv venv && uv pip install -e '.[dev]'   # setup
+uv sync                                  # setup (venv + dev group, from uv.lock)
 
 uv run biocintel init-db                 # create DuckDB store + schema
 uv run biocintel extract-packages        # VIEWS -> dim_package(_version), all 4 repos (~25s live)
