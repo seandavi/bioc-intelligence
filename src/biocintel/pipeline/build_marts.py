@@ -359,6 +359,22 @@ SELECT * FROM (
     WHERE f.funder_id NOT IN (SELECT funder_id FROM dim_funder_region)
 )
 ORDER BY funder_id, grouping;
+
+-- Citing-work reach per package (#92), latest snapshot. One row per package x dimension x key;
+-- the total row's n_citing is the denominator. Join key to mart_region_group.country_code
+-- (country rows) or mart_funder_region.funder_id (funder rows) to filter, never to sum.
+CREATE OR REPLACE TABLE mart_package_reach AS
+WITH r AS (
+    SELECT * FROM fact_package_reach
+    QUALIFY _snapshot = MAX(_snapshot) OVER ()
+)
+SELECT r.package_name, r.repo, r.dimension, r.key, r.key_name, r.n_citing,
+       t.n_citing                         AS n_citing_total,
+       r.n_citing / NULLIF(t.n_citing, 0) AS share_of_citing,
+       r._snapshot
+FROM r
+JOIN r t ON t.package_name = r.package_name AND t.repo = r.repo AND t.dimension = 'total'
+ORDER BY r.package_name, r.repo, r.dimension, r.n_citing DESC, r.key NULLS LAST;
 """
 
 _MARTS = [
@@ -380,10 +396,11 @@ _MARTS = [
     "mart_work_funder",
     "mart_region_group",
     "mart_funder_region",
+    "mart_package_reach",
 ]
 
 # Small row groups let DuckDB-WASM range-read one package from the sorted monthly mart.
-_ROW_GROUP_SIZE = {"mart_package_downloads_monthly": 2048}
+_ROW_GROUP_SIZE = {"mart_package_downloads_monthly": 2048, "mart_package_reach": 2048}
 
 
 def run() -> dict[str, int]:
@@ -653,6 +670,39 @@ DEFINITIONS: dict[str, dict] = {
             "grouping": _GROUPING,
             "basis": "country (from the funder's OpenAlex country_code) or curated "
                      "(hand-mapped in regions.yaml).",
+        },
+    },
+    "mart_package_reach": {
+        "description": "One row per package x dimension (total, country, funder) x key: works "
+                       "citing the package's confident primary papers (match_method doi or "
+                       "citation_file), counted by OpenAlex at the latest snapshot. n_citing "
+                       "counts distinct citing works across all of those papers (one OR'd "
+                       "query), so a "
+                       "work citing two of them counts once. Values are not additive: not across "
+                       "packages (a work citing two packages counts for each) and not across keys "
+                       "(a work counts once for every author country and every funder), so adding "
+                       "countries into a region over-counts. Join key to mart_region_group or "
+                       "mart_funder_region to filter rows, and read each key on its own. "
+                       "Funder rows are the 200 largest funders only, so they do not add up to "
+                       "the total even before overlap.",
+        "columns": {
+            **_PKG,
+            "dimension": "total (one row: all distinct citing works), country (a country of any "
+                         "author on the citing work, OpenAlex authorships.countries) or funder (a "
+                         "funder OpenAlex lists on the citing work; the 200 largest only).",
+            "key": "ISO 3166-1 alpha-2 country code (joins mart_region_group.country_code) or "
+                   "OpenAlex funder id F... (joins mart_funder_region.funder_id). NULL on the "
+                   "total row, and on the row counting citing works with no known author country "
+                   "or no listed funder: NULL means unknown, not elsewhere.",
+            "key_name": "Country or funder name as OpenAlex displays it; NULL when key is NULL.",
+            "n_citing": "Distinct works citing any of the package's confident primary papers that "
+                        "have this key (total row: all of them). Not additive across packages or "
+                        "keys.",
+            "n_citing_total": "The package's total: distinct citing works, the denominator of "
+                              "share_of_citing.",
+            "share_of_citing": "n_citing / n_citing_total, 0-1; NULL when nothing cites the "
+                               "package. Shares across keys add up to more than 1.",
+            "_snapshot": "Date the counts were fetched from OpenAlex.",
         },
     },
     "mart_package_dependency": {
