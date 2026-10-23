@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS dim_award (
     end_date         DATE,
     amount           DOUBLE,               -- in `currency`; never summed
     currency         VARCHAR,
-    amount_usd       DOUBLE,               -- OpenAlex's daily-rate conversion
+    amount_usd       DOUBLE,               -- OpenAlex's USD conversion, usually at the start-date rate; not inflation-adjusted
     award_doi        VARCHAR,              -- bare lower-case, e.g. '10.3030/777483' (CORDIS)
     provenance       VARCHAR,              -- OpenAlex source of the record; NULL when /awards lacks it
     is_stub          BOOLEAN NOT NULL      -- no record beyond a publication's acknowledgement

@@ -325,12 +325,14 @@ ORDER BY bw.work_id, f.name, bw.funder_award_id;
 
 -- Award detail per award credited on a linked work (#90): one row per award; join
 -- mart_work_funder on award_id for the works. NIH detail stays in RePORTER (grant_id there).
+-- Filtered to the bridge: after an /awards outage dim_award is last run's (#104).
 CREATE OR REPLACE TABLE mart_award AS
 SELECT a.award_id, a.funder_id, f.name AS funder_name, a.funder_award_id, a.title, a.scheme,
        a.start_date, a.end_date, a.amount, a.currency, a.amount_usd, a.award_doi,
        a.provenance, a.is_stub
 FROM dim_award a
 LEFT JOIN dim_funder f USING (funder_id)
+WHERE a.award_id IN (SELECT award_id FROM bridge_work_funder)
 ORDER BY f.name, a.funder_award_id, a.award_id;
 
 -- Institutions per linked work (one row per work × institution × author position);
@@ -678,7 +680,9 @@ DEFINITIONS: dict[str, dict] = {
                        "award number only. Detail completeness varies by funder, so counts of "
                        "detailed awards measure funder metadata quality, not funding. For NIH "
                        "awards RePORTER is authoritative: follow mart_work_funder.grant_id to "
-                       "mart_grant_attribution.",
+                       "mart_grant_attribution. After an OpenAlex /awards outage the "
+                       "detail is from the previous run, and awards credited since then are "
+                       "missing here.",
         "columns": {
             "award_id": "OpenAlex award id (G...); joins mart_work_funder.award_id.",
             "funder_id": "OpenAlex funder id (F...); joins mart_work_funder and "
@@ -696,8 +700,11 @@ DEFINITIONS: dict[str, dict] = {
                       "award, one year, one share) varies by source. What the grant was "
                       "worth, not what funded the software: never sum.",
             "currency": "ISO 4217 currency code of amount.",
-            "amount_usd": "amount converted to US dollars by OpenAlex at a daily exchange "
-                          "rate. For display only: never sum or compare across countries.",
+            "amount_usd": "amount converted to US dollars by OpenAlex at an exchange rate it "
+                          "picks for that award: usually the rate on the award's start date, "
+                          "else a yearly average (the basis is not stored). Not "
+                          "inflation-adjusted. For display only: never sum, or compare across "
+                          "countries or years.",
             "award_doi": "Award DOI, bare and lower-case (e.g. 10.3030/777483 for CORDIS), "
                          "when the funder registers one.",
             "provenance": "OpenAlex source of the award record: a funder or grant database "
@@ -707,8 +714,8 @@ DEFINITIONS: dict[str, dict] = {
             "is_stub": "True when nothing is known beyond a publication's funding "
                        "acknowledgement: provenance crossref_work_funders, "
                        "europepmc_work_funders, datacite_work_funders or crossref_work.grants, "
-                       "or the award is missing from OpenAlex. Stubs have funder and award "
-                       "number only.",
+                       "the award is missing from OpenAlex, or the record carries no title, "
+                       "dates, amount or DOI. Stubs have funder and award number only.",
         },
     },
     "mart_region_group": {

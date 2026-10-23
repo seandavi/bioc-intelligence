@@ -194,6 +194,10 @@ def test_award_mart_one_row_per_award_with_funder_name():
         "47694.0,NULL,'nih_exporter',false), "
         "('G2','F1','F31CA1',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'crossref_work_funders',true)"
     )
+    con.execute(
+        "INSERT INTO bridge_work_funder VALUES "
+        "('111','F1','G1','5F31CA1-02','openalex'), ('111','F1','G2','F31CA1','openalex')"
+    )
     con.execute(_MART_SQL)
     assert [r[0] for r in con.execute("DESCRIBE mart_award").fetchall()] == [
         "award_id", "funder_id", "funder_name", "funder_award_id", "title", "scheme",
@@ -203,6 +207,27 @@ def test_award_mart_one_row_per_award_with_funder_name():
     rows = con.execute("SELECT award_id, funder_name, title, amount, is_stub FROM mart_award "
                        "ORDER BY award_id").fetchall()
     assert rows == [("G1", "NCI", "A title", 47694.0, False), ("G2", "NCI", None, None, True)]
+
+
+def test_award_mart_drops_awards_no_longer_on_the_bridge():
+    con = db.connect(":memory:")
+    _fixture(con)
+    con.execute("INSERT INTO dim_funder (funder_id, name, curated) VALUES ('F1','NCI',true)")
+    con.execute(
+        "INSERT INTO dim_award (award_id, funder_id, is_stub) VALUES "
+        "('G1','F1',true), ('Gold','F1',true)"
+    )
+    con.execute(
+        "INSERT INTO bridge_work_funder VALUES "
+        "('111','F1','G1','A1','openalex'), ('111','F1','Gnew','A2','openalex'), "
+        "('111','F1',NULL,NULL,'openalex')"
+    )
+    con.execute(_MART_SQL)
+    assert con.execute("SELECT award_id FROM mart_award").fetchall() == [("G1",)]
+    assert con.execute(
+        "SELECT award_id FROM mart_work_funder "
+        "WHERE award_id NOT IN (SELECT award_id FROM mart_award)"
+    ).fetchall() == [("Gnew",)]
 
 
 def test_package_work_keeps_highest_confidence_edge():
