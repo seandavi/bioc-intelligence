@@ -22,7 +22,7 @@ BATCH = 50  # OR-values per filter
 PER_PAGE = 200  # the API maximum
 WORK_FIELDS = (
     "id,doi,ids,title,publication_year,primary_location,cited_by_count,is_retracted,authorships,"
-    "funders,awards"
+    "funders,awards,locations"
 )
 CITING_FIELDS = "id,doi,ids"
 INSTITUTION_FIELDS = "id,ror,display_name,country_code,type,geo"
@@ -134,15 +134,18 @@ def bare_id(url: str | None) -> str | None:
     return url.rsplit("/", 1)[-1] if url else None
 
 
+def bare_doi(url: str | None) -> str | None:
+    return url.replace("https://doi.org/", "").lower() if url else None
+
+
 def work_row(r: dict) -> tuple:
     """``openalex.works`` row: (id, doi, pmid, title, publication_year, source_name,
     cited_by_count, is_retracted)."""
     pmid = _PMID_RE.search((r.get("ids") or {}).get("pmid") or "")
     source = (r.get("primary_location") or {}).get("source") or {}
-    doi = r.get("doi")
     return (
         bare_id(r["id"]),
-        doi.replace("https://doi.org/", "").lower() if doi else None,
+        bare_doi(r.get("doi")),
         int(pmid.group(1)) if pmid else None,
         r.get("title"),
         r.get("publication_year"),
@@ -150,6 +153,13 @@ def work_row(r: dict) -> tuple:
         r.get("cited_by_count"),
         r.get("is_retracted"),
     )
+
+
+def alt_doi_rows(r: dict) -> list[tuple]:
+    """(work_id, doi) per distinct location DOI other than the work's own doi (e.g. the bioRxiv
+    preprint OpenAlex merged into its journal version)."""
+    dois = {bare_doi(loc.get("doi")) for loc in r.get("locations") or []}
+    return [(bare_id(r["id"]), d) for d in sorted(dois - {None, bare_doi(r.get("doi"))})]
 
 
 def authorship_rows(r: dict) -> list[tuple]:

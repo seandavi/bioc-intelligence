@@ -16,7 +16,7 @@ from pathlib import Path
 
 import duckdb
 
-from ..lake import LAKE_ALIAS, LOCAL_ALIAS, ensure_local_store
+from ..lake import LAKE_ALIAS, LOCAL_ALIAS, WORKS_ALT_DOIS_DDL, ensure_local_store
 from . import icite, openalex, reporter
 
 _DDL = (
@@ -45,7 +45,9 @@ WHERE p.title IS NOT NULL AND NOT EXISTS (
 # The works enrich_from_lake's `linked` table will hold (same join as its _LINKED_SQL).
 _LINKED_KEYS_SQL = """
 SELECT DISTINCT w.id, w.pmid FROM lake.openalex.works w
-JOIN bi.bridge_package_pub b ON b.work_id = CAST(w.pmid AS VARCHAR) OR b.work_id = w.doi
+LEFT JOIN works_alt_dois a ON a.work_id = w.id
+JOIN bi.bridge_package_pub b
+  ON b.work_id = CAST(w.pmid AS VARCHAR) OR b.work_id = w.doi OR b.work_id = a.doi
 """
 
 
@@ -66,6 +68,7 @@ def connect_with_sources(
         con.execute(f"CREATE SCHEMA {LAKE_ALIAS}.{schema}")
     for ddl in _DDL:
         con.execute(ddl)
+    con.execute(WORKS_ALT_DOIS_DDL)
     if link:
         _fill_for_link(con, title_fallback)
     steps = tuple(steps)
@@ -107,6 +110,9 @@ def _load_works(con: duckdb.DuckDBPyConnection, records: Iterable[dict]) -> None
         con, "openalex.works_awards",
         [row for r in works.values() for row in openalex.award_rows(r)],
     )
+    rows = [row for r in works.values() for row in openalex.alt_doi_rows(r)]
+    if rows:
+        con.executemany("INSERT INTO works_alt_dois VALUES (?, ?)", rows)
 
 
 def _fill_for_link(con: duckdb.DuckDBPyConnection, title_fallback: bool) -> None:
@@ -125,15 +131,19 @@ def _fill_for_enrich(con: duckdb.DuckDBPyConnection, steps: tuple[str, ...]) -> 
     bridge_dois = [i for i in bridge_ids if not i.isdigit()]
     _load_works(con, openalex.fetch_by("works", "pmid", bridge_pmids, openalex.WORK_FIELDS))
     _load_works(con, openalex.fetch_by("works", "doi", bridge_dois, openalex.WORK_FIELDS))
-    if "institutions" in steps or "funders" in steps:
-        # These steps read every dim_work row, not just this run's linked works.
-        _load_works(con, openalex.fetch_by(
-            "works", "openalex_id",
-            _column(con, "SELECT DISTINCT openalex_id FROM bi.dim_work "
-                         "WHERE openalex_id IS NOT NULL "
-                         "AND openalex_id NOT IN (SELECT id FROM lake.openalex.works)"),
-            openalex.WORK_FIELDS,
-        ))
+    # These steps read every dim_work row; it also finds stored ids that no longer resolve.
+    stored = _column(con, "SELECT DISTINCT openalex_id FROM bi.dim_work "
+                          "WHERE openalex_id IS NOT NULL")
+    _load_works(con, openalex.fetch_by(
+        "works", "openalex_id",
+        _column(con, "SELECT DISTINCT openalex_id FROM bi.dim_work "
+                     "WHERE openalex_id IS NOT NULL "
+                     "AND openalex_id NOT IN (SELECT id FROM lake.openalex.works)"),
+        openalex.WORK_FIELDS,
+    ))
+    stale = sorted(set(stored) - set(_column(con, "SELECT id FROM lake.openalex.works")))
+    print(f"  openalex: {len(stale)} of {len(stored)} stored work ids no longer resolve "
+          f"(merged or deleted upstream)" + (f"; e.g. {', '.join(stale[:5])}" if stale else ""))
     linked = con.execute(_LINKED_KEYS_SQL).fetchall()
     print(f"  openalex: {_count(con, 'openalex.works')} works, {len(linked)} linked")
 

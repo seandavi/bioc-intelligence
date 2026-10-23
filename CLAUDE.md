@@ -87,8 +87,11 @@ skipped. `INSERT OR REPLACE` keeps existing values and new works get NULL. iCite
 (`dois=` is silently ignored), so a bridge DOI that OpenAlex doesn't know cannot resolve through
 the iCite DOI-fallback branch (in the 2026-10 smoke, all 75 works the lake resolved that way
 resolved through live OpenAlex instead).
-Live OpenAlex is newer than the lake's snapshot, so the two sources legitimately differ
-(e.g. preprint DOIs merged into their journal versions).
+Live OpenAlex merges preprints into their journal versions: the preprint's `W…` 404s, and
+its DOI survives only in `locations[].doi`.
+Under `api`, those location DOIs fill a temp `works_alt_dois`. A bridge DOI then links to
+the journal work and is kept in `dim_work.alias_dois`. Each run logs how many stored ids
+no longer resolve. (#95)
 
 Mention mining + judging (spec §6 — mine once, judge later, decoupled):
 

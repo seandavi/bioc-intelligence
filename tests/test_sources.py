@@ -4,6 +4,8 @@ Fixtures under ``fixtures/api`` are real responses recorded 2026-10-07 and trimm
 limma (W2146512944 / PMID 25605792) and sesame's paper (W4392168904 / PMID 38407446).
 ``openalex_awards.json`` was recorded 2026-10-23, with two ids relabelled to the works
 fixture's ``G111``/``G222``.
+``openalex_works_merged.json`` (HiLDA's PeerJ paper, W2970457274, which carries the merged
+bioRxiv preprint 10.1101/577452 in its locations) was recorded 2026-10-23.
 """
 
 import json
@@ -34,6 +36,12 @@ def test_openalex_work_row_matches_lake_formats():
          "Low-input and single-cell methods for Infinium DNA methylation BeadChips", 2024,
          "Nucleic Acids Research", 26, False),
     ]
+
+
+def test_openalex_alt_doi_rows_lists_other_location_dois():
+    merged = _fixture("openalex_works_merged.json")["results"][0]
+    assert openalex.alt_doi_rows(merged) == [("W2970457274", "10.1101/577452")]
+    assert all(openalex.alt_doi_rows(r) == [] for r in _fixture("openalex_works.json")["results"])
 
 
 def test_openalex_authorship_rows_one_per_institution_dropping_missing_ids():
@@ -266,7 +274,7 @@ def test_link_works_from_api(api_store):
     ]
 
 
-def test_enrich_all_steps_from_api(api_store):
+def test_enrich_all_steps_from_api(api_store, capsys):
     con, calls = api_store
     con.execute(
         "INSERT INTO bridge_package_pub (package_name, repo, work_id, role, match_method, "
@@ -280,6 +288,7 @@ def test_enrich_all_steps_from_api(api_store):
     counts = enrich_from_lake.run(enrich_from_lake.ALL_STEPS, source="api")
     assert counts == {"dim_work": 2, "dim_institution": 6, "bridge_work_funder": 3,
                       "dim_award": 2, "bridge_work_grant": 2, "fact_citation_edge": 3}
+    assert "1 of 1 stored work ids no longer resolve" in capsys.readouterr().out
     assert "openalex_id:W999" in calls
     assert "id:https://openalex.org/G111|https://openalex.org/G222" in calls
     assert {"cites:W2146512944", "cites:W4392168904"} <= set(calls)
@@ -330,6 +339,71 @@ def test_enrich_all_steps_from_api(api_store):
     assert con.execute(
         "SELECT count(*) FROM bridge_work_institution WHERE work_id = '38407446'"
     ).fetchone()[0] == 2
+
+
+def _serve_merged_preprint(monkeypatch):
+    """OpenAlex serves HiLDA's journal work for its preprint DOI or PMID, nothing else."""
+    merged = (FIXTURES / "openalex_works_merged.json").read_text()
+
+    def fake_openalex(url, **_kw):
+        filt = parse_qs(urlparse(url).query)["filter"][0]
+        if "10.1101/577452" in filt or "31523512" in filt:
+            return merged
+        return json.dumps({"meta": {"next_cursor": None}, "results": []})
+
+    monkeypatch.setattr(openalex, "get_text", fake_openalex)
+
+
+def test_link_works_links_preprint_doi_merged_into_journal_work(api_store, monkeypatch):
+    con, _ = api_store
+    con.execute(
+        "INSERT INTO dim_package (package_name, repo, source_doi) "
+        "VALUES ('HiLDA', 'bioc', 'https://doi.org/10.1101/577452')"
+    )
+    con.close()
+    _serve_merged_preprint(monkeypatch)
+    assert link_works.run(source="api") == {"doi": 1}
+    con = lake.db.connect(lake.DB_PATH)
+    assert con.execute(
+        "SELECT package_name, work_id, match_method, confidence FROM bridge_package_pub"
+    ).fetchall() == [("HiLDA", "31523512", "doi", 1.0)]
+
+
+def test_enrich_relinks_preprint_doi_merged_into_journal_work(api_store, monkeypatch, capsys):
+    con, _ = api_store
+    con.execute(
+        "INSERT INTO bridge_package_pub (package_name, repo, work_id, role, match_method, "
+        "confidence) VALUES ('HiLDA', 'bioc', '10.1101/577452', 'primary', 'citation_file', 0.9)"
+    )
+    con.execute(
+        "INSERT INTO dim_work (work_id, doi, openalex_id) "
+        "VALUES ('10.1101/577452', '10.1101/577452', 'W2921099115')"
+    )
+    con.execute(
+        "INSERT INTO fact_citation_edge (cited_work_id, citing_work_id, source, mention_type) "
+        "VALUES ('10.1101/577452', '99', 'openalex', 'formal')"
+    )
+    con.execute(
+        "INSERT INTO bridge_work_grant (work_id, grant_id, source) "
+        "VALUES ('10.1101/577452', 'X01', 'reporter')"
+    )
+    con.close()
+    _serve_merged_preprint(monkeypatch)
+
+    enrich_from_lake.run(("works", "grants"), source="api")
+
+    out = capsys.readouterr().out
+    assert "1 of 1 stored work ids no longer resolve" in out and "W2921099115" in out
+    con = lake.db.connect(lake.DB_PATH)
+    assert con.execute(
+        "SELECT work_id, pmid, doi, openalex_id, journal, alias_dois FROM dim_work"
+    ).fetchall() == [("31523512", "31523512", "10.7717/peerj.7557", "W2970457274", "PeerJ",
+                      ["10.1101/577452"])]
+    assert con.execute("SELECT cited_work_id FROM fact_citation_edge").fetchall() == [
+        ("31523512",)]
+    assert con.execute(
+        "SELECT count(*) FROM bridge_work_grant WHERE work_id = '10.1101/577452'"
+    ).fetchone() == (0,)
 
 
 def _seed_bridge(con):
