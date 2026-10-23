@@ -173,6 +173,42 @@ def test_works_rekeys_doi_to_pmid_and_prunes_unlinked():
     ) == [("10.9/gone", "C2"), ("111", "C1"), ("111", "C3")]
 
 
+def test_rekey_leaves_edges_of_works_still_linked():
+    """A work that is still linked keeps its cited-by edges even when another linked
+    work lists its DOI as an alias (#102)."""
+    import duckdb
+
+    from biocintel import db
+
+    con = duckdb.connect()
+    con.execute("ATTACH ':memory:' AS lake")
+    con.execute("ATTACH ':memory:' AS bi")
+    con.execute("USE bi")
+    db.init_schema(con)
+    con.execute(lake.WORKS_ALT_DOIS_DDL)
+    con.execute("INSERT INTO works_alt_dois VALUES ('W2', '10.1/pre')")
+    con.execute(
+        "CREATE TEMP TABLE linked AS SELECT * FROM (VALUES "
+        "('W1', NULL::BIGINT, '10.1/pre', '10.1/pre', 't', 2019, 'bioRxiv', 1::BIGINT, false), "
+        "('W2', 222::BIGINT, '10.1/j', '222', 't', 2020, 'J', 5::BIGINT, false)) "
+        "t(oa_id, pmid, doi, work_id, title, year, journal, cited_by_count, is_retracted)"
+    )
+    con.execute("CREATE SCHEMA lake.icite")
+    con.execute("CREATE TABLE lake.icite.metadata (pmid BIGINT, rcr DOUBLE, "
+                "nih_percentile DOUBLE, apt DOUBLE, is_clinical BOOLEAN, "
+                "citations_per_year DOUBLE)")
+    con.execute("INSERT INTO bi.dim_work (work_id, doi, openalex_id) "
+                "VALUES ('10.1/pre', '10.1/pre', 'W1')")
+    con.execute("INSERT INTO bi.fact_citation_edge (cited_work_id, citing_work_id) "
+                "VALUES ('10.1/pre', 'C1')")
+
+    enrich_from_lake._enrich_works(con, patents=False)
+
+    assert con.execute(
+        "SELECT cited_work_id, citing_work_id FROM bi.fact_citation_edge").fetchall() == [
+        ("10.1/pre", "C1")]
+
+
 def test_linked_keeps_one_work_per_doi():
     """OpenAlex can hold a preprint and its PubMed record as two works sharing one DOI;
     linking both would count the package's paper twice (TSAR)."""

@@ -3,8 +3,8 @@
 Kept simple (the settled decision): a package's DOI (from DESCRIPTION, extracted
 into ``dim_package.source_doi``) is joined to ``lake.openalex.works.doi`` — the
 authoritative, high-confidence path. The DOI may be the work's own (``doi``) or an alias, a
-preprint merged into its journal version (``doi_alias``, #95/#102). An optional title fallback exact-matches
-remaining packages by normalized title; it is **off by default and low-yield**
+preprint merged into its journal version (``doi_alias``, #95/#102). An optional title fallback
+exact-matches remaining packages by normalized title; it is **off by default and low-yield**
 because a package's DESCRIPTION Title is rarely its manuscript's title (that needs
 CITATION-derived titles, deferred). Every edge carries ``match_method`` +
 ``confidence`` so the dashboard can filter to DOI-only for grant reporting.
@@ -82,7 +82,8 @@ def run(*, title_fallback: bool = False, source: str = "api") -> dict[str, int]:
     try:
         # Idempotent: clear automated rows (keep any 'manual' overrides), then rebuild.
         con.execute(
-            "DELETE FROM bi.bridge_package_pub WHERE match_method IN ('doi', 'doi_alias', 'title_search')"
+            "DELETE FROM bi.bridge_package_pub "
+            "WHERE match_method IN ('doi', 'doi_alias', 'title_search')"
         )
         counts["doi"] = _rowcount(con, _DOI_SQL)
         print(f"  doi matches: {counts['doi']}")
