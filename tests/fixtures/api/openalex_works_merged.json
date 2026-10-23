@@ -1,0 +1,16 @@
+{"meta": {"count": 1, "next_cursor": null},
+ "results": [{
+   "id": "https://openalex.org/W2970457274",
+   "doi": "https://doi.org/10.7717/peerj.7557",
+   "ids": {"openalex": "https://openalex.org/W2970457274", "doi": "https://doi.org/10.7717/peerj.7557",
+           "pmid": "https://pubmed.ncbi.nlm.nih.gov/31523512"},
+   "title": "HiLDA: a statistical approach to investigate differences in mutational signatures",
+   "publication_year": 2019,
+   "primary_location": {"source": {"display_name": "PeerJ"}},
+   "cited_by_count": 6, "is_retracted": false,
+   "authorships": [], "funders": [], "awards": [],
+   "locations": [
+     {"id": "doi:10.7717/peerj.7557", "doi": "https://doi.org/10.7717/peerj.7557", "version": "publishedVersion"},
+     {"id": "doi:10.1101/577452", "doi": "https://doi.org/10.1101/577452", "version": "acceptedVersion"},
+     {"id": "pmid:31523512", "doi": null, "version": "publishedVersion"}]}],
+ "group_by": []}

@@ -53,6 +53,7 @@ pw AS (  -- package → its linked works, canonicalized to dim_work's work_id so
     FROM bridge_package_pub b
     LEFT JOIN dim_work w
       ON b.work_id = w.work_id OR b.work_id = w.doi OR b.work_id = w.pmid
+      OR list_contains(w.alias_dois, b.work_id)
 ),
 pubs AS (
     SELECT package_name, repo, COUNT(DISTINCT work_id) AS n_primary_pubs
@@ -210,6 +211,7 @@ WITH pkg_work AS (  -- canonicalize package→work ids (same DOI/PMID reconcilia
     FROM bridge_package_pub b
     LEFT JOIN dim_work w
       ON b.work_id = w.work_id OR b.work_id = w.doi OR b.work_id = w.pmid
+      OR list_contains(w.alias_dois, b.work_id)
 ),
 gp AS (
     SELECT g.grant_id, pk.package_name, g.work_id
@@ -237,7 +239,7 @@ ORDER BY n_packages_supported DESC, gp.grant_id;
 CREATE OR REPLACE TABLE mart_work AS
 SELECT work_id, pmid, doi, title, year, journal, icite_rcr, citation_count,
        nih_percentile, apt, is_clinical, citations_per_year,
-       journal ILIKE '%rxiv%' AS is_preprint, is_retracted, n_patent_citations
+       journal ILIKE '%rxiv%' AS is_preprint, is_retracted, n_patent_citations, alias_dois
 FROM dim_work;
 
 -- Package → linked works (one row per package × work), for the explorer's papers list.
@@ -254,6 +256,7 @@ SELECT b.package_name, b.repo,
 FROM bridge_package_pub b
 LEFT JOIN dim_work w
   ON b.work_id = w.work_id OR b.work_id = w.doi OR b.work_id = w.pmid
+      OR list_contains(w.alias_dois, b.work_id)
 QUALIFY row_number() OVER (
     PARTITION BY b.package_name, b.repo, COALESCE(w.work_id, b.work_id)
     ORDER BY b.confidence DESC NULLS LAST, b.match_method
@@ -501,7 +504,12 @@ DEFINITIONS: dict[str, dict] = {
     "mart_work": {
         "description": "One row per linked publication, with iCite metrics, citations "
                        "and patent citations.",
-        "columns": _WORK,
+        "columns": {
+            **_WORK,
+            "alias_dois": "Other DOIs OpenAlex lists for this work, e.g. the bioRxiv preprint a "
+                          "package's CITATION cites after OpenAlex merged it into the journal "
+                          "version; empty when none. doi is the version the metrics describe.",
+        },
     },
     "mart_package_work": {
         "description": "One row per package x linked publication, with the link's provenance.",

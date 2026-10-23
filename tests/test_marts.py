@@ -212,6 +212,37 @@ def test_package_work_keeps_highest_confidence_edge():
     ]
 
 
+def test_package_work_reconciles_alias_doi():
+    """A bridge row keyed on a preprint DOI that OpenAlex merged into the journal work lands
+    on that work (#95), alongside the PMID-keyed row, as one work."""
+    con = db.connect(":memory:")
+    _fixture(con)
+    con.execute("INSERT INTO dim_package (package_name, repo) VALUES ('HiLDA','bioc')")
+    con.execute(
+        "INSERT INTO dim_work (work_id, pmid, doi, title, alias_dois) VALUES "
+        "('31523512','31523512','10.7717/peerj.7557','HiLDA',['10.1101/577452'])"
+    )
+    con.execute(
+        "INSERT INTO bridge_package_pub "
+        "(package_name, repo, work_id, role, match_method, confidence) VALUES "
+        "('HiLDA','bioc','10.1101/577452','primary','citation_file',0.9), "
+        "('HiLDA','bioc','31523512','primary','doi',1.0)"
+    )
+    con.execute(_MART_SQL)
+    assert con.execute(
+        "SELECT work_id, doi, title, match_method FROM mart_package_work "
+        "WHERE package_name='HiLDA'"
+    ).fetchall() == [("31523512", "10.7717/peerj.7557", "HiLDA", "doi")]
+    assert con.execute(
+        "SELECT n_primary_pubs FROM mart_package_impact WHERE package_name='HiLDA'"
+    ).fetchone() == (1,)
+    assert con.execute(
+        "SELECT alias_dois FROM mart_work WHERE work_id='31523512'"
+    ).fetchone() == (["10.1101/577452"],)
+    cols = [r[0] for r in con.execute("DESCRIBE mart_work").fetchall()]
+    assert cols[-3:] == ["is_retracted", "n_patent_citations", "alias_dois"]
+
+
 def test_directory_mart_has_description_not_email():
     con = db.connect(":memory:")
     _fixture(con)

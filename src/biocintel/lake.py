@@ -24,6 +24,11 @@ from .config import DB_PATH
 LAKE_ALIAS = "lake"  # set by cdsci-lake's read client
 LOCAL_ALIAS = "bi"
 
+# Other DOIs OpenAlex lists for a work (its locations, e.g. a merged bioRxiv preprint). A temp
+# table so the enrichment SQL stays source-agnostic: the lake drops `locations`, so it is empty
+# under `--source lake`; `biocintel.sources` fills it.
+WORKS_ALT_DOIS_DDL = "CREATE TEMP TABLE works_alt_dois (work_id VARCHAR, doi VARCHAR)"
+
 
 def ensure_local_store(biocintel_path: Path | str | None = None) -> Path:
     """Create the local schema so enrichment can write its tables; return the store path."""
@@ -51,4 +56,5 @@ def connect_with_lake(biocintel_path: Path | str | None = None) -> duckdb.DuckDB
     path = ensure_local_store(biocintel_path)
     con = lake_connect(read_only=True)  # attaches DuckLake as `lake`
     con.execute(f"ATTACH '{path}' AS {LOCAL_ALIAS}")
+    con.execute(WORKS_ALT_DOIS_DDL)
     return con

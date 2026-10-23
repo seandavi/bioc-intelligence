@@ -48,7 +48,7 @@ _DIM_GRANT_COLUMNS = [
     ("pi_names", "VARCHAR"),
 ]
 
-# dim_work columns added with the iCite/retraction/patent enrichment (#47).
+# dim_work columns added with the iCite/retraction/patent enrichment (#47) and aliases (#95).
 _DIM_WORK_COLUMNS = [
     ("nih_percentile", "DOUBLE"),
     ("apt", "DOUBLE"),
@@ -56,6 +56,7 @@ _DIM_WORK_COLUMNS = [
     ("citations_per_year", "DOUBLE"),
     ("is_retracted", "BOOLEAN"),
     ("n_patent_citations", "INTEGER"),
+    ("alias_dois", "VARCHAR[]"),
 ]
 
 # dim_funder columns added with the OpenAlex funder enrichment (#85).
