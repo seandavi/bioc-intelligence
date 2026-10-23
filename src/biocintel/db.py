@@ -38,6 +38,12 @@ _DIM_PACKAGE_VIEWS_COLUMNS = [
     ("needs_compilation", "BOOLEAN"),
 ]
 
+# dim_package columns added with the ELIXIR RSEc flag (#93).
+_DIM_PACKAGE_RSEC_COLUMNS = [
+    ("in_elixir_rsec", "BOOLEAN"),
+    ("biotools_id", "VARCHAR"),
+]
+
 # dim_grant columns added with the grant-mart enrichment (#43).
 _DIM_GRANT_COLUMNS = [
     ("ic_name", "VARCHAR"),
@@ -78,6 +84,8 @@ def init_schema(con: duckdb.DuckDBPyConnection) -> None:
     # Columns added after a table first shipped; CREATE IF NOT EXISTS won't add them.
     con.execute("ALTER TABLE bridge_package_pub ADD COLUMN IF NOT EXISTS source_release VARCHAR")
     for name, typ in _DIM_PACKAGE_VIEWS_COLUMNS:
+        con.execute(f"ALTER TABLE dim_package ADD COLUMN IF NOT EXISTS {name} {typ}")
+    for name, typ in _DIM_PACKAGE_RSEC_COLUMNS:
         con.execute(f"ALTER TABLE dim_package ADD COLUMN IF NOT EXISTS {name} {typ}")
     for name, typ in _DIM_GRANT_COLUMNS:
         con.execute(f"ALTER TABLE dim_grant ADD COLUMN IF NOT EXISTS {name} {typ}")

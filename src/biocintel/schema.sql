@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS dim_package (
     vignette_titles     VARCHAR[],
     license             VARCHAR,
     needs_compilation   BOOLEAN,
+    in_elixir_rsec      BOOLEAN,          -- in ELIXIR RSEc imports/bioconductor (#93); NULL = never fetched
+    biotools_id         VARCHAR,          -- bio.tools id from RSEc data/<id>/ (#93)
     PRIMARY KEY (package_name, repo)
 );
 

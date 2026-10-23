@@ -223,6 +223,22 @@ def test_directory_mart_has_description_not_email():
     assert "title" in work_cols
 
 
+def test_directory_mart_biotools_columns():
+    con = db.connect(":memory:")
+    _fixture(con)
+    con.execute("UPDATE dim_package SET biotools_id='limma', in_elixir_rsec=TRUE")
+    con.execute("INSERT INTO dim_package (package_name, repo) VALUES ('nobt','bioc')")
+    con.execute(_MART_SQL)
+    rows = con.execute(
+        "SELECT package_name, in_elixir_rsec, biotools_id, biotools_url "
+        "FROM mart_package_directory ORDER BY package_name"
+    ).fetchall()
+    assert rows == [
+        ("limma", True, "limma", "https://bio.tools/limma"),
+        ("nobt", None, None, None),
+    ]
+
+
 def _download_fixture(con):
     _fixture(con)
     con.execute("INSERT INTO dim_package (package_name, repo) VALUES ('edgeR','bioc')")
