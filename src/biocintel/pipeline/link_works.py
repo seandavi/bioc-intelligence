@@ -2,9 +2,9 @@
 
 Kept simple (the settled decision): a package's DOI (from DESCRIPTION, extracted
 into ``dim_package.source_doi``) is joined to ``lake.openalex.works.doi`` — the
-authoritative, high-confidence path. The DOI may be the work's own or an alias (a
-preprint merged into its journal version, #95). An optional title fallback exact-matches
-remaining packages by normalized title; it is **off by default and low-yield**
+authoritative, high-confidence path. The DOI may be the work's own (``doi``) or an alias, a
+preprint merged into its journal version (``doi_alias``, #95/#102). An optional title fallback
+exact-matches remaining packages by normalized title; it is **off by default and low-yield**
 because a package's DESCRIPTION Title is rarely its manuscript's title (that needs
 CITATION-derived titles, deferred). Every edge carries ``match_method`` +
 ``confidence`` so the dashboard can filter to DOI-only for grant reporting.
@@ -29,17 +29,19 @@ SOURCES = ("api", "lake")
 
 _DOI_PREFIX_RE = re.compile(r"^(https?://(dx\.)?doi\.org/|doi:)", re.IGNORECASE)
 
-# DOI path: normalize our source_doi to the lake's bare-lowercase form and join.
+# DOI path: normalize our source_doi to the lake's bare-lowercase form and join. An alias match
+# (the package's DOI is one OpenAlex merged into the work, #95) is `doi_alias`, so it can be
+# counted and filtered (#102).
 _DOI_SQL = """
 INSERT INTO bi.bridge_package_pub (package_name, repo, work_id, role, match_method, confidence)
 SELECT p.package_name, p.repo,
        COALESCE(CAST(w.pmid AS VARCHAR), w.doi) AS work_id,
-       'primary', 'doi', 1.0
+       'primary', w.match_method, 1.0
 FROM bi.dim_package p
 JOIN (
-    SELECT pmid, doi, doi AS join_doi FROM lake.openalex.works
+    SELECT pmid, doi, doi AS join_doi, 'doi' AS match_method FROM lake.openalex.works
     UNION ALL
-    SELECT w.pmid, w.doi, a.doi FROM lake.openalex.works w
+    SELECT w.pmid, w.doi, a.doi, 'doi_alias' FROM lake.openalex.works w
     JOIN works_alt_dois a ON a.work_id = w.id
 ) w
   ON lower(regexp_replace(p.source_doi, '^(https?://(dx\\.)?doi\\.org/|doi:)', '', 'i'))
@@ -80,7 +82,8 @@ def run(*, title_fallback: bool = False, source: str = "api") -> dict[str, int]:
     try:
         # Idempotent: clear automated rows (keep any 'manual' overrides), then rebuild.
         con.execute(
-            "DELETE FROM bi.bridge_package_pub WHERE match_method IN ('doi', 'title_search')"
+            "DELETE FROM bi.bridge_package_pub "
+            "WHERE match_method IN ('doi', 'doi_alias', 'title_search')"
         )
         counts["doi"] = _rowcount(con, _DOI_SQL)
         print(f"  doi matches: {counts['doi']}")

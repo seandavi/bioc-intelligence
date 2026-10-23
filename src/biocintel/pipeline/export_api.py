@@ -27,7 +27,7 @@ import duckdb
 _SAFE_PACKAGE = re.compile(r"[A-Za-z][A-Za-z0-9.]*")
 _SAFE_GRANT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 # The paper links the site counts by default (frontend lib/confidence.ts HIGH_CONFIDENCE_SQL).
-CONFIDENT_METHODS = ("doi", "citation_file")
+CONFIDENT_METHODS = ("doi", "doi_alias", "citation_file")
 MONTHS_OF_DOWNLOADS = 36
 
 URL_PATTERNS = {

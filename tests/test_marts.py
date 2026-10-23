@@ -1,7 +1,7 @@
 """Offline test of the mart aggregation SQL against a tiny fixture store."""
 
 from biocintel import db
-from biocintel.pipeline.build_marts import _MART_SQL
+from biocintel.pipeline.build_marts import _MART_SQL, DEFINITIONS, HONEST_VIEWS
 
 
 def _fixture(con):
@@ -385,3 +385,14 @@ def test_package_reach_mart_latest_snapshot_and_shares():
         ("limma", "funder", "F1"): (3, 20, 0.15),
         ("zero", "total", None): (0, 0, None),
     }
+
+
+def test_definitions_explain_alias_dois_and_doi_alias():
+    work = DEFINITIONS["mart_work"]["columns"]
+    pkg_work = DEFINITIONS["mart_package_work"]["columns"]
+    assert "NULL when OpenAlex lists none" in work["alias_dois"]
+    assert "--source lake" in work["alias_dois"]
+    assert "may differ from the DOI the package cites" in pkg_work["doi"]
+    assert "doi_alias" in pkg_work["match_method"] and "doi_alias" in pkg_work["confidence"]
+    assert "may differ" not in work["doi"]
+    assert "doi_alias" in HONEST_VIEWS["package_pubs_confident"][2]

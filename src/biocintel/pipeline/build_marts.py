@@ -594,17 +594,27 @@ DEFINITIONS: dict[str, dict] = {
             **_WORK,
             "alias_dois": "Other DOIs OpenAlex lists for this work, e.g. the bioRxiv preprint a "
                           "package's CITATION cites after OpenAlex merged it into the journal "
-                          "version; empty when none. doi is the version the metrics describe.",
+                          "version. NULL when OpenAlex lists none, and always NULL for works "
+                          "enriched under --source lake (the lake drops locations) or from "
+                          "iCite alone, so NULL does not mean the work has no preprint. A DOI "
+                          "OpenAlex also holds as a separate work is never listed. doi is the "
+                          "version the metrics describe.",
         },
     },
     "mart_package_work": {
         "description": "One row per package x linked publication, with the link's provenance.",
         "columns": {
             **_PKG, **_WORK,
-            "match_method": "How the link was made: doi (the package's own DOI), citation_file "
-                            "(CITATION / CITATION.cff), description_doi (a DOI in Description, "
-                            "sometimes a dependency's paper), title_search, manual.",
-            "confidence": "Link confidence, 0-1 (doi 1.0, citation_file 0.9, description_doi 0.8).",
+            "doi": "The work's DOI, bare and lower-case (no https://doi.org/ prefix). It may "
+                   "differ from the DOI the package cites: a preprint DOI OpenAlex merged into "
+                   "its journal version shows the journal DOI (see mart_work.alias_dois).",
+            "match_method": "How the link was made: doi (the package's own DOI), doi_alias (the "
+                            "package's DOI is a preprint OpenAlex merged into this work; doi "
+                            "shows the journal version), citation_file (CITATION / "
+                            "CITATION.cff), description_doi (a DOI in Description, sometimes a "
+                            "dependency's paper), title_search, manual.",
+            "confidence": "Link confidence, 0-1 (doi and doi_alias 1.0, citation_file 0.9, "
+                          "description_doi 0.8).",
             "role": "Role of the paper for the package, e.g. primary.",
         },
     },
@@ -754,8 +764,8 @@ DEFINITIONS: dict[str, dict] = {
     },
     "mart_package_reach": {
         "description": "One row per package x dimension (total, country, funder) x key: works "
-                       "citing the package's confident primary papers (match_method doi or "
-                       "citation_file), counted by OpenAlex at the latest snapshot. n_citing "
+                       "citing the package's confident primary papers (match_method doi, doi_alias "
+                       "or citation_file), counted by OpenAlex at the latest snapshot. n_citing "
                        "counts distinct citing works across all of those papers (one OR'd "
                        "query), so a "
                        "work citing two of them counts once. Values are not additive: not across "
@@ -845,9 +855,9 @@ DEFINITIONS: dict[str, dict] = {
 HONEST_VIEWS = {
     "package_pubs_confident": (
         "mart_package_work",
-        "Package-paper links made by DOI or CITATION file only (drops description_doi and "
-        "title_search). Use for grant reporting.",
-        "SELECT * FROM {src} WHERE match_method IN ('doi', 'citation_file')",
+        "Package-paper links made by DOI (own or merged-preprint alias) or CITATION file only "
+        "(drops description_doi and title_search). Use for grant reporting.",
+        "SELECT * FROM {src} WHERE match_method IN ('doi', 'doi_alias', 'citation_file')",
     ),
     "downloads_modern_era": (
         "mart_ecosystem_downloads_yearly",
