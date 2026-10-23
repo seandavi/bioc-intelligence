@@ -14,6 +14,10 @@ first). Steps:
   OpenAlex id, from ``openalex.works_authorships`` + ``openalex.institutions`` →
   ``dim_institution`` + ``bridge_work_institution``. Best-effort (spec §3): a
   failure is logged and the run continues.
+- **funders** — ``openalex.works_funders`` / ``works_awards`` (+ ``openalex.funders``) of
+  every ``dim_work`` row with an OpenAlex id → ``bridge_work_funder`` and the OpenAlex
+  funders merged into ``dim_funder`` (#85). Best-effort, as institutions. The lake's
+  ``works_funders``/``works_awards`` are empty or absent, so this is effectively ``api``-only.
 - **citations** — cited-by edges from ``openalex.work_references`` →
   ``fact_citation_edge``. **Heavy**: scans the 1.29B-row references table plus a
   second ``works`` pass for citing-side metadata, so it is **opt-in** (not in the
@@ -39,8 +43,8 @@ from ..sources import connect_with_sources
 
 SOURCES = ("api", "lake")
 
-DEFAULT_STEPS = ("works", "institutions", "grants")
-ALL_STEPS = ("works", "institutions", "grants", "citations")
+DEFAULT_STEPS = ("works", "institutions", "funders", "grants")
+ALL_STEPS = ("works", "institutions", "funders", "grants", "citations")
 
 # Small driver table: the OpenAlex works linked to packages, with spine work_id.
 _LINKED_SQL = """
@@ -201,6 +205,39 @@ SELECT DISTINCT work_id, ror, author_position, is_corresponding, 'openalex'
 FROM work_institution;
 """
 
+# Funders/awards of every enriched work, rebuilt whole. A work's funders without an award
+# row get a bridge row with a NULL award; an award names its own funder (which OpenAlex
+# lists on the work too), so the funder-only branch skips funders already carried by an award.
+_BRIDGE_FUNDER_SQL = """
+INSERT INTO bi.bridge_work_funder
+SELECT DISTINCT work_id, funder_id, award_id, funder_award_id, 'openalex' FROM (
+    SELECT w.work_id, COALESCE(a.funder_id, f.funder_id) AS funder_id,
+           a.award_id, a.funder_award_id
+    FROM bi.dim_work w
+    JOIN lake.openalex.works_awards a ON a.work_id = w.openalex_id
+    LEFT JOIN lake.openalex.works_funders f
+      ON f.work_id = a.work_id AND f.funder_id = a.funder_id
+    UNION ALL
+    SELECT w.work_id, f.funder_id, NULL, NULL
+    FROM bi.dim_work w
+    JOIN lake.openalex.works_funders f ON f.work_id = w.openalex_id
+    WHERE NOT EXISTS (SELECT 1 FROM lake.openalex.works_awards a
+                      WHERE a.work_id = f.work_id AND a.funder_id = f.funder_id)
+) WHERE funder_id IS NOT NULL;
+"""
+
+# OpenAlex funders merge into dim_funder: Authors@R-declared funders (extract_people)
+# already hold the id with their curated name, which stays; the registry ids are added.
+_FUNDER_DIM_SQL = """
+INSERT INTO bi.dim_funder (funder_id, name, curated, ror, crossref_id, country_code)
+SELECT b.funder_id, COALESCE(any_value(f.display_name), b.funder_id), false,
+       any_value(f.ror), any_value(f.crossref_id), any_value(f.country_code)
+FROM (SELECT DISTINCT funder_id FROM bi.bridge_work_funder) b
+LEFT JOIN lake.openalex.funders f ON f.id = b.funder_id
+GROUP BY b.funder_id
+ON CONFLICT (funder_id) DO UPDATE SET ror = excluded.ror, crossref_id = excluded.crossref_id,
+                                      country_code = excluded.country_code;
+"""
 
 # A work's spine id changes when a source learns or corrects its PMID (DOI -> PMID for
 # 23 works, PMID -> PMID for one, when the API replaced the lake). Re-key its cited-by
@@ -275,6 +312,19 @@ def _enrich_citations(con: duckdb.DuckDBPyConnection) -> int:
     ).fetchone()[0]
 
 
+def _enrich_funders(con: duckdb.DuckDBPyConnection) -> int:
+    con.execute("BEGIN")
+    try:
+        con.execute("DELETE FROM bi.bridge_work_funder WHERE source = 'openalex'")
+        con.execute(_BRIDGE_FUNDER_SQL)
+        con.execute(_FUNDER_DIM_SQL)
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
+    return con.execute("SELECT count(*) FROM bi.bridge_work_funder").fetchone()[0]
+
+
 def run(steps: tuple[str, ...] = DEFAULT_STEPS, source: str = "api") -> dict[str, int]:
     con = connect_with_sources(steps=steps) if source == "api" else connect_with_lake()
     counts: dict[str, int] = {}
@@ -294,6 +344,13 @@ def run(steps: tuple[str, ...] = DEFAULT_STEPS, source: str = "api") -> dict[str
                 print(f"  dim_institution: {counts['dim_institution']}")
             except duckdb.Error as exc:
                 print(f"  institutions: skipped ({exc})")
+        if "funders" in steps:
+            # Best-effort (spec §3), like institutions.
+            try:
+                counts["bridge_work_funder"] = _enrich_funders(con)
+                print(f"  bridge_work_funder: {counts['bridge_work_funder']}")
+            except duckdb.Error as exc:
+                print(f"  funders: skipped ({exc})")
         if "grants" in steps:
             counts["bridge_work_grant"] = _enrich_grants(con)
             print(f"  bridge_work_grant (reporter): {counts['bridge_work_grant']}")

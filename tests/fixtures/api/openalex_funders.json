@@ -1,0 +1,28 @@
+{
+ "meta": {
+  "next_cursor": null
+ },
+ "results": [
+  {
+   "id": "https://openalex.org/F4320337348",
+   "display_name": "National Human Genome Research Institute",
+   "ids": {
+    "openalex": "https://openalex.org/F4320337348",
+    "ror": "https://ror.org/00baak391",
+    "crossref": "100000051",
+    "doi": "10.13039/100000051"
+   },
+   "country_code": "US"
+  },
+  {
+   "id": "https://openalex.org/F4320315474",
+   "display_name": "Chan Zuckerberg Initiative",
+   "ids": {
+    "openalex": "https://openalex.org/F4320315474",
+    "ror": "https://ror.org/02qenvm24",
+    "crossref": "100014989"
+   },
+   "country_code": "US"
+  }
+ ]
+}

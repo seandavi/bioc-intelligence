@@ -6,46 +6,53 @@
 # name alone doesn't match). A declared name that matches nothing is kept as its
 # own funder, keyed by its normalized name; identical strings still merge.
 #
+# `openalex` is the entry's OpenAlex funder id (F…, from api.openalex.org/funders); a
+# funder declared in Authors@R then resolves to the same dim_funder row as the funder
+# OpenAlex lists on works (#85). Omit it where OpenAlex has no matching funder; the
+# entry's `id` is the funder id then.
+#
 # Add an entry when a new spelling of a known funder shows up; nothing else needs
 # to change.
 
 - id: czi
+  openalex: F4320315474
   name: Chan Zuckerberg Initiative
   match: ['\bczi\b', 'chan zuckerberg', 'silicon valley (community )?foundation', '\bczf\d{4}']
 
 # NIH institutes (the issue's "NIH NHGRI", "NCI", "NHGRI AnVIL Project", ...)
-- {id: nih-nhgri, name: NIH NHGRI, match: ['\bnhgri\b', 'national human genome research institute']}
-- {id: nih-nci, name: NIH NCI, match: ['\bnci\b', 'national cancer institute']}
-- {id: nih-nigms, name: NIH NIGMS, match: ['\bnigms\b', 'national institute of general medical sciences']}
-- {id: nih-niaid, name: NIH NIAID, match: ['\bniaid\b', 'national institute of allergy']}
-- {id: nih-nhlbi, name: NIH NHLBI, match: ['\bnhlbi\b', 'national heart, lung']}
-- {id: nih-niddk, name: NIH NIDDK, match: ['\bniddk\b', 'national institute of diabetes']}
-- {id: nih-nia, name: NIH NIA, match: ['\bnia\b', 'national institute on aging']}
-- {id: nih-nimh, name: NIH NIMH, match: ['\bnimh\b', 'national institute of mental health']}
-- {id: nih-ninds, name: NIH NINDS, match: ['\bninds\b', 'national institute of neurological']}
-- {id: nih-niehs, name: NIH NIEHS, match: ['\bniehs\b', 'national institute of environmental health']}
-- {id: nih-nibib, name: NIH NIBIB, match: ['\bnibib\b', 'national institute of biomedical imaging']}
-- {id: nih-nlm, name: NIH NLM, match: ['\bnlm\b', 'national library of medicine']}
-- {id: nih-nichd, name: NIH NICHD, match: ['\bnichd\b', 'eunice kennedy shriver']}
-- {id: nih-nei, name: NIH NEI, match: ['\bnei\b', 'national eye institute']}
-- {id: nih-nida, name: NIH NIDA, match: ['\bnida\b', 'national institute on drug abuse']}
-- {id: nih, name: NIH, match: ['\bnih\b', 'national institutes of health']}
+- {id: nih-nhgri, openalex: F4320337348, name: NIH NHGRI, match: ['\bnhgri\b', 'national human genome research institute']}
+- {id: nih-nci, openalex: F4320337351, name: NIH NCI, match: ['\bnci\b', 'national cancer institute']}
+- {id: nih-nigms, openalex: F4320337354, name: NIH NIGMS, match: ['\bnigms\b', 'national institute of general medical sciences']}
+- {id: nih-niaid, openalex: F4320337355, name: NIH NIAID, match: ['\bniaid\b', 'national institute of allergy']}
+- {id: nih-nhlbi, openalex: F4320337338, name: NIH NHLBI, match: ['\bnhlbi\b', 'national heart, lung']}
+- {id: nih-niddk, openalex: F4320337357, name: NIH NIDDK, match: ['\bniddk\b', 'national institute of diabetes']}
+- {id: nih-nia, openalex: F4320337337, name: NIH NIA, match: ['\bnia\b', 'national institute on aging']}
+- {id: nih-nimh, openalex: F4320337346, name: NIH NIMH, match: ['\bnimh\b', 'national institute of mental health']}
+- {id: nih-ninds, openalex: F4320337359, name: NIH NINDS, match: ['\bninds\b', 'national institute of neurological']}
+- {id: nih-niehs, openalex: F4320337361, name: NIH NIEHS, match: ['\bniehs\b', 'national institute of environmental health']}
+- {id: nih-nibib, openalex: F4320337363, name: NIH NIBIB, match: ['\bnibib\b', 'national institute of biomedical imaging']}
+- {id: nih-nlm, openalex: F4320337372, name: NIH NLM, match: ['\bnlm\b', 'national library of medicine']}
+- {id: nih-nichd, openalex: F4320337611, name: NIH NICHD, match: ['\bnichd\b', 'eunice kennedy shriver']}
+- {id: nih-nei, openalex: F4320337350, name: NIH NEI, match: ['\bnei\b', 'national eye institute']}
+- {id: nih-nida, openalex: F4320337347, name: NIH NIDA, match: ['\bnida\b', 'national institute on drug abuse']}
+- {id: nih, openalex: F4320332161, name: NIH, match: ['\bnih\b', 'national institutes of health']}
 
 # EU programmes
-- {id: erc, name: European Research Council, match: ['european research council', '\berc\b']}
-- {id: eu-fp7, name: EU FP7, match: ['\bfp7\b', 'seventh framework']}
-- {id: eu-horizon-2020, name: EU Horizon 2020, match: ['horizon ?2020', '\bh2020\b']}
+- {id: erc, openalex: F4320334678, name: European Research Council, match: ['european research council', '\berc\b']}
+- {id: eu-fp7, openalex: F4320333065, name: EU FP7, match: ['\bfp7\b', 'seventh framework']}
+- {id: eu-horizon-2020, openalex: F4320332999, name: EU Horizon 2020, match: ['horizon ?2020', '\bh2020\b']}
 - id: eu-horizon-europe
+  openalex: F4320334322
   name: EU Horizon Europe
   match: ['horizon europe', 'horizon-(msca|erc|cl\d|infra|miss|widera)']
 
 # National agencies
-- {id: dfg, name: Deutsche Forschungsgemeinschaft (DFG), match: ['\bdfg\b', 'deutsche forschungsgemeinschaft', '\bsfb ?\d']}
-- {id: nsf, name: US National Science Foundation, match: ['\bnsf\b', 'national science foundation']}
-- {id: nhmrc, name: NHMRC (Australia), match: ['\bnhmrc\b', 'national health and medical research council']}
-- {id: wellcome, name: Wellcome Trust, match: ['wellcome(?! fund)']}
-- {id: mciu-spain, name: Spanish Ministry of Science and Innovation (MCIU/AEI), match: ['\bmciu\b', 'ministerio de ciencia', 'ministry of science, innovation and universities']}
+- {id: dfg, openalex: F4320320879, name: Deutsche Forschungsgemeinschaft (DFG), match: ['\bdfg\b', 'deutsche forschungsgemeinschaft', '\bsfb ?\d']}
+- {id: nsf, openalex: F4320306076, name: US National Science Foundation, match: ['\bnsf\b', 'national science foundation']}
+- {id: nhmrc, openalex: F4320334705, name: NHMRC (Australia), match: ['\bnhmrc\b', 'national health and medical research council']}
+- {id: wellcome, openalex: F4320311904, name: Wellcome Trust, match: ['wellcome(?! fund)']}
+- {id: mciu-spain, openalex: F4320315062, name: Spanish Ministry of Science and Innovation (MCIU/AEI), match: ['\bmciu\b', 'ministerio de ciencia', 'ministry of science, innovation and universities']}
 
 # Companies that appear under several spellings
-- {id: genentech, name: Genentech, match: ['genentech']}
-- {id: roche, name: F. Hoffmann-La Roche, match: ['hoffmann-la roche', '\broche\b']}
+- {id: genentech, openalex: F4320332193, name: Genentech, match: ['genentech']}
+- {id: roche, openalex: F4320309432, name: F. Hoffmann-La Roche, match: ['hoffmann-la roche', '\broche\b']}

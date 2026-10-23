@@ -132,7 +132,9 @@ def test_person_and_funder_marts():
             "INSERT INTO bridge_package_person VALUES (?, ?, ?, ?, 'authors_r')",
             [pkg, repo, pid, roles],
         )
-    con.execute("INSERT INTO dim_funder VALUES ('nih-nci','NIH NCI',true)")
+    con.execute(
+        "INSERT INTO dim_funder (funder_id, name, curated) VALUES ('nih-nci','NIH NCI',true)"
+    )
     con.execute(
         "INSERT INTO bridge_package_funder VALUES "
         "('limma','bioc','nih-nci','NIH NCI U24CA1','U24CA1','authors_r'), "
@@ -154,6 +156,32 @@ def test_person_and_funder_marts():
         "SELECT grant_number, grant_id FROM mart_package_funder ORDER BY grant_number"
     ).fetchall()
     assert funders == [("U24CA1", "U24CA1"), ("U24CA9", None)]
+
+
+def test_work_funder_mart_matches_nih_awards_to_dim_grant_by_core_number():
+    con = db.connect(":memory:")
+    _fixture(con)
+    con.execute(
+        "INSERT INTO dim_funder VALUES "
+        "('F1','NCI',true,'https://ror.org/x','100000054','US'), "
+        "('F2','Wellcome',false,NULL,NULL,'GB')"
+    )
+    con.execute(
+        "INSERT INTO bridge_work_funder VALUES "
+        "('111','F1','G1','5U24CA289073-02','openalex'), "  # type prefix + year suffix
+        "('111','F1','G2','U24CA9','openalex'), "  # not in dim_grant
+        "('111','F2',NULL,NULL,'openalex')"
+    )
+    con.execute("INSERT INTO dim_grant (grant_id) VALUES ('U24CA289073')")
+    con.execute(_MART_SQL)
+    assert con.execute(
+        "SELECT funder_id, award_id, grant_id, ror, country_code FROM mart_work_funder "
+        "ORDER BY funder_id, award_id NULLS LAST"
+    ).fetchall() == [
+        ("F1", "G1", "U24CA289073", "https://ror.org/x", "US"),
+        ("F1", "G2", None, "https://ror.org/x", "US"),
+        ("F2", None, None, None, "GB"),
+    ]
 
 
 def test_package_work_keeps_highest_confidence_edge():
