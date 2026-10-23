@@ -185,7 +185,7 @@ alias (a preprint merged into its journal version).
 - `mart_work`: append `alias_dois` after `n_patent_citations`.
 - `DEFINITIONS["mart_work"]["columns"]` becomes `{**_WORK, "alias_dois": ...}`, with the
   text:
-  `"Other DOIs OpenAlex lists for this work, e.g. the bioRxiv preprint a package's CITATION cites after OpenAlex merged it into the journal version; empty when none. doi is the version the metrics describe."`
+  `"Other DOIs OpenAlex lists for this work, e.g. the bioRxiv preprint a package's CITATION cites after OpenAlex merged it into the journal version. NULL when OpenAlex lists none, and always NULL for works enriched under --source lake (the lake drops locations) or from iCite alone, so NULL does not mean the work has no preprint. A DOI OpenAlex also holds as a separate work is never listed. doi is the version the metrics describe."` (amended by #102)
   `_WORK` itself is unchanged, so `mart_package_work` is unchanged.
 
 ### `CLAUDE.md`

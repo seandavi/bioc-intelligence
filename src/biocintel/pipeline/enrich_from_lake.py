@@ -31,7 +31,7 @@ first). Steps:
   (snapshot-stamped); citing-work funders are merged into `dim_funder` (#92). Needs
   `OPENALEX_API_KEY` (~2 calls per package). Best-effort.
 
-Idempotent per step (scoped deletes / INSERT OR REPLACE), keyed to the linked works.
+Idempotent per step (scoped or whole-table deletes / INSERT OR REPLACE).
 
 ``--source api`` (default) fills ``lake`` from OpenAlex, iCite and RePORTER for just
 the working set (``biocintel.sources``) — seconds instead of the scans above, except
@@ -258,7 +258,7 @@ _REACH_WORKS_SQL = """
 SELECT b.package_name, b.repo, list_sort(list(DISTINCT l.oa_id)) AS oa_ids
 FROM bi.bridge_package_pub b
 JOIN linked l ON b.work_id = CAST(l.pmid AS VARCHAR) OR b.work_id = l.doi
-WHERE b.role = 'primary' AND b.match_method IN ('doi', 'citation_file')
+WHERE b.role = 'primary' AND b.match_method IN ('doi', 'doi_alias', 'citation_file')
   AND l.oa_id IS NOT NULL
 GROUP BY b.package_name, b.repo
 ORDER BY b.package_name, b.repo;
@@ -300,13 +300,15 @@ LEFT JOIN lake.openalex.awards a ON a.id = b.award_id;
 # 23 works, PMID -> PMID for one, when the API replaced the lake). Re-key its cited-by
 # edges via the old row's OpenAlex id or DOI, then drop dim_work rows no longer linked:
 # a stale twin would double-count in the marts, which also join bridge rows on doi. A merged
-# preprint row is matched by its DOI appearing among the journal work's aliases.
+# preprint row is matched by its DOI appearing among the journal work's aliases. Only rows
+# _PRUNE_WORKS_SQL deletes are re-keyed: a still-linked work keeps its edges (#102).
 _REKEY_EDGES_SQL = """
 UPDATE bi.fact_citation_edge e SET cited_work_id = l.work_id
 FROM bi.dim_work old
 JOIN linked l ON old.openalex_id = l.oa_id OR old.doi = l.doi
   OR old.doi IN (SELECT a.doi FROM works_alt_dois a WHERE a.work_id = l.oa_id)
-WHERE e.cited_work_id = old.work_id AND old.work_id <> l.work_id;
+WHERE e.cited_work_id = old.work_id AND old.work_id <> l.work_id
+  AND old.work_id NOT IN (SELECT work_id FROM linked);
 """
 
 _PRUNE_WORKS_SQL = "DELETE FROM bi.dim_work WHERE work_id NOT IN (SELECT work_id FROM linked);"

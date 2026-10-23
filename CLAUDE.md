@@ -94,8 +94,9 @@ resolved through live OpenAlex instead).
 Live OpenAlex merges preprints into their journal versions: the preprint's `W…` 404s, and
 its DOI survives only in `locations[].doi`.
 Under `api`, those location DOIs fill a temp `works_alt_dois`. A bridge DOI then links to
-the journal work and is kept in `dim_work.alias_dois`. Each run logs how many stored ids
-no longer resolve. (#95)
+the journal work and is kept in `dim_work.alias_dois`. `link_works` writes such links as
+`doi_alias`, and a DOI that is still some work's own DOI is never an alias (#102). Each run
+logs how many stored ids no longer resolve. (#95)
 
 Mention mining + judging (spec §6 — mine once, judge later, decoupled):
 
@@ -303,7 +304,7 @@ reopens the question:
   `BIOCINTEL_NO_CACHE=1`; the first full run is ~88k GETs, later runs only fetch a new release.
   `--packages a,b --releases 3.16,3.19` bounds a run (only those packages' rows are replaced;
   `--releases ''` skips the pass). Every edge
-  **must** carry `match_method` (`doi` | `citation_file` | `description_doi` | `title_search` |
+  **must** carry `match_method` (`doi` | `doi_alias` | `citation_file` | `description_doi` | `title_search` |
   `manual`) and
   `confidence` so the dashboard can filter to high-confidence linkages for grant reporting.
   Scored fuzzy matching

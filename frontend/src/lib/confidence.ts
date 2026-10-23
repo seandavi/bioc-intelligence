@@ -31,7 +31,7 @@ export interface PackageAgg {
 
 export const LOW_CONFIDENCE_METHODS = ["description_doi"];
 // SQL fragment for queries that apply the same default filter.
-export const HIGH_CONFIDENCE_SQL = "match_method IN ('doi', 'citation_file')";
+export const HIGH_CONFIDENCE_SQL = "match_method IN ('doi', 'doi_alias', 'citation_file')";
 
 export const pkgKey = (repo: string, name: string) => `${repo}/${name}`;
 
