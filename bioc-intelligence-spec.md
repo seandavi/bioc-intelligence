@@ -132,6 +132,15 @@ dim_grant(
   grant_id, agency, project_num,
   fy?, title?
 )
+
+dim_region_group(                      -- from regions.yaml (#91); one country, many groupings
+  country_code, grouping,
+  grouping_label, grouping_kind
+)
+
+dim_funder_region(                     -- hand-mapped supranational funders (#91)
+  funder_id, grouping
+)
 ```
 
 ### Facts & bridges
@@ -203,6 +212,14 @@ mart_grant_attribution(
 mart_release_growth(
   bioc_release,
   n_packages, n_new_packages, net_downloads
+)
+
+mart_region_group(                     -- country → grouping filter (#91)
+  country_code, grouping, grouping_label, grouping_kind
+)
+
+mart_funder_region(                    -- funder → grouping filter (#91)
+  funder_id, grouping, basis           -- basis: country | curated
 )
 ```
 

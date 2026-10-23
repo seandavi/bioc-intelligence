@@ -154,6 +154,9 @@ src/biocintel/
   doi.py         # DOI regex + normalisation shared by every DOI-harvesting extractor
   db.py          # DuckDB connect + schema bootstrap
   schema.sql     # canonical DDL (all spec §5 tables)
+  regions.yaml   # country → region groupings (eu27, Horizon association, UN M49) + hand-mapped
+                 # supranational funders (#91); checked in, reviewed by hand
+  regions.py     # validates regions.yaml; load_regions fills dim_region_group/dim_funder_region
   pipeline/      # framework-free, independently runnable modules
     extract_packages.py   extract_downloads.py   build_marts.py
   cli.py         # `biocintel` dispatch
@@ -243,7 +246,10 @@ Three layers, single direction of data flow:
 `fact_mention_candidate`) are *append-only and snapshot-stamped* (`_snapshot` column). Bridges
 (`bridge_package_pub`, `bridge_work_grant`, `bridge_package_person`, `bridge_package_funder`) carry
 provenance. People/funders (`dim_person`, `dim_funder`) come from `Authors@R`, parsed without
-evaluating it (`authors.py`); funder spellings are normalized via `funder_aliases.yaml`. Marts
+evaluating it (`authors.py`); funder spellings are normalized via `funder_aliases.yaml`. Region groupings
+(`dim_region_group`, `dim_funder_region`; from `regions.yaml`, reloaded by every `build-marts`) are
+exported as `mart_region_group` / `mart_funder_region`: filters the frontend joins to country-coded
+marts, never baked into a count. Marts
 (`mart_package_impact`, `mart_grant_attribution`, `mart_release_growth`, `mart_package_person`,
 `mart_person`, `mart_package_funder`) are derived and exported.
 
