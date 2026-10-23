@@ -2,6 +2,9 @@
 
 Fixtures under ``fixtures/api`` are real responses recorded 2026-10-07 and trimmed:
 limma (W2146512944 / PMID 25605792) and sesame's paper (W4392168904 / PMID 38407446).
+``openalex_reach_countries.json`` and ``openalex_reach_funders.json`` (recorded 2026-10-23, #92)
+are the ``group_by`` responses for the works citing sesame's paper, trimmed to ``meta.count``,
+``meta.groups_count`` and ``group_by``.
 """
 
 import json
@@ -101,6 +104,30 @@ def test_openalex_api_key_is_sent_but_never_in_errors(monkeypatch):
     assert exc.value.__cause__ is None and exc.value.__suppress_context__
 
 
+def test_openalex_citing_groups_parses_keys_and_unknown(monkeypatch):
+    urls = []
+    bodies = iter(["openalex_reach_countries.json", "openalex_reach_funders.json"])
+
+    def fake_get_text(url, **_kw):
+        urls.append(url)
+        return (FIXTURES / next(bodies)).read_text()
+
+    monkeypatch.setattr(openalex, "get_text", fake_get_text)
+    n, countries = openalex.citing_groups(["W1", "W2"], "authorships.countries")
+    q = parse_qs(urlparse(urls[0]).query)
+    assert q["filter"] == ["cites:W1|W2"] and q["per-page"] == ["200"]
+    assert q["group_by"] == ["authorships.countries:include_unknown"]
+    assert n == 24 and len(countries) == 17
+    assert countries[0] == ("US", "United States", 13)
+    assert (None, None, 2) in countries
+
+    n, funders = openalex.citing_groups(["W1"], "funders.id")
+    assert n == 24 and len(funders) == 31
+    assert ("F4320332161", "National Institutes of Health", 7) in funders
+    assert funders[0] == (None, None, 8)
+    assert not any("openalex.org" in (k or "") for k, _, _ in funders)
+
+
 def test_icite_metadata_row_renames_rcr_and_lowercases_doi():
     r = dict(_fixture("icite_pubs.json")["data"][1], doi="10.1093/NAR/gkae127")
     assert icite.metadata_row(r) == (
@@ -181,6 +208,9 @@ def api_store(monkeypatch, tmp_path):
         q = urlparse(url)
         filt = parse_qs(q.query)["filter"][0]
         calls.append(filt)
+        if group_by := parse_qs(q.query).get("group_by"):
+            name = "countries" if group_by[0].startswith("authorships.countries") else "funders"
+            return (FIXTURES / f"openalex_reach_{name}.json").read_text()
         if q.path == "/institutions":
             return (FIXTURES / "openalex_institutions.json").read_text()
         if q.path == "/funders":
@@ -350,3 +380,96 @@ def test_funders_outage_skips_only_that_step(api_store, monkeypatch):
     monkeypatch.setattr(openalex, "get_text", flaky)
     counts = enrich_from_lake.run(("works", "funders"), source="api")
     assert "bridge_work_funder" not in counts and counts["dim_work"] == 2
+
+
+def _seed_reach_bridge(con):
+    con.execute(
+        "INSERT INTO bridge_package_pub (package_name, repo, work_id, role, match_method, "
+        "confidence) VALUES "
+        "('limma', 'bioc', '10.1093/nar/gkv007', 'primary', 'citation_file', 0.9),"
+        "('sesame', 'bioc', '38407446', 'primary', 'doi', 1.0),"
+        "('pair', 'bioc', '10.1093/nar/gkv007', 'primary', 'doi', 1.0),"
+        "('pair', 'bioc', '38407446', 'primary', 'doi', 1.0),"
+        "('sesame2', 'bioc', '38407446', 'primary', 'citation_file', 0.9),"
+        "('notconf', 'bioc', '38407446', 'primary', 'description_doi', 0.6)"
+    )
+    # a stale stored id: reach must use this run's live ids, never this one
+    con.execute("INSERT INTO dim_work (work_id, openalex_id) VALUES ('38407446', 'Wstale')")
+    con.execute(
+        "INSERT INTO dim_funder VALUES ('F4320337348', 'NHGRI (declared)', true, NULL, NULL, NULL)"
+    )
+    con.execute(
+        "INSERT INTO fact_package_reach VALUES "
+        "('old', 'bioc', 'total', NULL, NULL, 5, '2026-09-01')"
+    )
+
+
+def test_enrich_reach_from_api(api_store, monkeypatch):
+    monkeypatch.setenv("OPENALEX_API_KEY", "k")
+    con, calls = api_store
+    _seed_reach_bridge(con)
+    con.close()
+
+    counts = enrich_from_lake.run(("reach",), source="api")
+    assert counts["fact_package_reach"] == 4 * 49
+    assert "cites:W2146512944|W4392168904" in calls
+    assert not any("Wstale" in c for c in calls)
+    assert calls.count("cites:W4392168904") == 2  # sesame + sesame2 share one pair of calls
+
+    con = lake.db.connect(lake.DB_PATH)
+    per_package = con.execute(
+        "SELECT package_name, count(*) FILTER (dimension = 'total' AND key IS NULL "
+        "AND n_citing = 24), count(*) FILTER (dimension = 'country'), "
+        "count(*) FILTER (dimension = 'funder'), count(*) FILTER (_snapshot = current_date) "
+        "FROM fact_package_reach WHERE _snapshot > '2026-09-01' GROUP BY 1 ORDER BY 1"
+    ).fetchall()
+    assert per_package == [
+        ("limma", 1, 17, 31, 49), ("pair", 1, 17, 31, 49),
+        ("sesame", 1, 17, 31, 49), ("sesame2", 1, 17, 31, 49),
+    ]
+    assert con.execute(
+        "SELECT name, curated, country_code FROM dim_funder WHERE funder_id = 'F4320320300'"
+    ).fetchall() == [("European Commission", False, None)]
+    assert con.execute(
+        "SELECT name, curated, country_code, ror FROM dim_funder WHERE funder_id = 'F4320337348'"
+    ).fetchall() == [("NHGRI (declared)", True, "US", "https://ror.org/00baak391")]
+    con.close()
+
+    # same-day rerun is idempotent; the older snapshot survives both runs
+    enrich_from_lake.run(("reach",), source="api")
+    con = lake.db.connect(lake.DB_PATH)
+    assert con.execute("SELECT count(*) FROM fact_package_reach").fetchone()[0] == 4 * 49 + 1
+    assert con.execute(
+        "SELECT count(*) FROM fact_package_reach WHERE _snapshot = '2026-09-01'"
+    ).fetchone()[0] == 1
+
+
+def test_reach_skips_without_api_key(api_store, monkeypatch, capsys):
+    monkeypatch.delenv("OPENALEX_API_KEY", raising=False)
+    con, calls = api_store
+    _seed_reach_bridge(con)
+    con.close()
+    counts = enrich_from_lake.run(("reach",), source="api")
+    assert "fact_package_reach" not in counts
+    assert "set OPENALEX_API_KEY" in capsys.readouterr().out
+    assert not any(c.startswith("cites:") for c in calls)
+
+
+def test_reach_outage_keeps_last_snapshot(api_store, monkeypatch):
+    monkeypatch.setenv("OPENALEX_API_KEY", "k")
+    con, _ = api_store
+    _seed_reach_bridge(con)
+    con.close()
+    real = openalex.get_text
+
+    def flaky(url, **kw):
+        if "group_by" in url:
+            raise http.HttpError(url, 500)
+        return real(url, **kw)
+
+    monkeypatch.setattr(openalex, "get_text", flaky)
+    counts = enrich_from_lake.run(("works", "reach"), source="api")
+    assert "fact_package_reach" not in counts and counts["dim_work"] == 2
+    con = lake.db.connect(lake.DB_PATH)
+    assert con.execute("SELECT package_name FROM fact_package_reach").fetchall() == [("old",)]
+    assert con.execute("SELECT funder_id FROM dim_funder").fetchall() == [("F4320337348",)]

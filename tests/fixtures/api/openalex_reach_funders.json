@@ -1,0 +1,164 @@
+{
+ "meta": {
+  "count": 24,
+  "groups_count": 31
+ },
+ "results": [],
+ "group_by": [
+  {
+   "key": "unknown",
+   "key_display_name": "unknown",
+   "count": 8
+  },
+  {
+   "key": "https://openalex.org/F4320332161",
+   "key_display_name": "National Institutes of Health",
+   "count": 7
+  },
+  {
+   "key": "https://openalex.org/F4320337354",
+   "key_display_name": "National Institute of General Medical Sciences",
+   "count": 6
+  },
+  {
+   "key": "https://openalex.org/F4320337348",
+   "key_display_name": "National Human Genome Research Institute",
+   "count": 3
+  },
+  {
+   "key": "https://openalex.org/F4320337351",
+   "key_display_name": "National Cancer Institute",
+   "count": 3
+  },
+  {
+   "key": "https://openalex.org/F4320309370",
+   "key_display_name": "University of Pennsylvania",
+   "count": 2
+  },
+  {
+   "key": "https://openalex.org/F4320306155",
+   "key_display_name": "Cancer Research Institute",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320306710",
+   "key_display_name": "Glenn Foundation for Medical Research",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320309099",
+   "key_display_name": "Children's Hospital of Philadelphia",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320310040",
+   "key_display_name": "St. Jude Children's Research Hospital",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320310174",
+   "key_display_name": "University of Pittsburgh",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320318914",
+   "key_display_name": "Universidad Aut\u00f3noma de Aguascalientes",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320320300",
+   "key_display_name": "European Commission",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320320945",
+   "key_display_name": "K\u00f8benhavns Universitet",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320321589",
+   "key_display_name": "Fondation pour la Recherche M\u00e9dicale",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320321652",
+   "key_display_name": "Eidgen\u00f6ssische Technische Hochschule Z\u00fcrich",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320322120",
+   "key_display_name": "National Research Foundation of Korea",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320322436",
+   "key_display_name": "Novo Nordisk",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320322927",
+   "key_display_name": "Zhejiang University",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320323939",
+   "key_display_name": "Copenhagen Graduate School for Nanoscience and Nanotechnology",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320325957",
+   "key_display_name": "Novo Nordisk Fonden",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320327956",
+   "key_display_name": "Instituto Nacional de Medicina Gen\u00f3mica",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320332591",
+   "key_display_name": "Intellectual and Developmental Disabilities Research Center",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320332608",
+   "key_display_name": "Perelman School of Medicine, University of Pennsylvania",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320333934",
+   "key_display_name": "Center for Research Computing, University of Pittsburgh",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320335517",
+   "key_display_name": "Erasmus Universitair Medisch Centrum Rotterdam",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320337337",
+   "key_display_name": "National Institute on Aging",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320337355",
+   "key_display_name": "National Institute of Allergy and Infectious Diseases",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320337361",
+   "key_display_name": "National Institute of Environmental Health Sciences",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320337611",
+   "key_display_name": "Eunice Kennedy Shriver National Institute of Child Health and Human Development",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/F4320338453",
+   "key_display_name": "HORIZON EUROPE European Research Council",
+   "count": 1
+  }
+ ]
+}

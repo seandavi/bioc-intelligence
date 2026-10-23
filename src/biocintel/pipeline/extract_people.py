@@ -200,10 +200,14 @@ def _write(con, out: Assembled) -> None:
     ]
     con.execute("BEGIN")
     for table, _, _ in tables:
-        # dim_funder also holds the funders OpenAlex lists on works (enrich_from_lake,
-        # #85): keep those, and the registry ids already on a declared one.
+        # dim_funder also holds the funders OpenAlex lists on works (enrich_from_lake, #85) and
+        # on works citing a package (fact_package_reach, #92): keep those, and the registry ids
+        # already on a declared one. `key IS NOT NULL`: a NULL in a NOT IN list would match
+        # nothing, so no stale funder would ever be pruned.
         keep = (
-            " WHERE funder_id NOT IN (SELECT funder_id FROM bridge_work_funder)"
+            " WHERE funder_id NOT IN (SELECT funder_id FROM bridge_work_funder"
+            " UNION SELECT key FROM fact_package_reach"
+            " WHERE dimension = 'funder' AND key IS NOT NULL)"
             if table == "dim_funder" else ""
         )
         con.execute(f"DELETE FROM {table}{keep}")
