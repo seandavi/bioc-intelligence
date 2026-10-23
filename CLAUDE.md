@@ -24,7 +24,7 @@ Python project managed with `uv` (Python ≥3.11). Deps: `duckdb`, `httpx`, `pyy
 uv venv && uv pip install -e '.[dev]'   # setup
 
 uv run biocintel init-db                 # create DuckDB store + schema
-uv run biocintel extract-packages        # VIEWS -> dim_package(_version), all 4 repos (~25s live)
+uv run biocintel extract-packages        # VIEWS -> dim_package(_version), all 4 repos (~25s live); + ELIXIR RSEc flag/bio.tools id (best-effort git clone, #93)
 uv run biocintel extract-packages --devel --repos bioc   # add devel channel / scope repos
 uv run biocintel extract-packages --all-releases          # + every past release's VIEWS (~7 min cold)
 uv run biocintel extract-downloads       # stats tabs -> fact_download (skips a repo on 404)

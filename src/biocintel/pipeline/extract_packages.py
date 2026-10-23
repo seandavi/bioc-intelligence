@@ -6,7 +6,8 @@ Bioconductor-native, no lake. The current release (and optionally devel) fills
 ``dim_package_version`` only. ``first_seen_release`` is the earliest release
 loaded for each package, so it means "1.8 or earlier" for packages already in
 1.8. Release dates come from the release-announcements table (``dim_release``).
-Dimensions are rebuilt per run via INSERT OR REPLACE (spec §5).
+Dimensions are rebuilt per run via INSERT OR REPLACE (spec §5). Then flags packages listed in
+the ELIXIR RSEc (``in_elixir_rsec``, ``biotools_id``; best-effort, see ``biocintel.rsec``).
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from datetime import date, datetime
 
 import duckdb
 
-from .. import db
+from .. import db, rsec
 from ..config import (
     RELEASE_ANNOUNCEMENTS_URL,
     REPOS,
@@ -287,6 +288,8 @@ def run(
             counts[rel] = len(vers)
             print(f"  {rel}: {len(vers)} version rows")
         con.execute(_FIRST_SEEN_SQL)
+        if (n_rsec := rsec.refresh_dim_package(con)) is not None:
+            counts["elixir_rsec"] = n_rsec
     finally:
         con.close()
     return counts
