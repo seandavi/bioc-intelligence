@@ -111,7 +111,8 @@ dim_package(
   maintainer, maintainer_ror?,        -- best-effort
   biocviews[], description,
   url[], bug_reports,
-  source_doi?                          -- DOI of describing manuscript, if known
+  source_doi?,                         -- DOI of describing manuscript, if known
+  in_elixir_rsec?, biotools_id?        -- ELIXIR RSEc, best-effort (#93)
 )
 
 dim_package_version(

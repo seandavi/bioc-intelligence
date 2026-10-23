@@ -267,7 +267,9 @@ SELECT package_name, repo, latest_release, maintainer,  -- no maintainer_email (
        len(depends_on_me) + len(imports_me) + len(links_to_me) AS n_reverse_deps,
        dependency_count AS n_deps, git_last_commit_date, package_status, has_news,
        n_vignettes, license,
-       'https://bioconductor.org/packages/' || package_name || '/' AS bioc_url
+       'https://bioconductor.org/packages/' || package_name || '/' AS bioc_url,
+       in_elixir_rsec, biotools_id,
+       'https://bio.tools/' || biotools_id AS biotools_url
 FROM dim_package
 ORDER BY package_name, repo;
 
@@ -532,6 +534,17 @@ DEFINITIONS: dict[str, dict] = {
             "n_vignettes": "Number of vignettes.",
             "license": "DESCRIPTION License.",
             "bioc_url": "Package landing page on bioconductor.org.",
+            "in_elixir_rsec": "Listed in the ELIXIR Research Software Ecosystem's weekly "
+                              "Bioconductor import (research-software-ecosystem/content, "
+                              "imports/bioconductor). The import covers the software (bioc) "
+                              "repo only, so other repos are FALSE. FALSE means not in that "
+                              "import, not absent from bio.tools; NULL means the listing has "
+                              "never been fetched.",
+            "biotools_id": "bio.tools identifier: the RSEc data/<id>/ folder holding both this "
+                           "package's Bioconductor record and a bio.tools record. When bio.tools "
+                           "has two entries, the curated id without the bioconductor- prefix "
+                           "wins. NULL when there is none or the listing has never been fetched.",
+            "biotools_url": "The package's bio.tools page (https://bio.tools/<biotools_id>).",
         },
     },
     "mart_work": {
