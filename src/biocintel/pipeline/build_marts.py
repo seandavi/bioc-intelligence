@@ -316,6 +316,16 @@ LEFT JOIN dim_grant g ON g.grant_id = regexp_extract(
     upper(bw.funder_award_id), '([A-Z][A-Z0-9][0-9][A-Z]{2}[0-9]{6})', 1)
 ORDER BY bw.work_id, f.name, bw.funder_award_id;
 
+-- Award detail per award credited on a linked work (#90): one row per award; join
+-- mart_work_funder on award_id for the works. NIH detail stays in RePORTER (grant_id there).
+CREATE OR REPLACE TABLE mart_award AS
+SELECT a.award_id, a.funder_id, f.name AS funder_name, a.funder_award_id, a.title, a.scheme,
+       a.start_date, a.end_date, a.amount, a.currency, a.amount_usd, a.award_doi,
+       a.provenance, a.is_stub
+FROM dim_award a
+LEFT JOIN dim_funder f USING (funder_id)
+ORDER BY f.name, a.funder_award_id, a.award_id;
+
 -- Institutions per linked work (one row per work × institution × author position);
 -- filter author_position = 'last' for senior-author countries.
 CREATE OR REPLACE TABLE mart_work_institution AS
@@ -378,6 +388,7 @@ _MARTS = [
     "mart_package_downloads_monthly",
     "mart_work_institution",
     "mart_work_funder",
+    "mart_award",
     "mart_region_group",
     "mart_funder_region",
 ]
@@ -612,6 +623,48 @@ DEFINITIONS: dict[str, dict] = {
             "award_id": "OpenAlex award id (G...); null when no award is listed.",
             "funder_award_id": "The funder's own award number as OpenAlex records it.",
             "grant_id": "NIH core project number when the award matches RePORTER (dim_grant).",
+        },
+    },
+    "mart_award": {
+        "description": "One row per OpenAlex award credited by a linked publication; join "
+                       "mart_work_funder on award_id for the publications. An award here means "
+                       "the paper credits that grant in its funding acknowledgement, not that "
+                       "the grant's money funded the software: never sum amount or amount_usd, "
+                       "within or across funders. Most awards are stubs (is_stub): funder and "
+                       "award number only. Detail completeness varies by funder, so counts of "
+                       "detailed awards measure funder metadata quality, not funding. For NIH "
+                       "awards RePORTER is authoritative: follow mart_work_funder.grant_id to "
+                       "mart_grant_attribution.",
+        "columns": {
+            "award_id": "OpenAlex award id (G...); joins mart_work_funder.award_id.",
+            "funder_id": "OpenAlex funder id (F...); joins mart_work_funder and "
+                         "mart_funder_region.",
+            "funder_name": "Funder name.",
+            "funder_award_id": "The funder's own award number as OpenAlex records it. Display "
+                               "text, not a join key: it can hold several numbers or a "
+                               "programme name ('251217 and 255847', 'HORIZON2020').",
+            "title": "Award title from the funder's record; empty for stubs.",
+            "scheme": "Funding scheme as the funder names it (OpenAlex funder_scheme), e.g. "
+                      "'F31' or 'H2020 - RIA'. Not harmonized across funders.",
+            "start_date": "Award start date, when the funder's record has one.",
+            "end_date": "Award end date, when the funder's record has one.",
+            "amount": "Award amount in currency as the source records it; its scope (whole "
+                      "award, one year, one share) varies by source. What the grant was "
+                      "worth, not what funded the software: never sum.",
+            "currency": "ISO 4217 currency code of amount.",
+            "amount_usd": "amount converted to US dollars by OpenAlex at a daily exchange "
+                          "rate. For display only: never sum or compare across countries.",
+            "award_doi": "Award DOI, bare and lower-case (e.g. 10.3030/777483 for CORDIS), "
+                         "when the funder registers one.",
+            "provenance": "OpenAlex source of the award record: a funder or grant database "
+                          "(nih_exporter, cordis, gateway_to_research, ...) or a publication's "
+                          "acknowledgement (crossref_work_funders, europepmc_work_funders, "
+                          "...). Empty when OpenAlex no longer returns the award.",
+            "is_stub": "True when nothing is known beyond a publication's funding "
+                       "acknowledgement: provenance crossref_work_funders, "
+                       "europepmc_work_funders, datacite_work_funders or crossref_work.grants, "
+                       "or the award is missing from OpenAlex. Stubs have funder and award "
+                       "number only.",
         },
     },
     "mart_region_group": {
