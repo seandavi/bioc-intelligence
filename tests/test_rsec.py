@@ -94,6 +94,51 @@ def test_refresh_updates_on_good_listing(monkeypatch):
     assert rsec.refresh_dim_package(_store()) == 3
 
 
+def _primed(monkeypatch):
+    """Store after one good refresh: 3 listed, 3 ids."""
+    con = _store()
+    monkeypatch.setattr(rsec, "fetch_rsec_paths", _paths)
+    assert rsec.refresh_dim_package(con) == 3
+    return con
+
+
+def test_refresh_skips_shrunken_import_listing(monkeypatch, capsys):
+    con = _primed(monkeypatch)
+    before = _flags(con)
+    keep = "imports/bioconductor/limma.bioconductor.json"
+    monkeypatch.setattr(
+        rsec, "fetch_rsec_paths",
+        lambda: [p for p in _paths() if not p.startswith("imports/bioconductor/") or p == keep],
+    )
+    capsys.readouterr()
+    assert rsec.refresh_dim_package(con) is None
+    assert _flags(con) == before
+    out = capsys.readouterr().out
+    assert "1 listed" in out and "store has 3 / 3" in out
+
+
+def test_refresh_skips_shrunken_biotools_ids(monkeypatch):
+    con = _primed(monkeypatch)
+    before = _flags(con)
+    monkeypatch.setattr(
+        rsec, "fetch_rsec_paths",
+        lambda: [p for p in _paths() if not p.endswith(".biotools.json")],
+    )
+    assert rsec.refresh_dim_package(con) is None
+    assert _flags(con) == before
+
+
+def test_refresh_updates_on_modest_shrink(monkeypatch):
+    con = _primed(monkeypatch)
+    keep = {f"imports/bioconductor/{n}.bioconductor.json" for n in ("limma", "ace")}
+    monkeypatch.setattr(
+        rsec, "fetch_rsec_paths",
+        lambda: [p for p in _paths() if not p.startswith("imports/bioconductor/") or p in keep],
+    )
+    assert rsec.refresh_dim_package(con) == 2
+    assert _flags(con)["scater"] == (False, "scater")
+
+
 def test_views_upsert_keeps_rsec_columns():
     con = _store()
     con.execute("UPDATE dim_package SET in_elixir_rsec = TRUE, biotools_id = 'limma' "

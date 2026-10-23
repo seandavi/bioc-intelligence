@@ -77,6 +77,7 @@ main `cdsci` data lifecycle.
 | Field-normalized impact       | `icite.metadata` (RCR, citation counts)                    | lake     | monthly    |
 | Grants (describing + citing)  | `reporter.publink`/`reporter.projects`; `openalex.works.grants` | lake | monthly    |
 | Version/release history       | `git.bioconductor.org` tags                                | git      | per release |
+| ELIXIR RSEc flag / bio.tools id | `research-software-ecosystem/content` (`imports/bioconductor`, `data/<id>/` paths) | git (blob-less shallow clone) | monthly, best-effort (#93); upstream imports weekly |
 
 **Amended 2026-10-07 (#83):** the "lake" rows above now come from the public
 APIs by default (OpenAlex works/`cites:` filter, iCite `/api/pubs`, RePORTER v2
