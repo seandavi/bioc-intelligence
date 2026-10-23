@@ -144,7 +144,7 @@ dim_award(                             -- OpenAlex /awards detail per credited a
 
 dim_region_group(                      -- from regions.yaml (#91); one country, many groupings
   country_code, grouping,
-  grouping_label, grouping_kind
+  grouping_label, grouping_kind, as_of
 )
 
 dim_funder_region(                     -- hand-mapped supranational funders (#91)
@@ -238,7 +238,7 @@ mart_award(                            -- one row per credited award (#90); neve
 )
 
 mart_region_group(                     -- country → grouping filter (#91)
-  country_code, grouping, grouping_label, grouping_kind
+  country_code, grouping, grouping_label, grouping_kind, as_of
 )
 
 mart_funder_region(                    -- funder → grouping filter (#91)
