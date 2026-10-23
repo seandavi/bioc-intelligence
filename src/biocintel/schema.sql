@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS bridge_package_pub (
     repo          VARCHAR NOT NULL,
     work_id       VARCHAR NOT NULL,
     role          VARCHAR,                -- 'primary' | 'companion'
-    match_method  VARCHAR,                -- 'doi' | 'citation_file' | 'description_doi' | 'title_search' | 'manual'
+    match_method  VARCHAR,                -- 'doi' | 'doi_alias' | 'citation_file' | 'description_doi' | 'title_search' | 'manual'
     confidence    DOUBLE,
     source_release VARCHAR                -- citation_file: 'devel' | 'release' | past release e.g. '3.16'
 );

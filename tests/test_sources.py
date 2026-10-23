@@ -9,6 +9,7 @@ are the ``group_by`` responses for the works citing sesame's paper, trimmed to `
 fixture's ``G111``/``G222``.
 ``openalex_works_merged.json`` (HiLDA's PeerJ paper, W2970457274, which carries the merged
 bioRxiv preprint 10.1101/577452 in its locations) was recorded 2026-10-23.
+``_LIVE_PREPRINT`` is hand-built (#102): no live preprint is also another work's location DOI.
 """
 
 import json
@@ -393,10 +394,81 @@ def test_link_works_links_preprint_doi_merged_into_journal_work(api_store, monke
     con.close()
     _serve_merged_preprint(monkeypatch)
     assert link_works.run(source="api") == {"doi": 1}
+    assert link_works.run(source="api") == {"doi": 1}  # re-run clears doi_alias rows too
     con = lake.db.connect(lake.DB_PATH)
     assert con.execute(
         "SELECT package_name, work_id, match_method, confidence FROM bridge_package_pub"
-    ).fetchall() == [("HiLDA", "31523512", "doi", 1.0)]
+    ).fetchall() == [("HiLDA", "31523512", "doi_alias", 1.0)]
+
+
+# Hand-built (#102): no live OpenAlex preprint is also another work's location DOI today
+# (2026-10-23 probe), so this record pairs HiLDA's preprint DOI with its pre-merge id.
+_LIVE_PREPRINT = {
+    "id": "https://openalex.org/W2921099115", "doi": "https://doi.org/10.1101/577452",
+    "ids": {"openalex": "https://openalex.org/W2921099115",
+            "doi": "https://doi.org/10.1101/577452"},
+    "title": "HiLDA (preprint)", "publication_year": 2019,
+    "primary_location": {"source": {"display_name": "bioRxiv"}},
+    "cited_by_count": 1, "is_retracted": False, "authorships": [], "funders": [], "awards": [],
+    "locations": [{"doi": "https://doi.org/10.1101/577452"}],
+}
+
+
+def _serve_live_preprint(monkeypatch):
+    """OpenAlex serves both the merged journal work and the still-live preprint work."""
+    merged = json.loads((FIXTURES / "openalex_works_merged.json").read_text())
+    both = json.dumps({"meta": {"count": 2, "next_cursor": None},
+                       "results": [merged["results"][0], _LIVE_PREPRINT], "group_by": []})
+
+    def fake_openalex(url, **_kw):
+        filt = parse_qs(urlparse(url).query)["filter"][0]
+        if any(k in filt for k in ("10.1101/577452", "31523512", "W2921099115", "W2970457274")):
+            return both
+        return json.dumps({"meta": {"next_cursor": None}, "results": []})
+
+    monkeypatch.setattr(openalex, "get_text", fake_openalex)
+
+
+def test_link_works_prefers_live_preprint_own_doi_over_alias(api_store, monkeypatch):
+    con, _ = api_store
+    con.execute(
+        "INSERT INTO dim_package (package_name, repo, source_doi) "
+        "VALUES ('HiLDA', 'bioc', 'https://doi.org/10.1101/577452')"
+    )
+    con.close()
+    _serve_live_preprint(monkeypatch)
+    link_works.run(source="api")
+    con = lake.db.connect(lake.DB_PATH)
+    assert con.execute(
+        "SELECT package_name, work_id, match_method, confidence FROM bridge_package_pub"
+    ).fetchall() == [("HiLDA", "10.1101/577452", "doi", 1.0)]
+
+
+def test_enrich_links_live_preprint_doi_to_its_own_work(api_store, monkeypatch):
+    con, _ = api_store
+    con.execute(
+        "INSERT INTO bridge_package_pub (package_name, repo, work_id, role, match_method, "
+        "confidence) VALUES ('HiLDA', 'bioc', '10.1101/577452', 'primary', 'citation_file', 0.9)"
+    )
+    con.execute(
+        "INSERT INTO dim_work (work_id, doi, openalex_id) "
+        "VALUES ('10.1101/577452', '10.1101/577452', 'W2921099115')"
+    )
+    con.execute(
+        "INSERT INTO fact_citation_edge (cited_work_id, citing_work_id, source, mention_type) "
+        "VALUES ('10.1101/577452', '99', 'openalex', 'formal')"
+    )
+    con.close()
+    _serve_live_preprint(monkeypatch)
+
+    enrich_from_lake.run(("works",), source="api")
+
+    con = lake.db.connect(lake.DB_PATH)
+    assert con.execute(
+        "SELECT work_id, pmid, doi, openalex_id, alias_dois FROM dim_work"
+    ).fetchall() == [("10.1101/577452", None, "10.1101/577452", "W2921099115", None)]
+    assert con.execute("SELECT cited_work_id, citing_work_id FROM fact_citation_edge"
+                       ).fetchall() == [("10.1101/577452", "99")]
 
 
 def test_enrich_relinks_preprint_doi_merged_into_journal_work(api_store, monkeypatch, capsys):

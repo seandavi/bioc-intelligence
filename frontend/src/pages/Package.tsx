@@ -80,6 +80,7 @@ const fmtDate = (v: Pkg["git_last_commit_date"]) => {
 
 const METHOD_LABEL: Record<string, string> = {
   doi: "DESCRIPTION DOI",
+  doi_alias: "DESCRIPTION DOI (merged preprint)",
   citation_file: "CITATION",
   description_doi: "Description text",
   title_search: "title search",

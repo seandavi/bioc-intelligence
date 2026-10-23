@@ -39,7 +39,7 @@ SELECT DISTINCT p.title FROM bi.dim_package p
 WHERE p.title IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM bi.bridge_package_pub b
     WHERE b.package_name = p.package_name AND b.repo = p.repo
-      AND b.match_method NOT IN ('doi', 'title_search'))
+      AND b.match_method NOT IN ('doi', 'doi_alias', 'title_search'))
 """
 
 # The works enrich_from_lake's `linked` table will hold (same join as its _LINKED_SQL).
@@ -113,6 +113,10 @@ def _load_works(con: duckdb.DuckDBPyConnection, records: Iterable[dict]) -> None
     rows = [row for r in works.values() for row in openalex.alt_doi_rows(r)]
     if rows:
         con.executemany("INSERT INTO works_alt_dois VALUES (?, ?)", rows)
+    # An own DOI always wins: OpenAlex can keep a preprint live while its journal version lists
+    # it in locations, and as an alias it would link both works to one bridge DOI (#102).
+    con.execute("DELETE FROM works_alt_dois WHERE doi IN "
+                "(SELECT doi FROM lake.openalex.works WHERE doi IS NOT NULL)")
 
 
 def _fill_for_link(con: duckdb.DuckDBPyConnection, title_fallback: bool) -> None:
