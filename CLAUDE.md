@@ -71,6 +71,11 @@ CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_fro
   `funder_aliases.yaml` entry carries an `openalex:` id so Authors@R funders resolve to the
   same row. `mart_work_funder` matches NIH awards to `dim_grant` via the core project number
   inside `funder_award_id`. Best-effort; lake-side `works_funders`/`works_awards` are empty.
+  The same step also fetches each award's detail from OpenAlex `/awards` (its `id` filter needs
+  full URLs; bare ids silently match nothing) → `dim_award` (title, scheme, dates, amount,
+  `award_doi`, `provenance`, `is_stub`; #90), best-effort on its own: an `/awards` outage keeps
+  last run's `dim_award`. `mart_award` is one row per award, joined to `mart_work_funder` on
+  `award_id`. A credited award is not money that funded the software: never sum `amount`.
 - `grants` (default) — `reporter.publink`/`projects` → `dim_grant` + `bridge_work_grant`.
 - `citations` (**opt-in**) — `openalex.work_references` cited-by → `fact_citation_edge`. Under
   `api`, one `filter=cites:W…` cursor page per 200 citing works (~3k calls for ~580k edges): set
@@ -251,7 +256,7 @@ evaluating it (`authors.py`); funder spellings are normalized via `funder_aliase
 exported as `mart_region_group` / `mart_funder_region`: filters the frontend joins to country-coded
 marts, never baked into a count. Marts
 (`mart_package_impact`, `mart_grant_attribution`, `mart_release_growth`, `mart_package_person`,
-`mart_person`, `mart_package_funder`) are derived and exported.
+`mart_person`, `mart_package_funder`, `mart_award`) are derived and exported.
 
 ## Settled decisions — do not re-litigate
 
