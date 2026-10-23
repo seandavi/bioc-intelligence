@@ -6,6 +6,7 @@ CLI must reject unknown steps.
 
 import pytest
 
+from biocintel import lake
 from biocintel.pipeline import enrich_from_lake
 
 
@@ -45,6 +46,7 @@ def test_icite_fallback_resolves_dois_missing_from_openalex():
     # no lake.reliance schema: the patents sub-step fails and is skipped, works still land
     con.execute("USE bi")
     db.init_schema(con)
+    con.execute(lake.WORKS_ALT_DOIS_DDL)
     con.execute(
         "INSERT INTO lake.openalex.works VALUES "
         "('W1', 111, '10.1/in-openalex', 'OA title', 2020, 'J1', 50, false)"
@@ -145,6 +147,7 @@ def test_works_rekeys_doi_to_pmid_and_prunes_unlinked():
     con.execute("ATTACH ':memory:' AS bi")
     con.execute("USE bi")
     db.init_schema(con)
+    con.execute(lake.WORKS_ALT_DOIS_DDL)
     con.execute(
         "CREATE TEMP TABLE linked AS SELECT * FROM (VALUES "
         "('W1', 111::BIGINT, '10.1/a', '111', 't', 2020, 'J', 5::BIGINT, false)) "
@@ -187,6 +190,7 @@ def test_linked_keeps_one_work_per_doi():
     )
     con.execute("USE bi")
     db.init_schema(con)
+    con.execute(lake.WORKS_ALT_DOIS_DDL)
     con.execute("INSERT INTO lake.openalex.works VALUES "
                 "('W1', NULL, '10.1/x', 'preprint', 2023, 'bioRxiv', 1, false), "
                 "('W2', 38076946, '10.1/x', 'pubmed', 2023, 'bioRxiv', 2, false)")

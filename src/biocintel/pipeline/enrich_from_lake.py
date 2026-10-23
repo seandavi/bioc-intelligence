@@ -29,7 +29,8 @@ Idempotent per step (scoped deletes / INSERT OR REPLACE), keyed to the linked wo
 the working set (``biocintel.sources``) — seconds instead of the scans above, except
 ``citations`` (~one OpenAlex call per 200 citing works; set ``OPENALEX_API_KEY``).
 Patent counts are lake-only and skipped under ``api``. ``--source lake`` reads
-cdsci-lake. The SQL is the same either way.
+cdsci-lake. The SQL is the same either way. A bridge DOI may match a work through its alias
+DOIs (the preprint OpenAlex merged into it, #95): ``api`` only, since the lake drops ``locations``.
 """
 
 from __future__ import annotations
@@ -55,10 +56,12 @@ SELECT DISTINCT
     w.title, w.publication_year AS year, w.source_name AS journal, w.cited_by_count,
     w.is_retracted
 FROM lake.openalex.works w
+LEFT JOIN works_alt_dois a ON a.work_id = w.id
 -- A bridge work_id is PMID-or-DOI; match EITHER side (a citation link stores the
--- DOI even when the work also has a PMID, so a single COALESCE key would miss it).
+-- DOI even when the work also has a PMID, so a single COALESCE key would miss it),
+-- or a DOI OpenAlex merged into the work (alias, e.g. its bioRxiv preprint).
 JOIN bi.bridge_package_pub b
-  ON b.work_id = CAST(w.pmid AS VARCHAR) OR b.work_id = w.doi
+  ON b.work_id = CAST(w.pmid AS VARCHAR) OR b.work_id = w.doi OR b.work_id = a.doi
 -- One work per DOI: OpenAlex can hold a preprint and its PubMed record as two works
 -- sharing a DOI (TSAR); keep the one with a PMID.
 QUALIFY row_number() OVER (
@@ -89,10 +92,11 @@ WHERE (ic.doi IN (SELECT work_id FROM bi.bridge_package_pub)
 _WORKS_SQL = """
 INSERT OR REPLACE INTO bi.dim_work
     (work_id, pmid, doi, openalex_id, title, year, journal, icite_rcr, citation_count,
-     _snapshot, nih_percentile, apt, is_clinical, citations_per_year, is_retracted)
+     _snapshot, nih_percentile, apt, is_clinical, citations_per_year, is_retracted, alias_dois)
 SELECT l.work_id, CAST(l.pmid AS VARCHAR), l.doi, l.oa_id,
        l.title, l.year, l.journal, ic.rcr, l.cited_by_count, current_date,
-       ic.nih_percentile, ic.apt, ic.is_clinical, ic.citations_per_year, l.is_retracted
+       ic.nih_percentile, ic.apt, ic.is_clinical, ic.citations_per_year, l.is_retracted,
+       (SELECT list(DISTINCT a.doi ORDER BY a.doi) FROM works_alt_dois a WHERE a.work_id = l.oa_id)
 FROM linked l
 LEFT JOIN lake.icite.metadata ic ON ic.pmid = l.pmid;
 """
@@ -242,11 +246,13 @@ ON CONFLICT (funder_id) DO UPDATE SET ror = excluded.ror, crossref_id = excluded
 # A work's spine id changes when a source learns or corrects its PMID (DOI -> PMID for
 # 23 works, PMID -> PMID for one, when the API replaced the lake). Re-key its cited-by
 # edges via the old row's OpenAlex id or DOI, then drop dim_work rows no longer linked:
-# a stale twin would double-count in the marts, which also join bridge rows on doi.
+# a stale twin would double-count in the marts, which also join bridge rows on doi. A merged
+# preprint row is matched by its DOI appearing among the journal work's aliases.
 _REKEY_EDGES_SQL = """
 UPDATE bi.fact_citation_edge e SET cited_work_id = l.work_id
 FROM bi.dim_work old
 JOIN linked l ON old.openalex_id = l.oa_id OR old.doi = l.doi
+  OR old.doi IN (SELECT a.doi FROM works_alt_dois a WHERE a.work_id = l.oa_id)
 WHERE e.cited_work_id = old.work_id AND old.work_id <> l.work_id;
 """
 
@@ -273,10 +279,9 @@ def _enrich_works(con: duckdb.DuckDBPyConnection, *, patents: bool = True) -> in
 
 
 def _enrich_grants(con: duckdb.DuckDBPyConnection) -> int:
-    con.execute(
-        "DELETE FROM bi.bridge_work_grant WHERE source = 'reporter' "
-        "AND work_id IN (SELECT work_id FROM linked)"
-    )
+    # `linked` covers every bridged work, so a whole rebuild equals the scoped one for live
+    # works and drops rows keyed on a superseded spine id.
+    con.execute("DELETE FROM bi.bridge_work_grant WHERE source = 'reporter'")
     con.execute(_GRANT_DIM_SQL)
     con.execute(_GRANT_BRIDGE_SQL)
     n_stub = con.execute(_GRANT_STUB_SQL).fetchone()[0]

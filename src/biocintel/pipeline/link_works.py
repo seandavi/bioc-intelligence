@@ -2,7 +2,8 @@
 
 Kept simple (the settled decision): a package's DOI (from DESCRIPTION, extracted
 into ``dim_package.source_doi``) is joined to ``lake.openalex.works.doi`` — the
-authoritative, high-confidence path. An optional title fallback exact-matches
+authoritative, high-confidence path. The DOI may be the work's own or an alias (a
+preprint merged into its journal version, #95). An optional title fallback exact-matches
 remaining packages by normalized title; it is **off by default and low-yield**
 because a package's DESCRIPTION Title is rarely its manuscript's title (that needs
 CITATION-derived titles, deferred). Every edge carries ``match_method`` +
@@ -35,8 +36,14 @@ SELECT p.package_name, p.repo,
        COALESCE(CAST(w.pmid AS VARCHAR), w.doi) AS work_id,
        'primary', 'doi', 1.0
 FROM bi.dim_package p
-JOIN lake.openalex.works w
-  ON lower(regexp_replace(p.source_doi, '^(https?://(dx\\.)?doi\\.org/|doi:)', '', 'i')) = w.doi
+JOIN (
+    SELECT pmid, doi, doi AS join_doi FROM lake.openalex.works
+    UNION ALL
+    SELECT w.pmid, w.doi, a.doi FROM lake.openalex.works w
+    JOIN works_alt_dois a ON a.work_id = w.id
+) w
+  ON lower(regexp_replace(p.source_doi, '^(https?://(dx\\.)?doi\\.org/|doi:)', '', 'i'))
+     = w.join_doi
 WHERE p.source_doi IS NOT NULL;
 """
 

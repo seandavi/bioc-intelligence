@@ -76,7 +76,8 @@ CREATE TABLE IF NOT EXISTS dim_work (
     is_clinical         BOOLEAN,  -- iCite
     citations_per_year  DOUBLE,   -- iCite
     is_retracted        BOOLEAN,  -- OpenAlex
-    n_patent_citations  INTEGER   -- distinct citing patents (reliance.patent_citations)
+    n_patent_citations  INTEGER,  -- distinct citing patents (reliance.patent_citations)
+    alias_dois          VARCHAR[]  -- other DOIs OpenAlex lists for the work (e.g. a merged preprint); #95
 );
 
 CREATE TABLE IF NOT EXISTS dim_grant (
