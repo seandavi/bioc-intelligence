@@ -288,7 +288,9 @@ imports/bioconductor/scater.bioconductor.json
 - [ ] `mart_package_directory` has `in_elixir_rsec`, `biotools_id` and `biotools_url`.
       `biotools_url = 'https://bio.tools/limma'` for limma and NULL when `biotools_id` is NULL.
       All three have `DEFINITIONS` entries, so the build's definitions check passes.
-- [ ] No test runs git or touches the network.
+- [ ] No test runs git or touches the network. `tests/conftest.py` has an autouse fixture that makes
+      `rsec.fetch_rsec_paths` raise `FileNotFoundError`, so `extract_packages.run()` (which calls
+      `refresh_dim_package`) stays offline in any test; `test_rsec.py` re-monkeypatches it.
 - [ ] `uv run pytest` and `uv run ruff check src tests` pass.
 - [ ] `bioc-intelligence-spec.md` §5 `dim_package` lists `in_elixir_rsec?, biotools_id?` with a
       one-line comment ("ELIXIR RSEc, best-effort (#93)"). CLAUDE.md's `extract-packages`
