@@ -210,3 +210,20 @@ CREATE TABLE IF NOT EXISTS bridge_work_institution (
     is_corresponding  BOOLEAN,
     source            VARCHAR
 );
+
+-- ── Region groupings from regions.yaml (#91), reloaded by build_marts. ──
+-- Country → named grouping; one country can be in several. Filters, never baked into counts.
+CREATE TABLE IF NOT EXISTS dim_region_group (
+    country_code    VARCHAR NOT NULL,     -- ISO alpha-2 as OpenAlex writes it, plus XK, TW, EU
+    grouping        VARCHAR NOT NULL,     -- 'eu27' | 'horizon_associated' | ... | 'un_western_europe'
+    grouping_label  VARCHAR NOT NULL,
+    grouping_kind   VARCHAR NOT NULL,     -- 'policy' | 'geographic' | 'un_m49_region' | 'un_m49_subregion'
+    PRIMARY KEY (country_code, grouping)
+);
+
+-- Hand-mapped groupings for supranational funders OpenAlex gives no country_code.
+CREATE TABLE IF NOT EXISTS dim_funder_region (
+    funder_id  VARCHAR NOT NULL,          -- OpenAlex funder id ('F…'), dim_funder.funder_id
+    grouping   VARCHAR NOT NULL,
+    PRIMARY KEY (funder_id, grouping)
+);

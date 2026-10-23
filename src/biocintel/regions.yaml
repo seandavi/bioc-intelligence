@@ -1,0 +1,190 @@
+# Region groupings for countries and supranational funders (#91; see biocintel/regions.py).
+#
+# Groupings are views, not collection scope: marts keep country codes and the frontend
+# filters by grouping. One country can be in several groupings.
+#
+# Country codes are ISO 3166-1 alpha-2 as OpenAlex writes them (GR, GB), plus three codes
+# OpenAlex uses that UN M49 lacks: XK (Kosovo; placed in Southern Europe), TW (Taiwan;
+# placed in Eastern Asia) and EU (OpenAlex's code for EU-level bodies such as
+# NextGenerationEU; in eu27, europe_geographic and un_europe only).
+#
+# `countries` is one space-separated string, never a YAML list: YAML reads a bare NO
+# (Norway) as false.
+#
+# Sources, checked 2026-10-23. Re-check the policy lists when association agreements change.
+# - eu27: https://european-union.europa.eu/principles-countries-history/eu-countries_en
+# - horizon_associated, horizon_associated_pillar2: EC "List of participating countries in
+#   Horizon Europe" V4.2, 07.10.2026,
+#   https://ec.europa.eu/info/funding-tenders/opportunities/docs/2021-2027/common/guidance/list-3rd-country-participation_horizon-euratom_en.pdf
+#   (UK associated from 2024, Switzerland and Egypt from 2025, Japan Pillar II from 2026;
+#   Australia and Morocco are still under transitional arrangements and are not listed).
+# - un_*: UN M49 overview, https://unstats.un.org/unsd/methodology/m49/overview/
+#   (region and sub-region; intermediate regions are not used).
+
+groupings:
+  - id: eu27
+    label: European Union (27 member states)
+    kind: policy
+    countries: >-
+      AT BE BG CY CZ DE DK EE ES EU FI FR GR HR HU IE IT LT LU LV MT NL PL PT RO SE SI SK
+  - id: horizon_associated
+    label: Associated to Horizon Europe (whole programme)
+    kind: policy
+    countries: >-
+      AL AM BA CH EG FO GB GE IL IS MD ME MK NO RS TN TR UA XK
+  - id: horizon_associated_pillar2
+    label: Associated to Horizon Europe Pillar II only
+    kind: policy
+    countries: >-
+      CA JP KR NZ
+  - id: europe_geographic
+    label: Europe, geographic (UN M49 Europe plus Cyprus)
+    kind: geographic
+    countries: >-
+      AD AL AT AX BA BE BG BY CH CY CZ DE DK EE ES EU FI FO FR GB GG GI GR HR HU IE IM IS IT
+      JE LI LT LU LV MC MD ME MK MT NL NO PL PT RO RS RU SE SI SJ SK SM UA VA XK
+  - id: un_africa
+    label: Africa (UN M49 region)
+    kind: un_m49_region
+    countries: >-
+      AO BF BI BJ BW CD CF CG CI CM CV DJ DZ EG EH ER ET GA GH GM GN GQ GW IO KE KM LR LS LY
+      MA MG ML MR MU MW MZ NA NE NG RE RW SC SD SH SL SN SO SS ST SZ TD TF TG TN TZ UG YT ZA
+      ZM ZW
+  - id: un_americas
+    label: Americas (UN M49 region)
+    kind: un_m49_region
+    countries: >-
+      AG AI AR AW BB BL BM BO BQ BR BS BV BZ CA CL CO CR CU CW DM DO EC FK GD GF GL GP GS GT
+      GY HN HT JM KN KY LC MF MQ MS MX NI PA PE PM PR PY SR SV SX TC TT US UY VC VE VG VI
+  - id: un_asia
+    label: Asia (UN M49 region)
+    kind: un_m49_region
+    countries: >-
+      AE AF AM AZ BD BH BN BT CN CY GE HK ID IL IN IQ IR JO JP KG KH KP KR KW KZ LA LB LK MM
+      MN MO MV MY NP OM PH PK PS QA SA SG SY TH TJ TL TM TR TW UZ VN YE
+  - id: un_europe
+    label: Europe (UN M49 region)
+    kind: un_m49_region
+    countries: >-
+      AD AL AT AX BA BE BG BY CH CZ DE DK EE ES EU FI FO FR GB GG GI GR HR HU IE IM IS IT JE
+      LI LT LU LV MC MD ME MK MT NL NO PL PT RO RS RU SE SI SJ SK SM UA VA XK
+  - id: un_oceania
+    label: Oceania (UN M49 region)
+    kind: un_m49_region
+    countries: >-
+      AS AU CC CK CX FJ FM GU HM KI MH MP NC NF NR NU NZ PF PG PN PW SB TK TO TV UM VU WF WS
+  - id: un_northern_africa
+    label: Northern Africa (UN M49 sub-region of Africa)
+    kind: un_m49_subregion
+    countries: >-
+      DZ EG EH LY MA SD TN
+  - id: un_sub_saharan_africa
+    label: Sub-Saharan Africa (UN M49 sub-region of Africa)
+    kind: un_m49_subregion
+    countries: >-
+      AO BF BI BJ BW CD CF CG CI CM CV DJ ER ET GA GH GM GN GQ GW IO KE KM LR LS MG ML MR MU
+      MW MZ NA NE NG RE RW SC SH SL SN SO SS ST SZ TD TF TG TZ UG YT ZA ZM ZW
+  - id: un_latin_america_and_the_caribbean
+    label: Latin America and the Caribbean (UN M49 sub-region of Americas)
+    kind: un_m49_subregion
+    countries: >-
+      AG AI AR AW BB BL BO BQ BR BS BV BZ CL CO CR CU CW DM DO EC FK GD GF GP GS GT GY HN HT
+      JM KN KY LC MF MQ MS MX NI PA PE PR PY SR SV SX TC TT UY VC VE VG VI
+  - id: un_northern_america
+    label: Northern America (UN M49 sub-region of Americas)
+    kind: un_m49_subregion
+    countries: >-
+      BM CA GL PM US
+  - id: un_central_asia
+    label: Central Asia (UN M49 sub-region of Asia)
+    kind: un_m49_subregion
+    countries: >-
+      KG KZ TJ TM UZ
+  - id: un_eastern_asia
+    label: Eastern Asia (UN M49 sub-region of Asia)
+    kind: un_m49_subregion
+    countries: >-
+      CN HK JP KP KR MN MO TW
+  - id: un_south_eastern_asia
+    label: South-eastern Asia (UN M49 sub-region of Asia)
+    kind: un_m49_subregion
+    countries: >-
+      BN ID KH LA MM MY PH SG TH TL VN
+  - id: un_southern_asia
+    label: Southern Asia (UN M49 sub-region of Asia)
+    kind: un_m49_subregion
+    countries: >-
+      AF BD BT IN IR LK MV NP PK
+  - id: un_western_asia
+    label: Western Asia (UN M49 sub-region of Asia)
+    kind: un_m49_subregion
+    countries: >-
+      AE AM AZ BH CY GE IL IQ JO KW LB OM PS QA SA SY TR YE
+  - id: un_eastern_europe
+    label: Eastern Europe (UN M49 sub-region of Europe)
+    kind: un_m49_subregion
+    countries: >-
+      BG BY CZ HU MD PL RO RU SK UA
+  - id: un_northern_europe
+    label: Northern Europe (UN M49 sub-region of Europe)
+    kind: un_m49_subregion
+    countries: >-
+      AX DK EE FI FO GB GG IE IM IS JE LT LV NO SE SJ
+  - id: un_southern_europe
+    label: Southern Europe (UN M49 sub-region of Europe)
+    kind: un_m49_subregion
+    countries: >-
+      AD AL BA ES GI GR HR IT ME MK MT PT RS SI SM VA XK
+  - id: un_western_europe
+    label: Western Europe (UN M49 sub-region of Europe)
+    kind: un_m49_subregion
+    countries: >-
+      AT BE CH DE FR LI LU MC NL
+  - id: un_australia_and_new_zealand
+    label: Australia and New Zealand (UN M49 sub-region of Oceania)
+    kind: un_m49_subregion
+    countries: >-
+      AU CC CX HM NF NZ
+  - id: un_melanesia
+    label: Melanesia (UN M49 sub-region of Oceania)
+    kind: un_m49_subregion
+    countries: >-
+      FJ NC PG SB VU
+  - id: un_micronesia
+    label: Micronesia (UN M49 sub-region of Oceania)
+    kind: un_m49_subregion
+    countries: >-
+      FM GU KI MH MP NR PW UM
+  - id: un_polynesia
+    label: Polynesia (UN M49 sub-region of Oceania)
+    kind: un_m49_subregion
+    countries: >-
+      AS CK NU PF PN TK TO TV WF WS
+
+# Funders OpenAlex lists on our works with no country_code (all EU bodies, 2026-10-23). Each
+# takes the groupings of `country`. Funders that have a country_code in OpenAlex (EMBL DE,
+# IMI BE, WHO CH, Gates US) are not listed: their country's groupings apply.
+supranational_funders:
+  - {id: F4320320300, name: "European Commission", country: EU}
+  - {id: F4320338335, name: "H2020 European Research Council", country: EU}
+  - {id: F4320332999, name: "Horizon 2020 Framework Programme", country: EU}
+  - {id: F4320335322, name: "European Regional Development Fund", country: EU}
+  - {id: F4320334678, name: "European Research Council", country: EU}
+  - {id: F4320334960, name: "Seventh Framework Programme", country: EU}
+  - {id: F4320338352, name: "FP7 Ideas: European Research Council", country: EU}
+  - {id: F4320338080, name: "European Social Fund", country: EU}
+  - {id: F4320338377, name: "FP7 Health", country: EU}
+  - {id: F4320335254, name: "Horizon 2020", country: EU}
+  - {id: F4320317617, name: "E-Rare", country: EU}
+  - {id: F4320334322, name: "HORIZON EUROPE Framework Programme", country: EU}
+  - {id: F4320338337, name: "H2020 Marie Skłodowska-Curie Actions", country: EU}
+  - {id: F4320338438, name: "HORIZON EUROPE Marie Sklodowska-Curie Actions", country: EU}
+  - {id: F4320319638, name: "EOSC-Life", country: EU}
+  - {id: F4320332197, name: "Directorate-General for Research and Innovation", country: EU}
+  - {id: F4320333065, name: "Seventh Framework Programme", country: EU}
+  - {id: F4320334679, name: "Research Executive Agency", country: EU}
+  - {id: F4320334680, name: "Education, Audiovisual and Culture Executive Agency", country: EU}
+  - {id: F4320335551, name: "Erasmus+", country: EU}
+  - {id: F4320337662, name: "H2020 Excellent Science", country: EU}
+  - {id: F4320337665, name: "H2020 Spreading Excellence and Widening Participation", country: EU}
+  - {id: F4320338364, name: "FP7 Research infrastructures", country: EU}
