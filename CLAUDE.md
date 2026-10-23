@@ -74,8 +74,8 @@ CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_fro
   The same step also fetches each award's detail from OpenAlex `/awards` (its `id` filter needs
   full URLs; bare ids silently match nothing) → `dim_award` (title, scheme, dates, amount,
   `award_doi`, `provenance`, `is_stub`; #90), best-effort on its own: an `/awards` outage keeps
-  last run's `dim_award`. `mart_award` is one row per award, joined to `mart_work_funder` on
-  `award_id`. A credited award is not money that funded the software: never sum `amount`.
+  last run's `dim_award`. `mart_award` is one row per award still on
+  `bridge_work_funder`, joined to `mart_work_funder` on `award_id`. A credited award is not money that funded the software: never sum `amount`.
 - `grants` (default) — `reporter.publink`/`projects` → `dim_grant` + `bridge_work_grant`.
 - `citations` (**opt-in**) — `openalex.work_references` cited-by → `fact_citation_edge`. Under
   `api`, one `filter=cites:W…` cursor page per 200 citing works (~3k calls for ~580k edges): set

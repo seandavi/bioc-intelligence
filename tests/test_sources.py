@@ -692,6 +692,37 @@ def test_awards_missing_from_openalex_are_stub_rows(api_store, monkeypatch):
     ]
 
 
+def test_award_record_without_detail_is_a_stub(api_store, monkeypatch):
+    con, _ = api_store
+    _seed_bridge(con)
+    con.close()
+    real = openalex.get_text
+
+    def sparse_awards(url, **kw):
+        if urlparse(url).path == "/awards":
+            return json.dumps({"meta": {"next_cursor": None}, "results": [
+                {"id": "https://openalex.org/G111", "display_name": None,
+                 "funder_scheme": "F31", "start_date": None, "end_date": None,
+                 "amount": None, "currency": None, "amount_usd": None, "doi": None,
+                 "provenance": "some_new_acknowledgement_source"},
+                {"id": "https://openalex.org/G222", "display_name": None,
+                 "funder_scheme": None, "start_date": "2023-02-01", "end_date": None,
+                 "amount": None, "currency": None, "amount_usd": None, "doi": None,
+                 "provenance": "nih_exporter"},
+            ]})
+        return real(url, **kw)
+
+    monkeypatch.setattr(openalex, "get_text", sparse_awards)
+    enrich_from_lake.run(("works", "funders"), source="api")
+    con = lake.db.connect(lake.DB_PATH)
+    assert con.execute(
+        "SELECT award_id, provenance, is_stub FROM dim_award ORDER BY award_id"
+    ).fetchall() == [
+        ("G111", "some_new_acknowledgement_source", True),
+        ("G222", "nih_exporter", False),
+    ]
+
+
 def test_awards_outage_skips_only_that_step(api_store, monkeypatch):
     """/awards is best-effort on its own: an outage keeps last run's dim_award while the
     funders bridge still lands."""
