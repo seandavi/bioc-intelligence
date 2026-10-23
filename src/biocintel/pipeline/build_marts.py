@@ -600,7 +600,7 @@ DEFINITIONS: dict[str, dict] = {
                           "version. NULL when OpenAlex lists none, and always NULL for works "
                           "enriched under --source lake (the lake drops locations) or from "
                           "iCite alone, so NULL does not mean the work has no preprint. A DOI "
-                          "that is another linked or loaded work's own DOI is never listed; a "
+                          "that is another loaded OpenAlex work's own DOI is never listed; a "
                           "preprint OpenAlex still keeps as its own work can be listed if this "
                           "run did not load it. doi is the version the metrics describe.",
         },
