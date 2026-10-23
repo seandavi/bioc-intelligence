@@ -571,14 +571,19 @@ DEFINITIONS: dict[str, dict] = {
             "bioc_url": "Package landing page on bioconductor.org.",
             "in_elixir_rsec": "Listed in the ELIXIR Research Software Ecosystem's weekly "
                               "Bioconductor import (research-software-ecosystem/content, "
-                              "imports/bioconductor). The import covers the software (bioc) "
-                              "repo only, so other repos are FALSE. FALSE means not in that "
-                              "import, not absent from bio.tools; NULL means the listing has "
-                              "never been fetched.",
+                              "imports/bioconductor). Matched by package name in any repo. The "
+                              "import covers the software (bioc) repo, so other repos normally "
+                              "read FALSE, but a stale row for a package that moved repos can "
+                              "also read TRUE. FALSE means not in that import, not absent from "
+                              "bio.tools. NULL means the package has not yet been checked "
+                              "against the listing (new package, or the fetch was skipped). "
+                              "Values carry over from the last successful fetch.",
             "biotools_id": "bio.tools identifier: the RSEc data/<id>/ folder holding both this "
                            "package's Bioconductor record and a bio.tools record. When bio.tools "
                            "has two entries, the curated id without the bioconductor- prefix "
-                           "wins. NULL when there is none or the listing has never been fetched.",
+                           "wins. NULL when there is none, or when the package has not yet been "
+                           "checked against the listing (new package, or the fetch was "
+                           "skipped). Values carry over from the last successful fetch.",
             "biotools_url": "The package's bio.tools page (https://bio.tools/<biotools_id>).",
         },
     },
