@@ -24,11 +24,12 @@ first). Steps:
   ``fact_citation_edge``. **Heavy**: scans the 1.29B-row references table plus a
   second ``works`` pass for citing-side metadata, so it is **opt-in** (not in the
   default step set) to respect R2 egress. Run it deliberately for a full refresh.
-- **reach** (opt-in, api-only) — per package, the works citing its ``doi``/``citation_file``
-  primary papers (one OR'd ``cites:`` filter over this run's live OpenAlex ids), counted by
-  author affiliation country and by funder via OpenAlex ``group_by`` → ``fact_package_reach``
-  (snapshot-stamped, with ``n_works``, the papers counted); citing-work funders are merged
-  into ``dim_funder`` (#92). Needs ``OPENALEX_API_KEY`` (~2 calls per package). Best-effort.
+- **reach** (opt-in, api-only) — per package, the works citing its
+  ``doi``/``doi_alias``/``citation_file`` primary papers (one OR'd ``cites:`` filter over this
+  run's live OpenAlex ids), counted by author affiliation country and by funder via OpenAlex
+  ``group_by`` → ``fact_package_reach`` (snapshot-stamped, with ``n_works``, the papers
+  counted); citing-work funders are merged into ``dim_funder`` (#92). Needs
+  ``OPENALEX_API_KEY`` (~2 calls per package). Best-effort.
 
 Idempotent per step (scoped or whole-table deletes / INSERT OR REPLACE).
 

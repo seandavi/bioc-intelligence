@@ -445,4 +445,8 @@ def test_definitions_explain_alias_dois_and_doi_alias():
     assert "may differ from the DOI the package cites" in pkg_work["doi"]
     assert "doi_alias" in pkg_work["match_method"] and "doi_alias" in pkg_work["confidence"]
     assert "may differ" not in work["doi"]
+    assert "another linked or loaded work's own DOI" in work["alias_dois"]
+    assert "also holds as a separate work" not in work["alias_dois"]
+    assert "usually the preprint" in pkg_work["match_method"]
+    assert "is a preprint OpenAlex merged" not in pkg_work["match_method"]
     assert "doi_alias" in HONEST_VIEWS["package_pubs_confident"][2]
