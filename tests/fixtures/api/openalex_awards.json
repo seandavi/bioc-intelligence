@@ -1,0 +1,43 @@
+{
+ "meta": {
+  "next_cursor": null
+ },
+ "results": [
+  {
+   "id": "https://openalex.org/G7004411822",
+   "display_name": "Understanding the genetic basis of common human diseases: core funding for the Wellcome Trust Centre for Human Genetics.",
+   "funder_scheme": "Cellular and Molecular Neuroscience",
+   "start_date": "2011-04-01",
+   "end_date": "2016-11-30",
+   "amount": 11000000.0,
+   "currency": "GBP",
+   "amount_usd": 17646171.3,
+   "doi": "https://doi.org/10.35802/090532",
+   "provenance": "crossref_work"
+  },
+  {
+   "id": "https://openalex.org/G111",
+   "display_name": "Advancing Epigenetic Sequencing Through Solid-Phase Enzymatic Approaches",
+   "funder_scheme": "F31",
+   "start_date": "2023-02-01",
+   "end_date": "2026-01-31",
+   "amount": 47694.0,
+   "currency": "USD",
+   "amount_usd": 47694.0,
+   "doi": null,
+   "provenance": "nih_exporter"
+  },
+  {
+   "id": "https://openalex.org/G222",
+   "display_name": null,
+   "funder_scheme": null,
+   "start_date": null,
+   "end_date": null,
+   "amount": null,
+   "currency": null,
+   "amount_usd": null,
+   "doi": null,
+   "provenance": "crossref_work_funders"
+  }
+ ]
+}

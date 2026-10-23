@@ -184,6 +184,27 @@ def test_work_funder_mart_matches_nih_awards_to_dim_grant_by_core_number():
     ]
 
 
+def test_award_mart_one_row_per_award_with_funder_name():
+    con = db.connect(":memory:")
+    _fixture(con)
+    con.execute("INSERT INTO dim_funder (funder_id, name, curated) VALUES ('F1','NCI',true)")
+    con.execute(
+        "INSERT INTO dim_award VALUES "
+        "('G1','F1','5F31CA1-02','A title','F31','2023-02-01','2026-01-31',47694.0,'USD',"
+        "47694.0,NULL,'nih_exporter',false), "
+        "('G2','F1','F31CA1',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'crossref_work_funders',true)"
+    )
+    con.execute(_MART_SQL)
+    assert [r[0] for r in con.execute("DESCRIBE mart_award").fetchall()] == [
+        "award_id", "funder_id", "funder_name", "funder_award_id", "title", "scheme",
+        "start_date", "end_date", "amount", "currency", "amount_usd", "award_doi",
+        "provenance", "is_stub",
+    ]
+    rows = con.execute("SELECT award_id, funder_name, title, amount, is_stub FROM mart_award "
+                       "ORDER BY award_id").fetchall()
+    assert rows == [("G1", "NCI", "A title", 47694.0, False), ("G2", "NCI", None, None, True)]
+
+
 def test_package_work_keeps_highest_confidence_edge():
     con = db.connect(":memory:")
     _fixture(con)

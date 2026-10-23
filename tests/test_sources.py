@@ -2,11 +2,14 @@
 
 Fixtures under ``fixtures/api`` are real responses recorded 2026-10-07 and trimmed:
 limma (W2146512944 / PMID 25605792) and sesame's paper (W4392168904 / PMID 38407446).
+``openalex_awards.json`` was recorded 2026-10-23, with two ids relabelled to the works
+fixture's ``G111``/``G222``.
 ``openalex_works_merged.json`` (HiLDA's PeerJ paper, W2970457274, which carries the merged
 bioRxiv preprint 10.1101/577452 in its locations) was recorded 2026-10-23.
 """
 
 import json
+from datetime import date
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -91,6 +94,37 @@ def test_openalex_fetch_by_batches_pages_and_skips_separators(monkeypatch, capsy
     assert [c["cursor"] for c in calls] == ["*", "c2", "*", "*"]
     assert all(c["per-page"] == 200 and c["select"] == "id" for c in calls)
     assert len(got) == 200 + 50 + 50 + 20
+
+
+def test_openalex_award_row_normalizes_doi_and_dates():
+    wellcome, full, stub = (
+        openalex.award_row(r) for r in _fixture("openalex_awards.json")["results"])
+    assert wellcome == (
+        "G7004411822",
+        "Understanding the genetic basis of common human diseases: core funding for the "
+        "Wellcome Trust Centre for Human Genetics.", "Cellular and Molecular Neuroscience",
+        date(2011, 4, 1), date(2016, 11, 30), 11000000.0, "GBP", 17646171.3, "10.35802/090532",
+        "crossref_work")
+    assert full[:2] == ("G111", "Advancing Epigenetic Sequencing Through Solid-Phase Enzymatic "
+                                "Approaches")
+    assert stub == ("G222", None, None, None, None, None, None, None, None,
+                    "crossref_work_funders")
+    assert openalex._date("2023") is None and openalex._date(None) is None
+
+
+def test_openalex_awards_filter_needs_full_urls(monkeypatch):
+    calls = []
+
+    def fake_get(entity, params):
+        calls.append((entity, params))
+        return {"meta": {"next_cursor": None}, "results": []}
+
+    monkeypatch.setattr(openalex, "_get", fake_get)
+    assert list(openalex.awards(["G2", "G1"])) == []
+    [(entity, params)] = calls
+    assert entity == "awards"
+    assert params["filter"] == "id:https://openalex.org/G1|https://openalex.org/G2"
+    assert params["select"] == openalex.AWARD_FIELDS
 
 
 def test_openalex_api_key_is_sent_but_never_in_errors(monkeypatch):
@@ -193,6 +227,8 @@ def api_store(monkeypatch, tmp_path):
             return (FIXTURES / "openalex_institutions.json").read_text()
         if q.path == "/funders":
             return (FIXTURES / "openalex_funders.json").read_text()
+        if q.path == "/awards":
+            return (FIXTURES / "openalex_awards.json").read_text()
         if filt.startswith("cites:"):
             if filt == "cites:W4392168904":
                 return (FIXTURES / "openalex_cites.json").read_text()
@@ -251,9 +287,10 @@ def test_enrich_all_steps_from_api(api_store, capsys):
 
     counts = enrich_from_lake.run(enrich_from_lake.ALL_STEPS, source="api")
     assert counts == {"dim_work": 2, "dim_institution": 6, "bridge_work_funder": 3,
-                      "bridge_work_grant": 2, "fact_citation_edge": 3}
+                      "dim_award": 2, "bridge_work_grant": 2, "fact_citation_edge": 3}
     assert "1 of 1 stored work ids no longer resolve" in capsys.readouterr().out
     assert "openalex_id:W999" in calls
+    assert "id:https://openalex.org/G111|https://openalex.org/G222" in calls
     assert {"cites:W2146512944", "cites:W4392168904"} <= set(calls)
 
     con = lake.db.connect(lake.DB_PATH)
@@ -285,6 +322,16 @@ def test_enrich_all_steps_from_api(api_store, capsys):
         "WHERE funder_id = 'F4320337348'"
     ).fetchall() == [("National Human Genome Research Institute", "https://ror.org/00baak391",
                       "100000051", "US", False)]
+    # award detail (#90): G7004411822 is on no linked work, so it never reaches dim_award
+    assert con.execute(
+        "SELECT award_id, funder_id, funder_award_id, title IS NULL, scheme, start_date, "
+        "amount, provenance, is_stub FROM dim_award ORDER BY award_id"
+    ).fetchall() == [
+        ("G111", "F4320337348", "5F31HG012892-02", False, "F31", date(2023, 2, 1), 47694.0,
+         "nih_exporter", False),
+        ("G222", "F4320337348", "F31HG012892", True, None, None, None,
+         "crossref_work_funders", True),
+    ]
     assert sorted(con.execute(
         "SELECT cited_work_id, citing_work_id FROM fact_citation_edge").fetchall()) == [
         ("38407446", "38365920"), ("38407446", "38798987"), ("38407446", "40966651"),
@@ -424,3 +471,47 @@ def test_funders_outage_skips_only_that_step(api_store, monkeypatch):
     monkeypatch.setattr(openalex, "get_text", flaky)
     counts = enrich_from_lake.run(("works", "funders"), source="api")
     assert "bridge_work_funder" not in counts and counts["dim_work"] == 2
+
+
+def test_awards_missing_from_openalex_are_stub_rows(api_store, monkeypatch):
+    con, _ = api_store
+    _seed_bridge(con)
+    con.close()
+    real = openalex.get_text
+
+    def no_awards(url, **kw):
+        if urlparse(url).path == "/awards":
+            return json.dumps({"meta": {"next_cursor": None}, "results": []})
+        return real(url, **kw)
+
+    monkeypatch.setattr(openalex, "get_text", no_awards)
+    assert enrich_from_lake.run(("works", "funders"), source="api")["dim_award"] == 2
+    con = lake.db.connect(lake.DB_PATH)
+    assert con.execute(
+        "SELECT award_id, funder_id, funder_award_id, provenance, is_stub FROM dim_award "
+        "ORDER BY award_id"
+    ).fetchall() == [
+        ("G111", "F4320337348", "5F31HG012892-02", None, True),
+        ("G222", "F4320337348", "F31HG012892", None, True),
+    ]
+
+
+def test_awards_outage_skips_only_that_step(api_store, monkeypatch):
+    """/awards is best-effort on its own: an outage keeps last run's dim_award while the
+    funders bridge still lands."""
+    con, _ = api_store
+    _seed_bridge(con)
+    con.execute("INSERT INTO dim_award (award_id, funder_id, is_stub) VALUES ('Gold', 'F1', true)")
+    con.close()
+    real = openalex.get_text
+
+    def flaky(url, **kw):
+        if urlparse(url).path == "/awards":
+            raise http.HttpError(url, 500)
+        return real(url, **kw)
+
+    monkeypatch.setattr(openalex, "get_text", flaky)
+    counts = enrich_from_lake.run(("works", "funders"), source="api")
+    assert "bridge_work_funder" in counts and "dim_award" not in counts
+    con = lake.db.connect(lake.DB_PATH)
+    assert con.execute("SELECT award_id FROM dim_award").fetchall() == [("Gold",)]
