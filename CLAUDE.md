@@ -81,11 +81,11 @@ CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_fro
   `api`, one `filter=cites:W…` cursor page per 200 citing works (~3k calls for ~580k edges): set
   `OPENALEX_API_KEY`, since keyless OpenAlex allows only 1,000 calls/day. Under `lake`, it scans
   the **1.29B-row** references table plus a second `works` pass.
-- `reach` (**opt-in**, api-only) — `group_by` on works citing each package's `doi`/`citation_file`
-  primary papers (one OR'd `cites:` filter, this run's live ids) → `fact_package_reach` (country,
-  funder, total, with `n_works`, the resolved papers counted; snapshot-stamped) and the
-  citing-work funders merged into `dim_funder`. ~2 calls per package: needs `OPENALEX_API_KEY`
-  and is skipped without it. Funders are top-200 by count.
+- `reach` (**opt-in**, api-only) — `group_by` on works citing each package's
+  `doi`/`doi_alias`/`citation_file` primary papers (one OR'd `cites:` filter, this run's live
+  ids) → `fact_package_reach` (country, funder, total, with `n_works`, the resolved papers
+  counted; snapshot-stamped) and the citing-work funders merged into `dim_funder`. ~2 calls
+  per package: needs `OPENALEX_API_KEY` and is skipped without it. Funders are top-200 by count.
 
 API source gaps: patent counts (`reliance.patent_citations`) are lake-only, so under `api` they are
 skipped. `INSERT OR REPLACE` keeps existing values and new works get NULL. iCite has no DOI lookup
@@ -96,7 +96,7 @@ Live OpenAlex merges preprints into their journal versions: the preprint's `W…
 its DOI survives only in `locations[].doi`.
 Under `api`, those location DOIs fill a temp `works_alt_dois`. A bridge DOI then links to
 the journal work and is kept in `dim_work.alias_dois`. `link_works` writes such links as
-`doi_alias`, and a DOI that is still some work's own DOI is never an alias (#102). Each run
+`doi_alias`, and a DOI that is some loaded work's own DOI is never an alias (#102). Each run
 logs how many stored ids no longer resolve. (#95)
 
 Mention mining + judging (spec §6 — mine once, judge later, decoupled):

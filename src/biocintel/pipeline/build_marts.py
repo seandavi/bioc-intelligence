@@ -600,8 +600,9 @@ DEFINITIONS: dict[str, dict] = {
                           "version. NULL when OpenAlex lists none, and always NULL for works "
                           "enriched under --source lake (the lake drops locations) or from "
                           "iCite alone, so NULL does not mean the work has no preprint. A DOI "
-                          "OpenAlex also holds as a separate work is never listed. doi is the "
-                          "version the metrics describe.",
+                          "that is another loaded OpenAlex work's own DOI is never listed; a "
+                          "preprint OpenAlex still keeps as its own work can be listed if this "
+                          "run did not load it. doi is the version the metrics describe.",
         },
     },
     "mart_package_work": {
@@ -612,10 +613,11 @@ DEFINITIONS: dict[str, dict] = {
                    "differ from the DOI the package cites: a preprint DOI OpenAlex merged into "
                    "its journal version shows the journal DOI (see mart_work.alias_dois).",
             "match_method": "How the link was made: doi (the package's own DOI), doi_alias (the "
-                            "package's DOI is a preprint OpenAlex merged into this work; doi "
-                            "shows the journal version), citation_file (CITATION / "
-                            "CITATION.cff), description_doi (a DOI in Description, sometimes a "
-                            "dependency's paper), title_search, manual.",
+                            "package's DOI is another version of the paper, usually the preprint, "
+                            "that OpenAlex merged into this work; doi shows the version "
+                            "OpenAlex keeps), citation_file (CITATION / CITATION.cff), "
+                            "description_doi (a DOI in Description, sometimes a dependency's "
+                            "paper), title_search, manual.",
             "confidence": "Link confidence, 0-1 (doi and doi_alias 1.0, citation_file 0.9, "
                           "description_doi 0.8).",
             "role": "Role of the paper for the package, e.g. primary.",

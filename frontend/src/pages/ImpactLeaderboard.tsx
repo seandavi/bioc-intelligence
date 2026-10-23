@@ -46,6 +46,7 @@ const WORK_SQL = `
 
 const METHOD_LABEL: Record<string, string> = {
   doi: "DOI",
+  doi_alias: "DOI (merged preprint)",
   citation_file: "CITATION",
   description_doi: "DESCRIPTION",
 };
