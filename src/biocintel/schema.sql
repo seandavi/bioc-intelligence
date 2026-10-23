@@ -180,6 +180,24 @@ CREATE TABLE IF NOT EXISTS bridge_work_funder (
     source           VARCHAR NOT NULL
 );
 
+-- Award detail from OpenAlex /awards for every award on bridge_work_funder (#90). Rebuilt
+-- whole by the funders step; best-effort. A credited award is not money that funded the software.
+CREATE TABLE IF NOT EXISTS dim_award (
+    award_id         VARCHAR PRIMARY KEY,  -- OpenAlex award id ('G…'), bridge_work_funder.award_id
+    funder_id        VARCHAR NOT NULL,     -- dim_funder.funder_id, as bridge_work_funder lists it
+    funder_award_id  VARCHAR,              -- funder's own award number; display text, never a join key
+    title            VARCHAR,
+    scheme           VARCHAR,              -- OpenAlex funder_scheme: 'F31', 'H2020 - RIA', ...
+    start_date       DATE,
+    end_date         DATE,
+    amount           DOUBLE,               -- in `currency`; never summed
+    currency         VARCHAR,
+    amount_usd       DOUBLE,               -- OpenAlex's daily-rate conversion
+    award_doi        VARCHAR,              -- bare lower-case, e.g. '10.3030/777483' (CORDIS)
+    provenance       VARCHAR,              -- OpenAlex source of the record; NULL when /awards lacks it
+    is_stub          BOOLEAN NOT NULL      -- no record beyond a publication's acknowledgement
+);
+
 CREATE TABLE IF NOT EXISTS bridge_package_funder (
     package_name   VARCHAR NOT NULL,
     repo           VARCHAR NOT NULL,

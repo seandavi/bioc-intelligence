@@ -22,7 +22,7 @@ from . import icite, openalex, reporter
 _DDL = (
     openalex.WORKS_DDL, openalex.AUTHORSHIPS_DDL, openalex.INSTITUTIONS_DDL,
     openalex.WORKS_FUNDERS_DDL,
-    openalex.WORKS_AWARDS_DDL, openalex.FUNDERS_DDL, openalex.REFERENCES_DDL,
+    openalex.WORKS_AWARDS_DDL, openalex.FUNDERS_DDL, openalex.AWARDS_DDL, openalex.REFERENCES_DDL,
     icite.METADATA_DDL, reporter.PUBLINK_DDL, reporter.PROJECTS_DDL,
 )
 
@@ -174,6 +174,16 @@ def _fill_for_enrich(con: duckdb.DuckDBPyConnection, steps: tuple[str, ...]) -> 
             # Best-effort, as institutions: the step skips and last run's rows stay.
             con.execute("DROP TABLE lake.openalex.funders")
             print(f"  openalex: funders unavailable ({exc})")
+
+        # Award detail (#90), best-effort on its own like funders: the award step
+        # skips and last run's dim_award stays.
+        gids = _column(con, "SELECT DISTINCT award_id FROM lake.openalex.works_awards")
+        try:
+            _insert(con, "openalex.awards", [openalex.award_row(r) for r in openalex.awards(gids)])
+            print(f"  openalex: {_count(con, 'openalex.awards')} of {len(gids)} awards")
+        except RuntimeError as exc:
+            con.execute("DROP TABLE lake.openalex.awards")
+            print(f"  openalex: awards unavailable ({exc})")
 
     if "grants" in steps:
         links = reporter.publinks(pmids)
