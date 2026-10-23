@@ -182,7 +182,8 @@ fact_package_reach(                    -- (#92)
   package_name, repo,
   dimension,                           -- 'total' | 'country' | 'funder'
   key, key_name,                       -- NULL key = unknown (and the total row)
-  n_citing, _snapshot
+  n_citing, _snapshot,
+  n_works                              -- resolved confident primary papers counted (#106)
 )
 
 bridge_work_grant(
@@ -248,7 +249,7 @@ mart_funder_region(                    -- funder → grouping filter (#91)
 
 mart_package_reach(                    -- citing-work countries/funders per package (#92)
   package_name, repo, dimension, key, key_name,
-  n_citing, n_citing_total, share_of_citing, _snapshot
+  n_citing, n_citing_total, share_of_citing, n_works, _snapshot
 )
 ```
 

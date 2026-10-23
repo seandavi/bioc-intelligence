@@ -126,7 +126,8 @@ CREATE TABLE IF NOT EXISTS fact_citation_edge (
 
 -- Works citing each package's confident primary papers, counted by OpenAlex group_by (#92).
 -- Append-only, snapshot-stamped. Counts are distinct citing works per row; never add them
--- across packages or keys (a work has several countries and funders).
+-- across packages or keys (a work has several countries and funders). n_works is per
+-- package, repeated on every row of it (#106).
 CREATE TABLE IF NOT EXISTS fact_package_reach (
     package_name  VARCHAR NOT NULL,
     repo          VARCHAR NOT NULL,
@@ -134,7 +135,8 @@ CREATE TABLE IF NOT EXISTS fact_package_reach (
     key           VARCHAR,                -- ISO alpha-2 | OpenAlex funder id 'F…'; NULL = unknown (and the total row)
     key_name      VARCHAR,                -- OpenAlex display name; NULL with key
     n_citing      BIGINT NOT NULL,
-    _snapshot     DATE NOT NULL
+    _snapshot     DATE NOT NULL,
+    n_works       INTEGER                 -- confident primary papers with a live OpenAlex id (the cites: list); NULL before #106
 );
 
 CREATE TABLE IF NOT EXISTS bridge_work_grant (

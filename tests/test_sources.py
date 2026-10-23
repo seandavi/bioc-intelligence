@@ -593,7 +593,7 @@ def _seed_reach_bridge(con):
     )
     con.execute(
         "INSERT INTO fact_package_reach VALUES "
-        "('old', 'bioc', 'total', NULL, NULL, 5, '2026-09-01')"
+        "('old', 'bioc', 'total', NULL, NULL, 5, '2026-09-01', NULL)"
     )
 
 
@@ -621,6 +621,10 @@ def test_enrich_reach_from_api(api_store, monkeypatch):
         ("limma", 1, 17, 31, 49), ("pair", 1, 17, 31, 49),
         ("sesame", 1, 17, 31, 49), ("sesame2", 1, 17, 31, 49),
     ]
+    assert con.execute(
+        "SELECT package_name, min(n_works), max(n_works) FROM fact_package_reach "
+        "WHERE _snapshot = current_date GROUP BY 1 ORDER BY 1"
+    ).fetchall() == [("limma", 1, 1), ("pair", 2, 2), ("sesame", 1, 1), ("sesame2", 1, 1)]
     assert con.execute(
         "SELECT name, curated, country_code FROM dim_funder WHERE funder_id = 'F4320320300'"
     ).fetchall() == [("European Commission", False, None)]

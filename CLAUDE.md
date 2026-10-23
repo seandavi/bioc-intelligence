@@ -83,8 +83,9 @@ CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_fro
   the **1.29B-row** references table plus a second `works` pass.
 - `reach` (**opt-in**, api-only) — `group_by` on works citing each package's `doi`/`citation_file`
   primary papers (one OR'd `cites:` filter, this run's live ids) → `fact_package_reach` (country,
-  funder, total; snapshot-stamped) and the citing-work funders merged into `dim_funder`. ~2 calls
-  per package: needs `OPENALEX_API_KEY` and is skipped without it. Funders are top-200 by count.
+  funder, total, with `n_works`, the resolved papers counted; snapshot-stamped) and the
+  citing-work funders merged into `dim_funder`. ~2 calls per package: needs `OPENALEX_API_KEY`
+  and is skipped without it. Funders are top-200 by count.
 
 API source gaps: patent counts (`reliance.patent_citations`) are lake-only, so under `api` they are
 skipped. `INSERT OR REPLACE` keeps existing values and new works get NULL. iCite has no DOI lookup

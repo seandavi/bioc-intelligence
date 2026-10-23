@@ -385,24 +385,27 @@ def test_package_reach_mart_latest_snapshot_and_shares():
     db.init_schema(con)
     con.execute(
         "INSERT INTO fact_package_reach VALUES "
-        "('limma','bioc','total',NULL,NULL,10,'2026-09-01'),"
-        "('limma','bioc','country','US','United States',4,'2026-09-01'),"
-        "('limma','bioc','total',NULL,NULL,20,'2026-10-01'),"
-        "('limma','bioc','country','US','United States',5,'2026-10-01'),"
-        "('limma','bioc','country',NULL,NULL,2,'2026-10-01'),"
-        "('limma','bioc','funder','F1','Funder One',3,'2026-10-01'),"
-        "('zero','bioc','total',NULL,NULL,0,'2026-10-01')"
+        "('limma','bioc','total',NULL,NULL,10,'2026-09-01',NULL),"
+        "('limma','bioc','country','US','United States',4,'2026-09-01',NULL),"
+        "('limma','bioc','total',NULL,NULL,20,'2026-10-01',2),"
+        "('limma','bioc','country','US','United States',5,'2026-10-01',2),"
+        "('limma','bioc','country',NULL,NULL,2,'2026-10-01',2),"
+        "('limma','bioc','funder','F1','Funder One',3,'2026-10-01',2),"
+        "('zero','bioc','total',NULL,NULL,0,'2026-10-01',1)"
     )
     con.execute(_MART_SQL)
     cols = [d[0] for d in con.execute("SELECT * FROM mart_package_reach").description]
     assert cols == ["package_name", "repo", "dimension", "key", "key_name", "n_citing",
-                    "n_citing_total", "share_of_citing", "_snapshot"]
+                    "n_citing_total", "share_of_citing", "n_works", "_snapshot"]
     rows = {
         (r[0], r[2], r[3]): r[5:8]
         for r in con.execute("SELECT * FROM mart_package_reach").fetchall()
     }
-    assert {str(r[8]) for r in con.execute("SELECT * FROM mart_package_reach").fetchall()} == {
+    assert {str(r[9]) for r in con.execute("SELECT * FROM mart_package_reach").fetchall()} == {
         "2026-10-01"}
+    assert dict(con.execute(
+        "SELECT package_name, max(n_works) FROM mart_package_reach GROUP BY 1").fetchall()
+    ) == {"limma": 2, "zero": 1}
     assert rows == {
         ("limma", "total", None): (20, 20, 1.0),
         ("limma", "country", "US"): (5, 20, 0.25),
@@ -410,6 +413,28 @@ def test_package_reach_mart_latest_snapshot_and_shares():
         ("limma", "funder", "F1"): (3, 20, 0.15),
         ("zero", "total", None): (0, 0, None),
     }
+
+
+def test_package_reach_n_works_migrates_pre_106_store():
+    con = db.connect(":memory:")
+    con.execute(
+        "CREATE TABLE fact_package_reach (package_name VARCHAR NOT NULL, repo VARCHAR NOT NULL, "
+        "dimension VARCHAR NOT NULL, key VARCHAR, key_name VARCHAR, n_citing BIGINT NOT NULL, "
+        "_snapshot DATE NOT NULL)"
+    )
+    con.execute(
+        "INSERT INTO fact_package_reach VALUES ('limma','bioc','total',NULL,NULL,10,'2026-09-01')"
+    )
+    db.init_schema(con)
+    db.init_schema(con)
+    assert con.execute(
+        "SELECT column_name, data_type FROM information_schema.columns "
+        "WHERE table_name = 'fact_package_reach' ORDER BY ordinal_position DESC LIMIT 1"
+    ).fetchall() == [("n_works", "INTEGER")]
+    assert con.execute("SELECT n_works FROM fact_package_reach").fetchall() == [(None,)]
+    con.execute(_MART_SQL)
+    assert con.execute("SELECT n_works, n_citing_total FROM mart_package_reach").fetchall() == [
+        (None, 10)]
 
 
 def test_definitions_explain_alias_dois_and_doi_alias():

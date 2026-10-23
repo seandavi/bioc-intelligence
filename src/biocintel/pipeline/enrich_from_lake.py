@@ -1,4 +1,4 @@
-"""enrich_from_lake — fill dim_work, fact_citation_edge, dim_grant/bridge_work_grant.
+"""enrich_from_lake — fill dim_work, dim_grant, fact_citation_edge, fact_package_reach.
 
 All cross-catalog SQL against the read-only lake (spec §4/§7). Driven by the set
 of *primary works* already linked in ``bridge_package_pub`` (run ``link_works``
@@ -24,12 +24,11 @@ first). Steps:
   ``fact_citation_edge``. **Heavy**: scans the 1.29B-row references table plus a
   second ``works`` pass for citing-side metadata, so it is **opt-in** (not in the
   default step set) to respect R2 egress. Run it deliberately for a full refresh.
-
-- **reach** (opt-in, api-only) — per package, the works citing its `doi`/`citation_file`
-  primary papers (one OR'd `cites:` filter over this run's live OpenAlex ids), counted by
-  author country and by funder via OpenAlex `group_by` → `fact_package_reach`
-  (snapshot-stamped); citing-work funders are merged into `dim_funder` (#92). Needs
-  `OPENALEX_API_KEY` (~2 calls per package). Best-effort.
+- **reach** (opt-in, api-only) — per package, the works citing its ``doi``/``citation_file``
+  primary papers (one OR'd ``cites:`` filter over this run's live OpenAlex ids), counted by
+  author affiliation country and by funder via OpenAlex ``group_by`` → ``fact_package_reach``
+  (snapshot-stamped, with ``n_works``, the papers counted); citing-work funders are merged
+  into ``dim_funder`` (#92). Needs ``OPENALEX_API_KEY`` (~2 calls per package). Best-effort.
 
 Idempotent per step (scoped or whole-table deletes / INSERT OR REPLACE).
 
@@ -251,6 +250,7 @@ GROUP BY b.funder_id
 ON CONFLICT (funder_id) DO UPDATE SET ror = excluded.ror, crossref_id = excluded.crossref_id,
                                       country_code = excluded.country_code;
 """
+
 # Each package's confident primary works with a live OpenAlex id: this run's `linked`, never
 # a stored dim_work.openalex_id, which can be stale, and a stale id's `cites:` filter
 # returns 0, not an error (#95). Same set as the package_pubs_confident view.
@@ -404,9 +404,9 @@ def _enrich_reach(con: duckdb.DuckDBPyConnection) -> int:
                 for dim, field in openalex.REACH_GROUP_BY.items()
             }
         res = memo[ids]
-        rows.append((pkg, repo, "total", None, None, res["country"][0]))
+        rows.append((pkg, repo, "total", None, None, res["country"][0], len(ids)))
         for dim, (_, groups) in res.items():
-            rows += [(pkg, repo, dim, key, name, n) for key, name, n in groups]
+            rows += [(pkg, repo, dim, key, name, n, len(ids)) for key, name, n in groups]
 
     funder_ids = sorted({r[3] for r in rows if r[2] == "funder" and r[3] is not None})
     funders = [
@@ -426,7 +426,9 @@ def _enrich_reach(con: duckdb.DuckDBPyConnection) -> int:
         con.execute("DELETE FROM bi.fact_package_reach WHERE _snapshot = current_date")
         if rows:
             con.executemany(
-                "INSERT INTO bi.fact_package_reach VALUES (?, ?, ?, ?, ?, ?, current_date)", rows
+                "INSERT INTO bi.fact_package_reach (package_name, repo, dimension, key, key_name, "
+                "n_citing, n_works, _snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, current_date)",
+                rows,
             )
         con.execute(_REACH_FUNDER_DIM_SQL)
         con.execute("COMMIT")
