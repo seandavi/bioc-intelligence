@@ -605,7 +605,11 @@ DEFINITIONS: dict[str, dict] = {
         "description": "One row per country x named region grouping, from the checked-in "
                        "regions.yaml. A country can be in several groupings. Groupings are "
                        "filters: join on country_code (e.g. mart_work_institution); never add "
-                       "counts across groupings.",
+                       "counts across groupings. Count DISTINCT work_id after joining: "
+                       "mart_work_institution has several rows per work. No rows means the "
+                       "country is unknown, not outside every grouping; for a share, use works "
+                       "whose institution country is in some un_m49_region grouping as the "
+                       "denominator.",
         "columns": {
             "country_code": "ISO 3166-1 alpha-2 code as OpenAlex writes it (GR, GB), plus XK "
                             "(Kosovo), TW (Taiwan, which UN M49 does not list; placed in Eastern "
@@ -626,7 +630,11 @@ DEFINITIONS: dict[str, dict] = {
                        "curated groupings in regions.yaml. Funders with neither have no rows. "
                        "A grouping is where the funder is based, not where the funded "
                        "researchers are: EMBL (Germany) is in eu27, WHO (Switzerland) in "
-                       "horizon_associated.",
+                       "horizon_associated. Count DISTINCT work_id after joining: "
+                       "mart_work_funder has several rows per work (awards, co-funders in the "
+                       "same grouping). No rows means the location is unknown, not outside every "
+                       "grouping; for a share, use works whose funder is in some un_m49_region "
+                       "grouping or has basis curated as the denominator.",
         "columns": {
             "funder_id": "OpenAlex funder id (F...); joins mart_work_funder.",
             "grouping": _GROUPING,
