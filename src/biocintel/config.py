@@ -20,6 +20,8 @@ BIOC_BASE = os.getenv("BIOCINTEL_BIOC_BASE", "https://bioconductor.org")
 CONFIG_YAML_URL = f"{BIOC_BASE}/config.yaml"
 # Table of every release: date, software-package count, R version.
 RELEASE_ANNOUNCEMENTS_URL = f"{BIOC_BASE}/about/release-announcements/"
+# ELIXIR Research Software Ecosystem content repo (#93): imports/bioconductor + data/<biotools id>/.
+RSEC_GIT_URL = "https://github.com/research-software-ecosystem/content.git"
 
 # Default on-disk locations (override via env for CI / alternate data roots).
 DATA_ROOT = Path(os.getenv("BIOCINTEL_DATA_ROOT", "data"))

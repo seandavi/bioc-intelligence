@@ -15,7 +15,7 @@ from pathlib import Path
 
 import duckdb
 
-from .. import db
+from .. import db, regions
 from ..config import MART_DIR
 
 # Downloads are usage-proxied by DISTINCT IPS (spec §6); raw downloads kept too.
@@ -274,7 +274,9 @@ SELECT package_name, repo, latest_release, maintainer,  -- no maintainer_email (
        len(depends_on_me) + len(imports_me) + len(links_to_me) AS n_reverse_deps,
        dependency_count AS n_deps, git_last_commit_date, package_status, has_news,
        n_vignettes, license,
-       'https://bioconductor.org/packages/' || package_name || '/' AS bioc_url
+       'https://bioconductor.org/packages/' || package_name || '/' AS bioc_url,
+       in_elixir_rsec, biotools_id,
+       'https://bio.tools/' || biotools_id AS biotools_url
 FROM dim_package
 ORDER BY package_name, repo;
 
@@ -343,6 +345,27 @@ FROM (
     SELECT package_name, repo, unnest(linking_to), 'linking_to' FROM dim_package
 )
 ORDER BY package_name, repo, kind, dep;
+
+-- Country → region grouping (#91), for filtering country-coded marts. One country, many groupings.
+CREATE OR REPLACE TABLE mart_region_group AS
+SELECT country_code, grouping, grouping_label, grouping_kind
+FROM dim_region_group
+ORDER BY grouping, country_code;
+
+-- Funder → region grouping: the curated groupings for supranational funders, else the
+-- groupings of the funder's OpenAlex country. Funders with neither get no rows.
+CREATE OR REPLACE TABLE mart_funder_region AS
+SELECT * FROM (
+    SELECT fr.funder_id, fr.grouping, 'curated' AS basis
+    FROM dim_funder_region fr
+    WHERE fr.funder_id IN (SELECT funder_id FROM dim_funder)
+    UNION ALL
+    SELECT f.funder_id, r.grouping, 'country' AS basis
+    FROM dim_funder f
+    JOIN dim_region_group r ON r.country_code = f.country_code
+    WHERE f.funder_id NOT IN (SELECT funder_id FROM dim_funder_region)
+)
+ORDER BY funder_id, grouping;
 """
 
 _MARTS = [
@@ -362,6 +385,8 @@ _MARTS = [
     "mart_package_downloads_monthly",
     "mart_work_institution",
     "mart_work_funder",
+    "mart_region_group",
+    "mart_funder_region",
 ]
 
 # Small row groups let DuckDB-WASM range-read one package from the sorted monthly mart.
@@ -374,6 +399,7 @@ def run() -> dict[str, int]:
     db.init_schema(con)
     counts: dict[str, int] = {}
     try:
+        counts.update(regions.load_regions(con))
         con.execute(_MART_SQL)
         for mart in _MARTS:
             out = MART_DIR / f"{mart}.parquet"
@@ -382,6 +408,15 @@ def run() -> dict[str, int]:
             n = con.execute(f"SELECT count(*) FROM {mart}").fetchone()[0]
             counts[mart] = n
             print(f"  {mart}: {n} rows -> {out}")
+        unmapped = con.execute(
+            "SELECT f.name, count(DISTINCT b.work_id) AS n FROM bridge_work_funder b "
+            "JOIN dim_funder f USING (funder_id) "
+            "WHERE f.funder_id NOT IN (SELECT funder_id FROM mart_funder_region) "
+            "GROUP BY f.name ORDER BY n DESC, f.name LIMIT 5"
+        ).fetchall()
+        if unmapped:
+            print("  regions: funders on linked works with no grouping "
+                  f"(add to regions.yaml if supranational): {unmapped}")
     finally:
         con.close()
     return counts
@@ -421,6 +456,9 @@ _DL = {
                     "per month.",
     "downloads": "Raw download count (kept for reference; prefer distinct_ips).",
 }
+_GROUPING = ("Grouping id: eu27, horizon_associated, horizon_associated_pillar2, "
+             "europe_geographic, or un_<UN M49 region or sub-region>, e.g. un_western_europe.")
+
 DEFINITIONS: dict[str, dict] = {
     "mart_package_impact": {
         "description": "One row per package: downloads, linked publications, citations, RCR "
@@ -503,6 +541,17 @@ DEFINITIONS: dict[str, dict] = {
             "n_vignettes": "Number of vignettes.",
             "license": "DESCRIPTION License.",
             "bioc_url": "Package landing page on bioconductor.org.",
+            "in_elixir_rsec": "Listed in the ELIXIR Research Software Ecosystem's weekly "
+                              "Bioconductor import (research-software-ecosystem/content, "
+                              "imports/bioconductor). The import covers the software (bioc) "
+                              "repo only, so other repos are FALSE. FALSE means not in that "
+                              "import, not absent from bio.tools; NULL means the listing has "
+                              "never been fetched.",
+            "biotools_id": "bio.tools identifier: the RSEc data/<id>/ folder holding both this "
+                           "package's Bioconductor record and a bio.tools record. When bio.tools "
+                           "has two entries, the curated id without the bioconductor- prefix "
+                           "wins. NULL when there is none or the listing has never been fetched.",
+            "biotools_url": "The package's bio.tools page (https://bio.tools/<biotools_id>).",
         },
     },
     "mart_work": {
@@ -575,6 +624,47 @@ DEFINITIONS: dict[str, dict] = {
             "award_id": "OpenAlex award id (G...); null when no award is listed.",
             "funder_award_id": "The funder's own award number as OpenAlex records it.",
             "grant_id": "NIH core project number when the award matches RePORTER (dim_grant).",
+        },
+    },
+    "mart_region_group": {
+        "description": "One row per country x named region grouping, from the checked-in "
+                       "regions.yaml. A country can be in several groupings. Groupings are "
+                       "filters: join on country_code (e.g. mart_work_institution); never add "
+                       "counts across groupings. Count DISTINCT work_id after joining: "
+                       "mart_work_institution has several rows per work. No rows means the "
+                       "country is unknown, not outside every grouping; for a share, use works "
+                       "whose institution country is in some un_m49_region grouping as the "
+                       "denominator.",
+        "columns": {
+            "country_code": "ISO 3166-1 alpha-2 code as OpenAlex writes it (GR, GB), plus XK "
+                            "(Kosovo), TW (Taiwan, which UN M49 does not list; placed in Eastern "
+                            "Asia) and EU, OpenAlex's code for EU-level bodies (in eu27, "
+                            "europe_geographic and un_europe only).",
+            "grouping": _GROUPING,
+            "grouping_label": "Human-readable grouping name.",
+            "grouping_kind": "policy (EU or Horizon Europe membership), geographic, "
+                             "un_m49_region or un_m49_subregion. Policy groupings are current "
+                             "membership as of regions.yaml, not membership when a paper or "
+                             "grant was written: the UK is never in eu27.",
+        },
+    },
+    "mart_funder_region": {
+        "description": "One row per funder x region grouping. A funder takes the groupings of "
+                       "its OpenAlex country, except supranational funders OpenAlex gives no "
+                       "country (European Commission, ERC, Horizon 2020, ...), which take the "
+                       "curated groupings in regions.yaml. Funders with neither have no rows. "
+                       "A grouping is where the funder is based, not where the funded "
+                       "researchers are: EMBL (Germany) is in eu27, WHO (Switzerland) in "
+                       "horizon_associated. Count DISTINCT work_id after joining: "
+                       "mart_work_funder has several rows per work (awards, co-funders in the "
+                       "same grouping). No rows means the location is unknown, not outside every "
+                       "grouping; for a share, use works whose funder is in some un_m49_region "
+                       "grouping or has basis curated as the denominator.",
+        "columns": {
+            "funder_id": "OpenAlex funder id (F...); joins mart_work_funder.",
+            "grouping": _GROUPING,
+            "basis": "country (from the funder's OpenAlex country_code) or curated "
+                     "(hand-mapped in regions.yaml).",
         },
     },
     "mart_package_dependency": {
