@@ -121,7 +121,8 @@ uv run ruff check src tests           # lint
 ```
 
 Phase-2 enrichment calls the OpenAlex, iCite and RePORTER APIs (no credentials; set
-`OPENALEX_API_KEY` for the opt-in `citations` step, which is ~3k OpenAlex calls):
+`OPENALEX_API_KEY` for the opt-in `citations` step, which is ~3k OpenAlex calls, and `reach`,
+~2 calls per linked package):
 
 ```bash
 uv run python -m biocintel.pipeline.link_works
