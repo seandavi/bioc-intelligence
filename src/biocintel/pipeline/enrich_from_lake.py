@@ -16,8 +16,10 @@ first). Steps:
   failure is logged and the run continues.
 - **funders** — ``openalex.works_funders`` / ``works_awards`` (+ ``openalex.funders``) of
   every ``dim_work`` row with an OpenAlex id → ``bridge_work_funder`` and the OpenAlex
-  funders merged into ``dim_funder`` (#85). Best-effort, as institutions. The lake's
-  ``works_funders``/``works_awards`` are empty or absent, so this is effectively ``api``-only.
+  funders merged into ``dim_funder`` (#85), plus award detail from ``openalex.awards``
+  (``/awards``) → ``dim_award`` (#90), best-effort on its own. Best-effort, as institutions.
+  The lake's ``works_funders``/``works_awards`` are empty or absent, so this is effectively
+  ``api``-only.
 - **citations** — cited-by edges from ``openalex.work_references`` →
   ``fact_citation_edge``. **Heavy**: scans the 1.29B-row references table plus a
   second ``works`` pass for citing-side metadata, so it is **opt-in** (not in the
@@ -35,7 +37,8 @@ Idempotent per step (scoped deletes / INSERT OR REPLACE), keyed to the linked wo
 the working set (``biocintel.sources``) — seconds instead of the scans above, except
 ``citations`` (~one OpenAlex call per 200 citing works; set ``OPENALEX_API_KEY``).
 Patent counts are lake-only and skipped under ``api``. ``--source lake`` reads
-cdsci-lake. The SQL is the same either way.
+cdsci-lake. The SQL is the same either way. A bridge DOI may match a work through its alias
+DOIs (the preprint OpenAlex merged into it, #95): ``api`` only, since the lake drops ``locations``.
 """
 
 from __future__ import annotations
@@ -62,10 +65,12 @@ SELECT DISTINCT
     w.title, w.publication_year AS year, w.source_name AS journal, w.cited_by_count,
     w.is_retracted
 FROM lake.openalex.works w
+LEFT JOIN works_alt_dois a ON a.work_id = w.id
 -- A bridge work_id is PMID-or-DOI; match EITHER side (a citation link stores the
--- DOI even when the work also has a PMID, so a single COALESCE key would miss it).
+-- DOI even when the work also has a PMID, so a single COALESCE key would miss it),
+-- or a DOI OpenAlex merged into the work (alias, e.g. its bioRxiv preprint).
 JOIN bi.bridge_package_pub b
-  ON b.work_id = CAST(w.pmid AS VARCHAR) OR b.work_id = w.doi
+  ON b.work_id = CAST(w.pmid AS VARCHAR) OR b.work_id = w.doi OR b.work_id = a.doi
 -- One work per DOI: OpenAlex can hold a preprint and its PubMed record as two works
 -- sharing a DOI (TSAR); keep the one with a PMID.
 QUALIFY row_number() OVER (
@@ -96,10 +101,11 @@ WHERE (ic.doi IN (SELECT work_id FROM bi.bridge_package_pub)
 _WORKS_SQL = """
 INSERT OR REPLACE INTO bi.dim_work
     (work_id, pmid, doi, openalex_id, title, year, journal, icite_rcr, citation_count,
-     _snapshot, nih_percentile, apt, is_clinical, citations_per_year, is_retracted)
+     _snapshot, nih_percentile, apt, is_clinical, citations_per_year, is_retracted, alias_dois)
 SELECT l.work_id, CAST(l.pmid AS VARCHAR), l.doi, l.oa_id,
        l.title, l.year, l.journal, ic.rcr, l.cited_by_count, current_date,
-       ic.nih_percentile, ic.apt, ic.is_clinical, ic.citations_per_year, l.is_retracted
+       ic.nih_percentile, ic.apt, ic.is_clinical, ic.citations_per_year, l.is_retracted,
+       (SELECT list(DISTINCT a.doi ORDER BY a.doi) FROM works_alt_dois a WHERE a.work_id = l.oa_id)
 FROM linked l
 LEFT JOIN lake.icite.metadata ic ON ic.pmid = l.pmid;
 """
@@ -274,14 +280,32 @@ ON CONFLICT (funder_id) DO UPDATE SET
     country_code = COALESCE(excluded.country_code, country_code);
 """
 
+# Award detail (#90) for every award on bridge_work_funder, rebuilt whole. Funder and award
+# number come from the bridge (they are the award entity's own); /awards adds the detail. A
+# stub is an award known only from a publication's acknowledgement: an acknowledgement
+# provenance, or no /awards record at all (merged or withdrawn id).
+_AWARD_DIM_SQL = """
+INSERT INTO bi.dim_award
+SELECT b.award_id, b.funder_id, b.funder_award_id, a.title, a.funder_scheme,
+       a.start_date, a.end_date, a.amount, a.currency, a.amount_usd, a.doi, a.provenance,
+       a.id IS NULL OR a.provenance IS NULL
+           OR a.provenance IN ('crossref_work_funders', 'europepmc_work_funders',
+                               'datacite_work_funders', 'crossref_work.grants') AS is_stub
+FROM (SELECT award_id, min(funder_id) AS funder_id, min(funder_award_id) AS funder_award_id
+      FROM bi.bridge_work_funder WHERE award_id IS NOT NULL GROUP BY award_id) b
+LEFT JOIN lake.openalex.awards a ON a.id = b.award_id;
+"""
+
 # A work's spine id changes when a source learns or corrects its PMID (DOI -> PMID for
 # 23 works, PMID -> PMID for one, when the API replaced the lake). Re-key its cited-by
 # edges via the old row's OpenAlex id or DOI, then drop dim_work rows no longer linked:
-# a stale twin would double-count in the marts, which also join bridge rows on doi.
+# a stale twin would double-count in the marts, which also join bridge rows on doi. A merged
+# preprint row is matched by its DOI appearing among the journal work's aliases.
 _REKEY_EDGES_SQL = """
 UPDATE bi.fact_citation_edge e SET cited_work_id = l.work_id
 FROM bi.dim_work old
 JOIN linked l ON old.openalex_id = l.oa_id OR old.doi = l.doi
+  OR old.doi IN (SELECT a.doi FROM works_alt_dois a WHERE a.work_id = l.oa_id)
 WHERE e.cited_work_id = old.work_id AND old.work_id <> l.work_id;
 """
 
@@ -308,10 +332,9 @@ def _enrich_works(con: duckdb.DuckDBPyConnection, *, patents: bool = True) -> in
 
 
 def _enrich_grants(con: duckdb.DuckDBPyConnection) -> int:
-    con.execute(
-        "DELETE FROM bi.bridge_work_grant WHERE source = 'reporter' "
-        "AND work_id IN (SELECT work_id FROM linked)"
-    )
+    # `linked` covers every bridged work, so a whole rebuild equals the scoped one for live
+    # works and drops rows keyed on a superseded spine id.
+    con.execute("DELETE FROM bi.bridge_work_grant WHERE source = 'reporter'")
     con.execute(_GRANT_DIM_SQL)
     con.execute(_GRANT_BRIDGE_SQL)
     n_stub = con.execute(_GRANT_STUB_SQL).fetchone()[0]
@@ -408,6 +431,21 @@ def _enrich_reach(con: duckdb.DuckDBPyConnection) -> int:
     return len(rows)
 
 
+def _enrich_awards(con: duckdb.DuckDBPyConnection) -> int:
+    con.execute("BEGIN")
+    try:
+        con.execute("DELETE FROM bi.dim_award")
+        con.execute(_AWARD_DIM_SQL)
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
+    n, n_stub = con.execute(
+        "SELECT count(*), count(*) FILTER (WHERE is_stub) FROM bi.dim_award").fetchone()
+    print(f"  dim_award: {n} ({n_stub} stubs)")
+    return n
+
+
 def run(steps: tuple[str, ...] = DEFAULT_STEPS, source: str = "api") -> dict[str, int]:
     con = connect_with_sources(steps=steps) if source == "api" else connect_with_lake()
     counts: dict[str, int] = {}
@@ -434,6 +472,12 @@ def run(steps: tuple[str, ...] = DEFAULT_STEPS, source: str = "api") -> dict[str
                 print(f"  bridge_work_funder: {counts['bridge_work_funder']}")
             except duckdb.Error as exc:
                 print(f"  funders: skipped ({exc})")
+            # Best-effort on its own: no lake.openalex.awards (API outage, or --source lake)
+            # keeps last run's dim_award.
+            try:
+                counts["dim_award"] = _enrich_awards(con)
+            except duckdb.Error as exc:
+                print(f"  awards: skipped ({exc})")
         if "grants" in steps:
             counts["bridge_work_grant"] = _enrich_grants(con)
             print(f"  bridge_work_grant (reporter): {counts['bridge_work_grant']}")

@@ -71,6 +71,11 @@ CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_fro
   `funder_aliases.yaml` entry carries an `openalex:` id so Authors@R funders resolve to the
   same row. `mart_work_funder` matches NIH awards to `dim_grant` via the core project number
   inside `funder_award_id`. Best-effort; lake-side `works_funders`/`works_awards` are empty.
+  The same step also fetches each award's detail from OpenAlex `/awards` (its `id` filter needs
+  full URLs; bare ids silently match nothing) → `dim_award` (title, scheme, dates, amount,
+  `award_doi`, `provenance`, `is_stub`; #90), best-effort on its own: an `/awards` outage keeps
+  last run's `dim_award`. `mart_award` is one row per award, joined to `mart_work_funder` on
+  `award_id`. A credited award is not money that funded the software: never sum `amount`.
 - `grants` (default) — `reporter.publink`/`projects` → `dim_grant` + `bridge_work_grant`.
 - `citations` (**opt-in**) — `openalex.work_references` cited-by → `fact_citation_edge`. Under
   `api`, one `filter=cites:W…` cursor page per 200 citing works (~3k calls for ~580k edges): set
@@ -86,8 +91,11 @@ skipped. `INSERT OR REPLACE` keeps existing values and new works get NULL. iCite
 (`dois=` is silently ignored), so a bridge DOI that OpenAlex doesn't know cannot resolve through
 the iCite DOI-fallback branch (in the 2026-10 smoke, all 75 works the lake resolved that way
 resolved through live OpenAlex instead).
-Live OpenAlex is newer than the lake's snapshot, so the two sources legitimately differ
-(e.g. preprint DOIs merged into their journal versions).
+Live OpenAlex merges preprints into their journal versions: the preprint's `W…` 404s, and
+its DOI survives only in `locations[].doi`.
+Under `api`, those location DOIs fill a temp `works_alt_dois`. A bridge DOI then links to
+the journal work and is kept in `dim_work.alias_dois`. Each run logs how many stored ids
+no longer resolve. (#95)
 
 Mention mining + judging (spec §6 — mine once, judge later, decoupled):
 
@@ -255,7 +263,7 @@ evaluating it (`authors.py`); funder spellings are normalized via `funder_aliase
 exported as `mart_region_group` / `mart_funder_region`: filters the frontend joins to country-coded
 marts, never baked into a count. Marts
 (`mart_package_impact`, `mart_grant_attribution`, `mart_release_growth`, `mart_package_person`,
-`mart_person`, `mart_package_funder`, `mart_package_reach`) are derived and exported.
+`mart_person`, `mart_package_funder`, `mart_award`, `mart_package_reach`) are derived and exported.
 
 ## Settled decisions — do not re-litigate
 

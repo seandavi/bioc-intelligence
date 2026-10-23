@@ -76,7 +76,8 @@ CREATE TABLE IF NOT EXISTS dim_work (
     is_clinical         BOOLEAN,  -- iCite
     citations_per_year  DOUBLE,   -- iCite
     is_retracted        BOOLEAN,  -- OpenAlex
-    n_patent_citations  INTEGER   -- distinct citing patents (reliance.patent_citations)
+    n_patent_citations  INTEGER,  -- distinct citing patents (reliance.patent_citations)
+    alias_dois          VARCHAR[]  -- other DOIs OpenAlex lists for the work (e.g. a merged preprint); #95
 );
 
 CREATE TABLE IF NOT EXISTS dim_grant (
@@ -191,6 +192,24 @@ CREATE TABLE IF NOT EXISTS bridge_work_funder (
     award_id         VARCHAR,             -- OpenAlex award id ('G…'); null when the work lists no award
     funder_award_id  VARCHAR,             -- the funder's own award number (NIH: matches dim_grant by core number)
     source           VARCHAR NOT NULL
+);
+
+-- Award detail from OpenAlex /awards for every award on bridge_work_funder (#90). Rebuilt
+-- whole by the funders step; best-effort. A credited award is not money that funded the software.
+CREATE TABLE IF NOT EXISTS dim_award (
+    award_id         VARCHAR PRIMARY KEY,  -- OpenAlex award id ('G…'), bridge_work_funder.award_id
+    funder_id        VARCHAR NOT NULL,     -- dim_funder.funder_id, as bridge_work_funder lists it
+    funder_award_id  VARCHAR,              -- funder's own award number; display text, never a join key
+    title            VARCHAR,
+    scheme           VARCHAR,              -- OpenAlex funder_scheme: 'F31', 'H2020 - RIA', ...
+    start_date       DATE,
+    end_date         DATE,
+    amount           DOUBLE,               -- in `currency`; never summed
+    currency         VARCHAR,
+    amount_usd       DOUBLE,               -- OpenAlex's daily-rate conversion
+    award_doi        VARCHAR,              -- bare lower-case, e.g. '10.3030/777483' (CORDIS)
+    provenance       VARCHAR,              -- OpenAlex source of the record; NULL when /awards lacks it
+    is_stub          BOOLEAN NOT NULL      -- no record beyond a publication's acknowledgement
 );
 
 CREATE TABLE IF NOT EXISTS bridge_package_funder (

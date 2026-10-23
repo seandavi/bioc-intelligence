@@ -134,6 +134,14 @@ dim_grant(
   fy?, title?
 )
 
+dim_award(                             -- OpenAlex /awards detail per credited award (#90)
+  award_id, funder_id, funder_award_id,
+  title?, scheme?, start_date?, end_date?,
+  amount?, currency?, amount_usd?,     -- what the grant was worth, not what funded the software
+  award_doi?, provenance?,
+  is_stub bool                         -- known only from a publication's acknowledgement
+)
+
 dim_region_group(                      -- from regions.yaml (#91); one country, many groupings
   country_code, grouping,
   grouping_label, grouping_kind
@@ -220,6 +228,13 @@ mart_grant_attribution(
 mart_release_growth(
   bioc_release,
   n_packages, n_new_packages, net_downloads
+)
+
+mart_award(                            -- one row per credited award (#90); never sum amount
+  award_id, funder_id, funder_name, funder_award_id,
+  title, scheme, start_date, end_date,
+  amount, currency, amount_usd, award_doi,
+  provenance, is_stub                  -- joins mart_work_funder on award_id
 )
 
 mart_region_group(                     -- country → grouping filter (#91)

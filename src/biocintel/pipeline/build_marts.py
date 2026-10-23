@@ -48,31 +48,36 @@ recent AS (  -- trailing 12 months relative to the latest (year, month) present,
 ),
 pw AS (  -- package → its linked works, canonicalized to dim_work's work_id so a
          -- DOI-keyed bridge row lines up with the PMID-keyed enriched work.
-    SELECT b.package_name, b.repo,
+    SELECT DISTINCT b.package_name, b.repo,
            COALESCE(w.work_id, b.work_id) AS work_id, b.role
     FROM bridge_package_pub b
     LEFT JOIN dim_work w
       ON b.work_id = w.work_id OR b.work_id = w.doi OR b.work_id = w.pmid
+      OR list_contains(w.alias_dois, b.work_id)
 ),
 pubs AS (
     SELECT package_name, repo, COUNT(DISTINCT work_id) AS n_primary_pubs
     FROM pw WHERE role = 'primary' GROUP BY package_name, repo
 ),
+impact_work AS (  -- one row per (package, work): the sums and medians below must weigh each
+               -- work once, however many bridge rows or roles point at it.
+    SELECT DISTINCT package_name, repo, work_id FROM pw
+),
 wm AS (  -- RCR is a normalized *rate* → median, not sum. Citations are counts → sum.
-    SELECT pw.package_name, pw.repo,
+    SELECT pk.package_name, pk.repo,
            median(w.icite_rcr)     AS median_rcr,
            SUM(w.citation_count)   AS total_citations
-    FROM pw JOIN dim_work w USING (work_id) GROUP BY pw.package_name, pw.repo
+    FROM impact_work pk JOIN dim_work w USING (work_id) GROUP BY pk.package_name, pk.repo
 ),
 citing AS (
-    SELECT pw.package_name, pw.repo, COUNT(DISTINCT e.citing_work_id) AS n_citing_works
-    FROM pw JOIN fact_citation_edge e ON e.cited_work_id = pw.work_id
-    GROUP BY pw.package_name, pw.repo
+    SELECT pk.package_name, pk.repo, COUNT(DISTINCT e.citing_work_id) AS n_citing_works
+    FROM impact_work pk JOIN fact_citation_edge e ON e.cited_work_id = pk.work_id
+    GROUP BY pk.package_name, pk.repo
 ),
 grants AS (
-    SELECT pw.package_name, pw.repo, COUNT(DISTINCT g.grant_id) AS n_distinct_grants_citing
-    FROM pw JOIN bridge_work_grant g USING (work_id)
-    GROUP BY pw.package_name, pw.repo
+    SELECT pk.package_name, pk.repo, COUNT(DISTINCT g.grant_id) AS n_distinct_grants_citing
+    FROM impact_work pk JOIN bridge_work_grant g USING (work_id)
+    GROUP BY pk.package_name, pk.repo
 )
 SELECT p.package_name, p.repo,
        COALESCE(dl.total_downloads, 0)            AS total_downloads,
@@ -210,6 +215,7 @@ WITH pkg_work AS (  -- canonicalize package→work ids (same DOI/PMID reconcilia
     FROM bridge_package_pub b
     LEFT JOIN dim_work w
       ON b.work_id = w.work_id OR b.work_id = w.doi OR b.work_id = w.pmid
+      OR list_contains(w.alias_dois, b.work_id)
 ),
 gp AS (
     SELECT g.grant_id, pk.package_name, g.work_id
@@ -237,7 +243,7 @@ ORDER BY n_packages_supported DESC, gp.grant_id;
 CREATE OR REPLACE TABLE mart_work AS
 SELECT work_id, pmid, doi, title, year, journal, icite_rcr, citation_count,
        nih_percentile, apt, is_clinical, citations_per_year,
-       journal ILIKE '%rxiv%' AS is_preprint, is_retracted, n_patent_citations
+       journal ILIKE '%rxiv%' AS is_preprint, is_retracted, n_patent_citations, alias_dois
 FROM dim_work;
 
 -- Package → linked works (one row per package × work), for the explorer's papers list.
@@ -254,6 +260,7 @@ SELECT b.package_name, b.repo,
 FROM bridge_package_pub b
 LEFT JOIN dim_work w
   ON b.work_id = w.work_id OR b.work_id = w.doi OR b.work_id = w.pmid
+      OR list_contains(w.alias_dois, b.work_id)
 QUALIFY row_number() OVER (
     PARTITION BY b.package_name, b.repo, COALESCE(w.work_id, b.work_id)
     ORDER BY b.confidence DESC NULLS LAST, b.match_method
@@ -315,6 +322,16 @@ JOIN dim_funder f USING (funder_id)
 LEFT JOIN dim_grant g ON g.grant_id = regexp_extract(
     upper(bw.funder_award_id), '([A-Z][A-Z0-9][0-9][A-Z]{2}[0-9]{6})', 1)
 ORDER BY bw.work_id, f.name, bw.funder_award_id;
+
+-- Award detail per award credited on a linked work (#90): one row per award; join
+-- mart_work_funder on award_id for the works. NIH detail stays in RePORTER (grant_id there).
+CREATE OR REPLACE TABLE mart_award AS
+SELECT a.award_id, a.funder_id, f.name AS funder_name, a.funder_award_id, a.title, a.scheme,
+       a.start_date, a.end_date, a.amount, a.currency, a.amount_usd, a.award_doi,
+       a.provenance, a.is_stub
+FROM dim_award a
+LEFT JOIN dim_funder f USING (funder_id)
+ORDER BY f.name, a.funder_award_id, a.award_id;
 
 -- Institutions per linked work (one row per work × institution × author position);
 -- filter author_position = 'last' for senior-author countries.
@@ -394,6 +411,7 @@ _MARTS = [
     "mart_package_downloads_monthly",
     "mart_work_institution",
     "mart_work_funder",
+    "mart_award",
     "mart_region_group",
     "mart_funder_region",
     "mart_package_reach",
@@ -567,7 +585,12 @@ DEFINITIONS: dict[str, dict] = {
     "mart_work": {
         "description": "One row per linked publication, with iCite metrics, citations "
                        "and patent citations.",
-        "columns": _WORK,
+        "columns": {
+            **_WORK,
+            "alias_dois": "Other DOIs OpenAlex lists for this work, e.g. the bioRxiv preprint a "
+                          "package's CITATION cites after OpenAlex merged it into the journal "
+                          "version; empty when none. doi is the version the metrics describe.",
+        },
     },
     "mart_package_work": {
         "description": "One row per package x linked publication, with the link's provenance.",
@@ -629,6 +652,48 @@ DEFINITIONS: dict[str, dict] = {
             "award_id": "OpenAlex award id (G...); null when no award is listed.",
             "funder_award_id": "The funder's own award number as OpenAlex records it.",
             "grant_id": "NIH core project number when the award matches RePORTER (dim_grant).",
+        },
+    },
+    "mart_award": {
+        "description": "One row per OpenAlex award credited by a linked publication; join "
+                       "mart_work_funder on award_id for the publications. An award here means "
+                       "the paper credits that grant in its funding acknowledgement, not that "
+                       "the grant's money funded the software: never sum amount or amount_usd, "
+                       "within or across funders. Most awards are stubs (is_stub): funder and "
+                       "award number only. Detail completeness varies by funder, so counts of "
+                       "detailed awards measure funder metadata quality, not funding. For NIH "
+                       "awards RePORTER is authoritative: follow mart_work_funder.grant_id to "
+                       "mart_grant_attribution.",
+        "columns": {
+            "award_id": "OpenAlex award id (G...); joins mart_work_funder.award_id.",
+            "funder_id": "OpenAlex funder id (F...); joins mart_work_funder and "
+                         "mart_funder_region.",
+            "funder_name": "Funder name.",
+            "funder_award_id": "The funder's own award number as OpenAlex records it. Display "
+                               "text, not a join key: it can hold several numbers or a "
+                               "programme name ('251217 and 255847', 'HORIZON2020').",
+            "title": "Award title from the funder's record; empty for stubs.",
+            "scheme": "Funding scheme as the funder names it (OpenAlex funder_scheme), e.g. "
+                      "'F31' or 'H2020 - RIA'. Not harmonized across funders.",
+            "start_date": "Award start date, when the funder's record has one.",
+            "end_date": "Award end date, when the funder's record has one.",
+            "amount": "Award amount in currency as the source records it; its scope (whole "
+                      "award, one year, one share) varies by source. What the grant was "
+                      "worth, not what funded the software: never sum.",
+            "currency": "ISO 4217 currency code of amount.",
+            "amount_usd": "amount converted to US dollars by OpenAlex at a daily exchange "
+                          "rate. For display only: never sum or compare across countries.",
+            "award_doi": "Award DOI, bare and lower-case (e.g. 10.3030/777483 for CORDIS), "
+                         "when the funder registers one.",
+            "provenance": "OpenAlex source of the award record: a funder or grant database "
+                          "(nih_exporter, cordis, gateway_to_research, ...) or a publication's "
+                          "acknowledgement (crossref_work_funders, europepmc_work_funders, "
+                          "...). Empty when OpenAlex no longer returns the award.",
+            "is_stub": "True when nothing is known beyond a publication's funding "
+                       "acknowledgement: provenance crossref_work_funders, "
+                       "europepmc_work_funders, datacite_work_funders or crossref_work.grants, "
+                       "or the award is missing from OpenAlex. Stubs have funder and award "
+                       "number only.",
         },
     },
     "mart_region_group": {

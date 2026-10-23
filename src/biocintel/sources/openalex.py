@@ -12,6 +12,7 @@ import json
 import os
 import re
 from collections.abc import Iterable, Iterator, Sequence
+from datetime import date
 from urllib.parse import urlencode
 
 from ..http import HttpError, get_text
@@ -21,11 +22,14 @@ BATCH = 50  # OR-values per filter
 PER_PAGE = 200  # the API maximum
 WORK_FIELDS = (
     "id,doi,ids,title,publication_year,primary_location,cited_by_count,is_retracted,authorships,"
-    "funders,awards"
+    "funders,awards,locations"
 )
 CITING_FIELDS = "id,doi,ids"
 INSTITUTION_FIELDS = "id,ror,display_name,country_code,type,geo"
 FUNDER_FIELDS = "id,display_name,ids,country_code"
+AWARD_FIELDS = (
+    "id,display_name,funder_scheme,start_date,end_date,amount,currency,amount_usd,doi,provenance"
+)
 
 WORKS_DDL = """
 CREATE TABLE lake.openalex.works (
@@ -53,6 +57,11 @@ CREATE TABLE lake.openalex.works_awards (
 FUNDERS_DDL = """
 CREATE TABLE lake.openalex.funders (
     id VARCHAR, display_name VARCHAR, ror VARCHAR, crossref_id VARCHAR, country_code VARCHAR)
+"""
+AWARDS_DDL = """
+CREATE TABLE lake.openalex.awards (
+    id VARCHAR, title VARCHAR, funder_scheme VARCHAR, start_date DATE, end_date DATE,
+    amount DOUBLE, currency VARCHAR, amount_usd DOUBLE, doi VARCHAR, provenance VARCHAR)
 """
 REFERENCES_DDL = """
 CREATE TABLE lake.openalex.work_references (work_id VARCHAR, referenced_work_id VARCHAR)
@@ -89,7 +98,8 @@ def _paged(entity: str, params: dict) -> Iterator[dict]:
 
 
 def fetch_by(entity: str, key: str, values: Iterable[str], select: str) -> Iterator[dict]:
-    """Records whose ``key`` (``doi`` | ``pmid`` | ``openalex_id``) is any of ``values``."""
+    """Records whose ``key`` (``doi`` | ``pmid`` | ``openalex_id`` | ``id``
+    for ``/awards``, full URLs) is any of ``values``."""
     values = sorted({str(v) for v in values})
     # ',' and '|' are the filter syntax's own separators and cannot be escaped.
     bad = [v for v in values if "," in v or "|" in v]
@@ -130,6 +140,12 @@ def citing_groups(oa_ids: Sequence[str], group_by: str) -> tuple[int, list[tuple
     return page["meta"]["count"], groups
 
 
+def awards(ids: Iterable[str]) -> Iterator[dict]:
+    """Award records for bare ``G…`` ids. /awards has no ``openalex_id`` filter, and its
+    ``id`` filter needs full URLs: bare ids silently match nothing. Missing ids are absent."""
+    return fetch_by("awards", "id", (f"https://openalex.org/{g}" for g in ids), AWARD_FIELDS)
+
+
 def title_search(title: str, n: int = 25) -> list[dict]:
     """Top ``n`` title-search hits; the caller's SQL does the exact-title match."""
     query = re.sub(r"[,|]", " ", title)
@@ -142,15 +158,18 @@ def bare_id(url: str | None) -> str | None:
     return url.rsplit("/", 1)[-1] if url else None
 
 
+def bare_doi(url: str | None) -> str | None:
+    return url.replace("https://doi.org/", "").lower() if url else None
+
+
 def work_row(r: dict) -> tuple:
     """``openalex.works`` row: (id, doi, pmid, title, publication_year, source_name,
     cited_by_count, is_retracted)."""
     pmid = _PMID_RE.search((r.get("ids") or {}).get("pmid") or "")
     source = (r.get("primary_location") or {}).get("source") or {}
-    doi = r.get("doi")
     return (
         bare_id(r["id"]),
-        doi.replace("https://doi.org/", "").lower() if doi else None,
+        bare_doi(r.get("doi")),
         int(pmid.group(1)) if pmid else None,
         r.get("title"),
         r.get("publication_year"),
@@ -158,6 +177,13 @@ def work_row(r: dict) -> tuple:
         r.get("cited_by_count"),
         r.get("is_retracted"),
     )
+
+
+def alt_doi_rows(r: dict) -> list[tuple]:
+    """(work_id, doi) per distinct location DOI other than the work's own doi (e.g. the bioRxiv
+    preprint OpenAlex merged into its journal version)."""
+    dois = {bare_doi(loc.get("doi")) for loc in r.get("locations") or []}
+    return [(bare_id(r["id"]), d) for d in sorted(dois - {None, bare_doi(r.get("doi"))})]
 
 
 def authorship_rows(r: dict) -> list[tuple]:
@@ -203,6 +229,26 @@ def award_rows(r: dict) -> list[tuple]:
         (bare_id(r["id"]), bare_id(a["id"]), a.get("funder_award_id"), bare_id(a.get("funder_id")))
         for a in r.get("awards") or [] if a.get("id")
     ]
+
+
+def _date(s: str | None) -> date | None:
+    """ISO ``YYYY-MM-DD`` (the /awards format), else None rather than failing the insert."""
+    try:
+        return date.fromisoformat(s) if s else None
+    except ValueError:
+        return None
+
+
+def award_row(r: dict) -> tuple:
+    """``openalex.awards`` row: (id, title, funder_scheme, start_date, end_date, amount,
+    currency, amount_usd, doi, provenance). DOI bare-lowercase, as for works."""
+    doi = r.get("doi")
+    return (
+        bare_id(r["id"]), r.get("display_name"), r.get("funder_scheme"),
+        _date(r.get("start_date")), _date(r.get("end_date")), r.get("amount"),
+        r.get("currency"), r.get("amount_usd"),
+        doi.replace("https://doi.org/", "").lower() if doi else None, r.get("provenance"),
+    )
 
 
 def funder_row(r: dict) -> tuple:
