@@ -250,6 +250,7 @@ CREATE TABLE IF NOT EXISTS dim_region_group (
     grouping        VARCHAR NOT NULL,     -- 'eu27' | 'horizon_associated' | ... | 'un_western_europe'
     grouping_label  VARCHAR NOT NULL,
     grouping_kind   VARCHAR NOT NULL,     -- 'policy' | 'geographic' | 'un_m49_region' | 'un_m49_subregion'
+    as_of           DATE,                 -- regions.yaml as_of: date the lists were last checked
     PRIMARY KEY (country_code, grouping)
 );
 

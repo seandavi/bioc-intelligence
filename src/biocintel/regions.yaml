@@ -11,7 +11,7 @@
 # `countries` is one space-separated string, never a YAML list: YAML reads a bare NO
 # (Norway) as false.
 #
-# Sources, checked 2026-10-23. Re-check the policy lists when association agreements change.
+# Sources (checked on the as_of date below). Re-check the policy lists when association agreements change.
 # - eu27: https://european-union.europa.eu/principles-countries-history/eu-countries_en
 # - horizon_associated, horizon_associated_pillar2: EC "List of participating countries in
 #   Horizon Europe" V4.2, 07.10.2026,
@@ -20,6 +20,10 @@
 #   Australia and Morocco are still under transitional arrangements and are not listed).
 # - un_*: UN M49 overview, https://unstats.un.org/unsd/methodology/m49/overview/
 #   (region and sub-region; intermediate regions are not used).
+
+# Date the lists below were last checked against the sources above; published as
+# mart_region_group.as_of. Bump it whenever a list is re-checked, changed or not.
+as_of: 2026-10-23
 
 groupings:
   - id: eu27

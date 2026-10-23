@@ -358,7 +358,7 @@ ORDER BY package_name, repo, kind, dep;
 
 -- Country → region grouping (#91), for filtering country-coded marts. One country, many groupings.
 CREATE OR REPLACE TABLE mart_region_group AS
-SELECT country_code, grouping, grouping_label, grouping_kind
+SELECT country_code, grouping, grouping_label, grouping_kind, as_of
 FROM dim_region_group
 ORDER BY grouping, country_code;
 
@@ -714,7 +714,8 @@ DEFINITIONS: dict[str, dict] = {
                        "mart_work_institution has several rows per work. No rows means the "
                        "country is unknown, not outside every grouping; for a share, use works "
                        "whose institution country is in some un_m49_region grouping as the "
-                       "denominator.",
+                       "denominator. A work with both a known and an unknown location still "
+                       "counts toward the denominator, so the share is a lower bound.",
         "columns": {
             "country_code": "ISO 3166-1 alpha-2 code as OpenAlex writes it (GR, GB), plus XK "
                             "(Kosovo), TW (Taiwan, which UN M49 does not list; placed in Eastern "
@@ -723,9 +724,16 @@ DEFINITIONS: dict[str, dict] = {
             "grouping": _GROUPING,
             "grouping_label": "Human-readable grouping name.",
             "grouping_kind": "policy (EU or Horizon Europe membership), geographic, "
-                             "un_m49_region or un_m49_subregion. Policy groupings are current "
-                             "membership as of regions.yaml, not membership when a paper or "
+                             "un_m49_region or un_m49_subregion. Policy groupings are "
+                             "membership on the as_of date, not membership when a paper or "
                              "grant was written: the UK is never in eu27.",
+            "as_of": "Date the membership lists were last checked against their sources (the "
+                     "EU's member-state list, the European Commission's list of countries "
+                     "associated to Horizon Europe, UN M49); the same on every row. Policy "
+                     "groupings change over time (the UK joined Horizon Europe in 2024), so a "
+                     "horizon_associated filter reflects this date. Sources and list versions: "
+                     "https://github.com/seandavi/bioc-intelligence/blob/main/src/biocintel/"
+                     "regions.yaml",
         },
     },
     "mart_funder_region": {
@@ -738,8 +746,10 @@ DEFINITIONS: dict[str, dict] = {
                        "horizon_associated. Count DISTINCT work_id after joining: "
                        "mart_work_funder has several rows per work (awards, co-funders in the "
                        "same grouping). No rows means the location is unknown, not outside every "
-                       "grouping; for a share, use works whose funder is in some un_m49_region "
-                       "grouping or has basis curated as the denominator.",
+                       "grouping; for a share, use works with at least one funder that has a "
+                       "row here as the denominator. A work with both a known and an unknown "
+                       "location still counts toward the denominator, so the share is a lower "
+                       "bound. Grouping membership is as of mart_region_group.as_of.",
         "columns": {
             "funder_id": "OpenAlex funder id (F...); joins mart_work_funder.",
             "grouping": _GROUPING,
