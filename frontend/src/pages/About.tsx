@@ -32,6 +32,7 @@ const LIMITATIONS: [string, ReactNode][] = [
 
 const METHODS: [string, string, string][] = [
   ["doi", "1.0", "A DOI given in the package's own metadata that matches a paper in OpenAlex."],
+  ["doi_alias", "1.0", "A DOI from the package's own metadata that OpenAlex has merged into another version of the paper (usually the bioRxiv preprint of the journal article). The link and its metrics point at the version OpenAlex keeps."],
   ["citation_file", "0.9", "A DOI from the package's CITATION file."],
   ["description_doi", "0.8", "A DOI mentioned in the package description. It sometimes points to related work or a dependency rather than the package's own paper."],
 ];
