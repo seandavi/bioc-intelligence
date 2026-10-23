@@ -48,7 +48,7 @@ recent AS (  -- trailing 12 months relative to the latest (year, month) present,
 ),
 pw AS (  -- package → its linked works, canonicalized to dim_work's work_id so a
          -- DOI-keyed bridge row lines up with the PMID-keyed enriched work.
-    SELECT b.package_name, b.repo,
+    SELECT DISTINCT b.package_name, b.repo,
            COALESCE(w.work_id, b.work_id) AS work_id, b.role
     FROM bridge_package_pub b
     LEFT JOIN dim_work w
@@ -59,21 +59,25 @@ pubs AS (
     SELECT package_name, repo, COUNT(DISTINCT work_id) AS n_primary_pubs
     FROM pw WHERE role = 'primary' GROUP BY package_name, repo
 ),
+impact_work AS (  -- one row per (package, work): the sums and medians below must weigh each
+               -- work once, however many bridge rows or roles point at it.
+    SELECT DISTINCT package_name, repo, work_id FROM pw
+),
 wm AS (  -- RCR is a normalized *rate* → median, not sum. Citations are counts → sum.
-    SELECT pw.package_name, pw.repo,
+    SELECT pk.package_name, pk.repo,
            median(w.icite_rcr)     AS median_rcr,
            SUM(w.citation_count)   AS total_citations
-    FROM pw JOIN dim_work w USING (work_id) GROUP BY pw.package_name, pw.repo
+    FROM impact_work pk JOIN dim_work w USING (work_id) GROUP BY pk.package_name, pk.repo
 ),
 citing AS (
-    SELECT pw.package_name, pw.repo, COUNT(DISTINCT e.citing_work_id) AS n_citing_works
-    FROM pw JOIN fact_citation_edge e ON e.cited_work_id = pw.work_id
-    GROUP BY pw.package_name, pw.repo
+    SELECT pk.package_name, pk.repo, COUNT(DISTINCT e.citing_work_id) AS n_citing_works
+    FROM impact_work pk JOIN fact_citation_edge e ON e.cited_work_id = pk.work_id
+    GROUP BY pk.package_name, pk.repo
 ),
 grants AS (
-    SELECT pw.package_name, pw.repo, COUNT(DISTINCT g.grant_id) AS n_distinct_grants_citing
-    FROM pw JOIN bridge_work_grant g USING (work_id)
-    GROUP BY pw.package_name, pw.repo
+    SELECT pk.package_name, pk.repo, COUNT(DISTINCT g.grant_id) AS n_distinct_grants_citing
+    FROM impact_work pk JOIN bridge_work_grant g USING (work_id)
+    GROUP BY pk.package_name, pk.repo
 )
 SELECT p.package_name, p.repo,
        COALESCE(dl.total_downloads, 0)            AS total_downloads,

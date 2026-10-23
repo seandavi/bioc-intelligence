@@ -219,8 +219,8 @@ def test_package_work_reconciles_alias_doi():
     _fixture(con)
     con.execute("INSERT INTO dim_package (package_name, repo) VALUES ('HiLDA','bioc')")
     con.execute(
-        "INSERT INTO dim_work (work_id, pmid, doi, title, alias_dois) VALUES "
-        "('31523512','31523512','10.7717/peerj.7557','HiLDA',['10.1101/577452'])"
+        "INSERT INTO dim_work (work_id, pmid, doi, title, alias_dois, citation_count, icite_rcr) "
+        "VALUES ('31523512','31523512','10.7717/peerj.7557','HiLDA',['10.1101/577452'],10,2.0)"
     )
     con.execute(
         "INSERT INTO bridge_package_pub "
@@ -234,8 +234,9 @@ def test_package_work_reconciles_alias_doi():
         "WHERE package_name='HiLDA'"
     ).fetchall() == [("31523512", "10.7717/peerj.7557", "HiLDA", "doi")]
     assert con.execute(
-        "SELECT n_primary_pubs FROM mart_package_impact WHERE package_name='HiLDA'"
-    ).fetchone() == (1,)
+        "SELECT n_primary_pubs, total_citations, median_rcr FROM mart_package_impact "
+        "WHERE package_name='HiLDA'"
+    ).fetchone() == (1, 10, 2.0)  # two bridge rows, one work: counted once
     assert con.execute(
         "SELECT alias_dois FROM mart_work WHERE work_id='31523512'"
     ).fetchone() == (["10.1101/577452"],)

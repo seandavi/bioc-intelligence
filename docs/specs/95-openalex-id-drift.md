@@ -168,15 +168,20 @@ alias (a preprint merged into its journal version).
 
 - `dim_work`: append as the last column:
   `alias_dois VARCHAR[]  -- other DOIs OpenAlex lists for the work (e.g. a merged preprint); #95`
-- `db.init_schema`: add `con.execute("ALTER TABLE dim_work ADD COLUMN IF NOT EXISTS alias_dois VARCHAR[]")`
-  next to the `bridge_package_pub` `ALTER`. Column order then matches between fresh and
-  migrated stores, since the column is last in both.
+- `db.init_schema`: append `("alias_dois", "VARCHAR[]")` to `db._DIM_WORK_COLUMNS` (the #47
+  migration list); do not add a one-off `ALTER`. The column is last in `schema.sql`, so fresh
+  and migrated column order match (covered by `test_init_schema_adds_work_columns_to_old_store`).
 
 ### `src/biocintel/pipeline/build_marts.py`
 
 - The three bridge→`dim_work` reconciliation joins (`pw`, `pkg_work` in
   `mart_grant_attribution`, `mart_package_work`) become
   `ON b.work_id = w.work_id OR b.work_id = w.doi OR b.work_id = w.pmid OR list_contains(w.alias_dois, b.work_id)`.
+- In `mart_package_impact`, `pw` is `SELECT DISTINCT` and a new `impact_work` CTE
+  (`SELECT DISTINCT package_name, repo, work_id FROM pw`) feeds `wm`, `citing` and `grants`.
+  Alias reconciliation maps several bridge rows (preprint DOI + PMID) onto one `dim_work`
+  row; without this, `SUM(citation_count)` and `median(icite_rcr)` count that work twice.
+  `test_package_work_reconciles_alias_doi` asserts `total_citations` and `median_rcr`.
 - `mart_work`: append `alias_dois` after `n_patent_citations`.
 - `DEFINITIONS["mart_work"]["columns"]` becomes `{**_WORK, "alias_dois": ...}`, with the
   text:
