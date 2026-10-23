@@ -283,14 +283,17 @@ ON CONFLICT (funder_id) DO UPDATE SET
 # Award detail (#90) for every award on bridge_work_funder, rebuilt whole. Funder and award
 # number come from the bridge (they are the award entity's own); /awards adds the detail. A
 # stub is an award known only from a publication's acknowledgement: an acknowledgement
-# provenance, or no /awards record at all (merged or withdrawn id).
+# provenance, no /awards record at all (merged or withdrawn id), or a record with no title,
+# dates, amount or DOI, so a provenance OpenAlex adds later still reads as a stub (#104).
 _AWARD_DIM_SQL = """
 INSERT INTO bi.dim_award
 SELECT b.award_id, b.funder_id, b.funder_award_id, a.title, a.funder_scheme,
        a.start_date, a.end_date, a.amount, a.currency, a.amount_usd, a.doi, a.provenance,
        a.id IS NULL OR a.provenance IS NULL
            OR a.provenance IN ('crossref_work_funders', 'europepmc_work_funders',
-                               'datacite_work_funders', 'crossref_work.grants') AS is_stub
+                               'datacite_work_funders', 'crossref_work.grants')
+           OR (a.title IS NULL AND a.start_date IS NULL AND a.end_date IS NULL
+               AND a.amount IS NULL AND a.doi IS NULL) AS is_stub
 FROM (SELECT award_id, min(funder_id) AS funder_id, min(funder_award_id) AS funder_award_id
       FROM bi.bridge_work_funder WHERE award_id IS NOT NULL GROUP BY award_id) b
 LEFT JOIN lake.openalex.awards a ON a.id = b.award_id;
