@@ -14,6 +14,7 @@ def test_imports_without_lake_client():
     assert callable(enrich_from_lake.run)
     assert enrich_from_lake.DEFAULT_STEPS == ("works", "institutions", "funders", "grants")
     assert "citations" in enrich_from_lake.ALL_STEPS
+    assert "reach" in enrich_from_lake.ALL_STEPS and "reach" not in enrich_from_lake.DEFAULT_STEPS
 
 
 def test_cli_rejects_unknown_step():

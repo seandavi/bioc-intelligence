@@ -159,3 +159,25 @@ def test_rerun_keeps_openalex_funders_and_registry_ids(tmp_path, monkeypatch):
         "F4320315474": ("Chan Zuckerberg Initiative", True, "https://ror.org/r", "100014989", "US"),
         "Fwork": ("Only on works", False, None, None, None),
     }
+
+
+def test_rerun_keeps_reach_funders(tmp_path, monkeypatch):
+    """A funder referenced only by fact_package_reach (#92) survives; an unreferenced one goes,
+    even with NULL-key (unknown) reach rows, which would break a bare NOT IN."""
+    from biocintel import db
+    from biocintel.pipeline import extract_people
+
+    monkeypatch.setattr(extract_people, "get_text", lambda url, **_: "")
+    con = db.connect(tmp_path / "bi.duckdb")
+    db.init_schema(con)
+    con.execute(
+        "INSERT INTO dim_funder VALUES ('Freach','R',false,NULL,NULL,NULL), "
+        "('Fstale','Gone',false,NULL,NULL,NULL)"
+    )
+    con.execute(
+        "INSERT INTO fact_package_reach VALUES "
+        "('p','bioc','funder','Freach','R',1,'2026-10-01'), "
+        "('p','bioc','funder',NULL,NULL,2,'2026-10-01')"
+    )
+    extract_people._write(con, extract_people.assemble([]))
+    assert con.execute("SELECT funder_id FROM dim_funder").fetchall() == [("Freach",)]

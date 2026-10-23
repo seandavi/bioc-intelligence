@@ -177,6 +177,13 @@ fact_citation_edge(
   _snapshot
 )
 
+fact_package_reach(                    -- (#92)
+  package_name, repo,
+  dimension,                           -- 'total' | 'country' | 'funder'
+  key, key_name,                       -- NULL key = unknown (and the total row)
+  n_citing, _snapshot
+)
+
 bridge_work_grant(
   work_id, grant_id, source
 )
@@ -237,6 +244,11 @@ mart_region_group(                     -- country → grouping filter (#91)
 mart_funder_region(                    -- funder → grouping filter (#91)
   funder_id, grouping, basis           -- basis: country | curated
 )
+
+mart_package_reach(                    -- citing-work countries/funders per package (#92)
+  package_name, repo, dimension, key, key_name,
+  n_citing, n_citing_total, share_of_citing, _snapshot
+)
 ```
 
 ## 6. The Hard Parts
@@ -296,7 +308,8 @@ extract_downloads.py       stats tabs (incremental)       -> fact_download
 link_works.py              DOI/title -> lake.openalex.works         -> bridge_package_pub
 enrich_from_lake.py        icite.metadata -> dim_work; openalex.work_references
                            -> fact_citation_edge; reporter.* + works.grants
-                           -> dim_grant / bridge_work_grant
+                           -> dim_grant / bridge_work_grant;
+                           openalex group_by -> fact_package_reach (opt-in)
 mine_mentions.py           FTS over lake.pmc.passages (cdsci-lake only) -> fact_mention_candidate
 
 -- Judge + export:

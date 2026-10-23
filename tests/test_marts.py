@@ -353,3 +353,35 @@ def test_package_impact_prior_12mo_and_usage_rank():
     ).fetchall()
     # trailing = 2025-10..2026-09; prior = 2024-10..2025-09 (2015 rows fall outside both)
     assert rows == [("edgeR", 100, 0, 1), ("limma", 40, 7, 2)]
+
+
+def test_package_reach_mart_latest_snapshot_and_shares():
+    con = db.connect(":memory:")
+    db.init_schema(con)
+    con.execute(
+        "INSERT INTO fact_package_reach VALUES "
+        "('limma','bioc','total',NULL,NULL,10,'2026-09-01'),"
+        "('limma','bioc','country','US','United States',4,'2026-09-01'),"
+        "('limma','bioc','total',NULL,NULL,20,'2026-10-01'),"
+        "('limma','bioc','country','US','United States',5,'2026-10-01'),"
+        "('limma','bioc','country',NULL,NULL,2,'2026-10-01'),"
+        "('limma','bioc','funder','F1','Funder One',3,'2026-10-01'),"
+        "('zero','bioc','total',NULL,NULL,0,'2026-10-01')"
+    )
+    con.execute(_MART_SQL)
+    cols = [d[0] for d in con.execute("SELECT * FROM mart_package_reach").description]
+    assert cols == ["package_name", "repo", "dimension", "key", "key_name", "n_citing",
+                    "n_citing_total", "share_of_citing", "_snapshot"]
+    rows = {
+        (r[0], r[2], r[3]): r[5:8]
+        for r in con.execute("SELECT * FROM mart_package_reach").fetchall()
+    }
+    assert {str(r[8]) for r in con.execute("SELECT * FROM mart_package_reach").fetchall()} == {
+        "2026-10-01"}
+    assert rows == {
+        ("limma", "total", None): (20, 20, 1.0),
+        ("limma", "country", "US"): (5, 20, 0.25),
+        ("limma", "country", None): (2, 20, 0.1),
+        ("limma", "funder", "F1"): (3, 20, 0.15),
+        ("zero", "total", None): (0, 0, None),
+    }

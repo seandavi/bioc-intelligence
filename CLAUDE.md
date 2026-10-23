@@ -81,6 +81,10 @@ CU_OPENALEX_LAKE_BACKEND=postgres uv run python -m biocintel.pipeline.enrich_fro
   `api`, one `filter=cites:W…` cursor page per 200 citing works (~3k calls for ~580k edges): set
   `OPENALEX_API_KEY`, since keyless OpenAlex allows only 1,000 calls/day. Under `lake`, it scans
   the **1.29B-row** references table plus a second `works` pass.
+- `reach` (**opt-in**, api-only) — `group_by` on works citing each package's `doi`/`citation_file`
+  primary papers (one OR'd `cites:` filter, this run's live ids) → `fact_package_reach` (country,
+  funder, total; snapshot-stamped) and the citing-work funders merged into `dim_funder`. ~2 calls
+  per package: needs `OPENALEX_API_KEY` and is skipped without it. Funders are top-200 by count.
 
 API source gaps: patent counts (`reliance.patent_citations`) are lake-only, so under `api` they are
 skipped. `INSERT OR REPLACE` keeps existing values and new works get NULL. iCite has no DOI lookup
@@ -251,7 +255,7 @@ Three layers, single direction of data flow:
 
 **Data model shape (spec §5):** dimensions (`dim_package`, `dim_package_version`, `dim_work`,
 `dim_grant`) are *rebuilt per release*. Fact tables (`fact_download`, `fact_citation_edge`,
-`fact_mention_candidate`) are *append-only and snapshot-stamped* (`_snapshot` column). Bridges
+`fact_package_reach`, `fact_mention_candidate`) are *append-only and snapshot-stamped* (`_snapshot` column). Bridges
 (`bridge_package_pub`, `bridge_work_grant`, `bridge_package_person`, `bridge_package_funder`) carry
 provenance. People/funders (`dim_person`, `dim_funder`) come from `Authors@R`, parsed without
 evaluating it (`authors.py`); funder spellings are normalized via `funder_aliases.yaml`. Region groupings
@@ -259,7 +263,7 @@ evaluating it (`authors.py`); funder spellings are normalized via `funder_aliase
 exported as `mart_region_group` / `mart_funder_region`: filters the frontend joins to country-coded
 marts, never baked into a count. Marts
 (`mart_package_impact`, `mart_grant_attribution`, `mart_release_growth`, `mart_package_person`,
-`mart_person`, `mart_package_funder`, `mart_award`) are derived and exported.
+`mart_person`, `mart_package_funder`, `mart_award`, `mart_package_reach`) are derived and exported.
 
 ## Settled decisions — do not re-litigate
 

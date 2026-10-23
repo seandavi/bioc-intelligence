@@ -25,6 +25,12 @@ first). Steps:
   second ``works`` pass for citing-side metadata, so it is **opt-in** (not in the
   default step set) to respect R2 egress. Run it deliberately for a full refresh.
 
+- **reach** (opt-in, api-only) — per package, the works citing its `doi`/`citation_file`
+  primary papers (one OR'd `cites:` filter over this run's live OpenAlex ids), counted by
+  author country and by funder via OpenAlex `group_by` → `fact_package_reach`
+  (snapshot-stamped); citing-work funders are merged into `dim_funder` (#92). Needs
+  `OPENALEX_API_KEY` (~2 calls per package). Best-effort.
+
 Idempotent per step (scoped deletes / INSERT OR REPLACE), keyed to the linked works.
 
 ``--source api`` (default) fills ``lake`` from OpenAlex, iCite and RePORTER for just
@@ -38,16 +44,17 @@ DOIs (the preprint OpenAlex merged into it, #95): ``api`` only, since the lake d
 from __future__ import annotations
 
 import argparse
+import os
 
 import duckdb
 
 from ..lake import connect_with_lake
-from ..sources import connect_with_sources
+from ..sources import connect_with_sources, openalex
 
 SOURCES = ("api", "lake")
 
 DEFAULT_STEPS = ("works", "institutions", "funders", "grants")
-ALL_STEPS = ("works", "institutions", "funders", "grants", "citations")
+ALL_STEPS = ("works", "institutions", "funders", "grants", "citations", "reach")
 
 # Small driver table: the OpenAlex works linked to packages, with spine work_id.
 _LINKED_SQL = """
@@ -244,6 +251,34 @@ GROUP BY b.funder_id
 ON CONFLICT (funder_id) DO UPDATE SET ror = excluded.ror, crossref_id = excluded.crossref_id,
                                       country_code = excluded.country_code;
 """
+# Each package's confident primary works with a live OpenAlex id: this run's `linked`, never
+# a stored dim_work.openalex_id, which can be stale, and a stale id's `cites:` filter
+# returns 0, not an error (#95). Same set as the package_pubs_confident view.
+_REACH_WORKS_SQL = """
+SELECT b.package_name, b.repo, list_sort(list(DISTINCT l.oa_id)) AS oa_ids
+FROM bi.bridge_package_pub b
+JOIN linked l ON b.work_id = CAST(l.pmid AS VARCHAR) OR b.work_id = l.doi
+WHERE b.role = 'primary' AND b.match_method IN ('doi', 'citation_file')
+  AND l.oa_id IS NOT NULL
+GROUP BY b.package_name, b.repo
+ORDER BY b.package_name, b.repo;
+"""
+
+# Citing-work funders join dim_funder so mart_funder_region can group them (#91). A curated
+# or already-enriched row keeps its name/curated flag; registry fields fill in, never blank out.
+_REACH_FUNDER_DIM_SQL = """
+INSERT INTO bi.dim_funder (funder_id, name, curated, ror, crossref_id, country_code)
+SELECT r.key, COALESCE(any_value(f.display_name), any_value(r.key_name), r.key), false,
+       any_value(f.ror), any_value(f.crossref_id), any_value(f.country_code)
+FROM (SELECT DISTINCT key, key_name FROM bi.fact_package_reach
+      WHERE _snapshot = current_date AND dimension = 'funder' AND key IS NOT NULL) r
+LEFT JOIN reach_funder f ON f.id = r.key
+GROUP BY r.key
+ON CONFLICT (funder_id) DO UPDATE SET
+    ror = COALESCE(excluded.ror, ror),
+    crossref_id = COALESCE(excluded.crossref_id, crossref_id),
+    country_code = COALESCE(excluded.country_code, country_code);
+"""
 
 # Award detail (#90) for every award on bridge_work_funder, rebuilt whole. Funder and award
 # number come from the bridge (they are the award entity's own); /awards adds the detail. A
@@ -348,6 +383,54 @@ def _enrich_funders(con: duckdb.DuckDBPyConnection) -> int:
     return con.execute("SELECT count(*) FROM bi.bridge_work_funder").fetchone()[0]
 
 
+def _enrich_reach(con: duckdb.DuckDBPyConnection) -> int:
+    """fact_package_reach rows for today's snapshot (+ citing-work funders into dim_funder)."""
+    packages = con.execute(_REACH_WORKS_SQL).fetchall()
+    sets = {tuple(ids) for _, _, ids in packages}
+    print(f"  reach: {len(packages)} packages, {len(sets)} distinct work sets "
+          f"(~{2 * len(sets)} OpenAlex calls)…")
+    memo: dict[tuple[str, ...], dict[str, tuple[int, list[tuple]]]] = {}
+    rows: list[tuple] = []
+    for pkg, repo, ids in packages:
+        ids = tuple(ids)
+        if ids not in memo:
+            memo[ids] = {
+                dim: openalex.citing_groups(ids, field)
+                for dim, field in openalex.REACH_GROUP_BY.items()
+            }
+        res = memo[ids]
+        rows.append((pkg, repo, "total", None, None, res["country"][0]))
+        for dim, (_, groups) in res.items():
+            rows += [(pkg, repo, dim, key, name, n) for key, name, n in groups]
+
+    funder_ids = sorted({r[3] for r in rows if r[2] == "funder" and r[3] is not None})
+    funders = [
+        openalex.funder_row(r)
+        for r in openalex.fetch_by("funders", "openalex_id", funder_ids, openalex.FUNDER_FIELDS)
+    ]
+
+    # All fetching is done; the temp table is outside the transaction (separate catalog).
+    con.execute(
+        "CREATE OR REPLACE TEMP TABLE reach_funder (id VARCHAR, display_name VARCHAR, "
+        "ror VARCHAR, crossref_id VARCHAR, country_code VARCHAR)"
+    )
+    if funders:
+        con.executemany("INSERT INTO reach_funder VALUES (?, ?, ?, ?, ?)", funders)
+    con.execute("BEGIN")
+    try:
+        con.execute("DELETE FROM bi.fact_package_reach WHERE _snapshot = current_date")
+        if rows:
+            con.executemany(
+                "INSERT INTO bi.fact_package_reach VALUES (?, ?, ?, ?, ?, ?, current_date)", rows
+            )
+        con.execute(_REACH_FUNDER_DIM_SQL)
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
+    return len(rows)
+
+
 def _enrich_awards(con: duckdb.DuckDBPyConnection) -> int:
     con.execute("BEGIN")
     try:
@@ -398,6 +481,19 @@ def run(steps: tuple[str, ...] = DEFAULT_STEPS, source: str = "api") -> dict[str
         if "grants" in steps:
             counts["bridge_work_grant"] = _enrich_grants(con)
             print(f"  bridge_work_grant (reporter): {counts['bridge_work_grant']}")
+        if "reach" in steps:
+            if source != "api":
+                print("  reach: skipped (OpenAlex group_by is api-only; use --source api)")
+            elif not os.getenv("OPENALEX_API_KEY"):
+                print("  reach: skipped: set OPENALEX_API_KEY in the environment "
+                      "(~2 OpenAlex calls per linked package, past the keyless daily budget)")
+            else:
+                # Best-effort (spec §3), like institutions: fetches finish before any write.
+                try:
+                    counts["fact_package_reach"] = _enrich_reach(con)
+                    print(f"  fact_package_reach: {counts['fact_package_reach']} rows")
+                except (RuntimeError, duckdb.Error) as exc:
+                    print(f"  reach: skipped ({exc})")
         if "citations" in steps:
             if source == "lake":
                 print("  citations: scanning work_references (1.29B rows) — the heavy step…")
@@ -413,7 +509,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument(
         "--steps", default=",".join(DEFAULT_STEPS),
         help=f"comma-separated subset of {ALL_STEPS} (default: {','.join(DEFAULT_STEPS)}; "
-             "'citations' is the heavy one, opt-in)",
+             "'citations' is the heavy one, opt-in; 'reach' is opt-in and needs OPENALEX_API_KEY)",
     )
     ap.add_argument(
         "--source", choices=SOURCES, default="api",

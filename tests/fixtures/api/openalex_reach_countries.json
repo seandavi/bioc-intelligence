@@ -1,0 +1,94 @@
+{
+ "meta": {
+  "count": 24,
+  "groups_count": 17
+ },
+ "results": [],
+ "group_by": [
+  {
+   "key": "https://openalex.org/countries/US",
+   "key_display_name": "United States",
+   "count": 13
+  },
+  {
+   "key": "https://openalex.org/countries/DE",
+   "key_display_name": "Germany",
+   "count": 2
+  },
+  {
+   "key": "https://openalex.org/countries/DK",
+   "key_display_name": "Denmark",
+   "count": 2
+  },
+  {
+   "key": "https://openalex.org/countries/FR",
+   "key_display_name": "France",
+   "count": 2
+  },
+  {
+   "key": "https://openalex.org/countries/IT",
+   "key_display_name": "Italy",
+   "count": 2
+  },
+  {
+   "key": "https://openalex.org/countries/KR",
+   "key_display_name": "South Korea",
+   "count": 2
+  },
+  {
+   "key": "https://openalex.org/countries/NL",
+   "key_display_name": "Netherlands",
+   "count": 2
+  },
+  {
+   "key": "https://openalex.org/countries/UNKNOWN",
+   "key_display_name": "unknown",
+   "count": 2
+  },
+  {
+   "key": "https://openalex.org/countries/BR",
+   "key_display_name": "Brazil",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/countries/CH",
+   "key_display_name": "Switzerland",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/countries/CN",
+   "key_display_name": "China",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/countries/GB",
+   "key_display_name": "United Kingdom",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/countries/IN",
+   "key_display_name": "India",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/countries/IR",
+   "key_display_name": "Iran",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/countries/MA",
+   "key_display_name": "Morocco",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/countries/MX",
+   "key_display_name": "Mexico",
+   "count": 1
+  },
+  {
+   "key": "https://openalex.org/countries/QA",
+   "key_display_name": "Qatar",
+   "count": 1
+  }
+ ]
+}

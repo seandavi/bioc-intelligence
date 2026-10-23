@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Sequence
 from datetime import date
 from urllib.parse import urlencode
 
@@ -114,6 +114,30 @@ def fetch_by(entity: str, key: str, values: Iterable[str], select: str) -> Itera
 def cited_by(oa_id: str) -> Iterator[dict]:
     """Every work citing ``oa_id`` (id, doi, ids only)."""
     return _paged("works", {"filter": f"cites:{oa_id}", "select": CITING_FIELDS})
+
+
+# Reach dimensions (#92) -> OpenAlex group_by field.
+REACH_GROUP_BY = {"country": "authorships.countries", "funder": "funders.id"}
+
+
+def citing_groups(oa_ids: Sequence[str], group_by: str) -> tuple[int, list[tuple]]:
+    """Works citing any of ``oa_ids`` (one OR'd filter, so distinct citing works), grouped by
+    ``group_by``: ``(meta.count, [(key, key_name, count), ...])``. At most 200 groups, the
+    largest first (no paging). The unknown group comes back as ``(None, None, count)``."""
+    # ponytail: no length guard; a package has at most 10 works and OpenAlex allows 100 OR values
+    page = _get("works", {
+        "filter": "cites:" + "|".join(oa_ids),
+        "group_by": f"{group_by}:include_unknown",
+        "per-page": PER_PAGE,
+    })
+    groups = []
+    for g in page["group_by"]:
+        key = bare_id(g["key"])
+        if key.lower() == "unknown":
+            groups.append((None, None, g["count"]))
+        else:
+            groups.append((key, g.get("key_display_name"), g["count"]))
+    return page["meta"]["count"], groups
 
 
 def awards(ids: Iterable[str]) -> Iterator[dict]:
