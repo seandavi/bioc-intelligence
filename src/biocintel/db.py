@@ -95,3 +95,4 @@ def init_schema(con: duckdb.DuckDBPyConnection) -> None:
     for name, typ in _DIM_FUNDER_COLUMNS:
         con.execute(f"ALTER TABLE dim_funder ADD COLUMN IF NOT EXISTS {name} {typ}")
     con.execute("ALTER TABLE dim_region_group ADD COLUMN IF NOT EXISTS as_of DATE")
+    con.execute("ALTER TABLE fact_package_reach ADD COLUMN IF NOT EXISTS n_works INTEGER")

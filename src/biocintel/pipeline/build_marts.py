@@ -390,6 +390,7 @@ WITH r AS (
 SELECT r.package_name, r.repo, r.dimension, r.key, r.key_name, r.n_citing,
        t.n_citing                         AS n_citing_total,
        r.n_citing / NULLIF(t.n_citing, 0) AS share_of_citing,
+       r.n_works,
        r._snapshot
 FROM r
 JOIN r t ON t.package_name = r.package_name AND t.repo = r.repo AND t.dimension = 'total'
@@ -772,33 +773,46 @@ DEFINITIONS: dict[str, dict] = {
     "mart_package_reach": {
         "description": "One row per package x dimension (total, country, funder) x key: works "
                        "citing the package's confident primary papers (match_method doi, doi_alias "
-                       "or citation_file), counted by OpenAlex at the latest snapshot. n_citing "
-                       "counts distinct citing works across all of those papers (one OR'd "
-                       "query), so a "
+                       "or citation_file) that OpenAlex resolves (n_works of them), counted by "
+                       "OpenAlex at the latest snapshot. A confident paper with no live OpenAlex "
+                       "id is left out, so a package's total can change between snapshots because "
+                       "n_works did, not only because more works cite it. n_citing counts "
+                       "distinct citing works across all of those papers (one OR'd query), so a "
                        "work citing two of them counts once. Values are not additive: not across "
                        "packages (a work citing two packages counts for each) and not across keys "
-                       "(a work counts once for every author country and every funder), so adding "
-                       "countries into a region over-counts. Join key to mart_region_group or "
-                       "mart_funder_region to filter rows, and read each key on its own. "
-                       "Funder rows are the 200 largest funders only, so they do not add up to "
-                       "the total even before overlap.",
+                       "(a work counts once for every author affiliation country and every "
+                       "funder), so adding countries into a region over-counts. Join key to "
+                       "mart_region_group or mart_funder_region to filter rows, and read each key "
+                       "on its own. Funder rows are the 200 largest only (the unknown, NULL-key "
+                       "row among them), so they do not add up to the total even before overlap. "
+                       "A funder with no row may still fund citing works below the top 200; a "
+                       "package with fewer than 200 funder rows has its full list. Not the same "
+                       "as mart_package_impact.n_citing_works, which counts stored citation edges "
+                       "over all linked papers (including description_doi).",
         "columns": {
             **_PKG,
             "dimension": "total (one row: all distinct citing works), country (a country of any "
-                         "author on the citing work, OpenAlex authorships.countries) or funder (a "
-                         "funder OpenAlex lists on the citing work; the 200 largest only).",
+                         "author affiliation on the citing work, OpenAlex authorships.countries) "
+                         "or funder (a funder OpenAlex lists on the citing work; the 200 largest "
+                         "only).",
             "key": "ISO 3166-1 alpha-2 country code (joins mart_region_group.country_code) or "
                    "OpenAlex funder id F... (joins mart_funder_region.funder_id). NULL on the "
-                   "total row, and on the row counting citing works with no known author country "
-                   "or no listed funder: NULL means unknown, not elsewhere.",
+                   "total row, and on the row counting citing works with no known affiliation "
+                   "country or no listed funder: NULL means unknown, not elsewhere.",
             "key_name": "Country or funder name as OpenAlex displays it; NULL when key is NULL.",
-            "n_citing": "Distinct works citing any of the package's confident primary papers that "
-                        "have this key (total row: all of them). Not additive across packages or "
-                        "keys.",
+            "n_citing": "Distinct citing works with this key, across the package's n_works "
+                        "confident primary papers (total row: all citing works). Not additive "
+                        "across packages or keys.",
             "n_citing_total": "The package's total: distinct citing works, the denominator of "
                               "share_of_citing.",
             "share_of_citing": "n_citing / n_citing_total, 0-1; NULL when nothing cites the "
                                "package. Shares across keys add up to more than 1.",
+            "n_works": "Confident primary papers OpenAlex resolves to a live work at this "
+                       "snapshot: the papers every count on the package's rows covers (the same "
+                       "value on each of its rows). A confident paper OpenAlex does not resolve "
+                       "is not counted, so a change in n_works between snapshots moves the counts "
+                       "for reasons other than new citing works. NULL on snapshots fetched before "
+                       "n_works was recorded.",
             "_snapshot": "Date the counts were fetched from OpenAlex.",
         },
     },

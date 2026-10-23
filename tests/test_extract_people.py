@@ -176,8 +176,8 @@ def test_rerun_keeps_reach_funders(tmp_path, monkeypatch):
     )
     con.execute(
         "INSERT INTO fact_package_reach VALUES "
-        "('p','bioc','funder','Freach','R',1,'2026-10-01'), "
-        "('p','bioc','funder',NULL,NULL,2,'2026-10-01')"
+        "('p','bioc','funder','Freach','R',1,'2026-10-01',1), "
+        "('p','bioc','funder',NULL,NULL,2,'2026-10-01',1)"
     )
     extract_people._write(con, extract_people.assemble([]))
     assert con.execute("SELECT funder_id FROM dim_funder").fetchall() == [("Freach",)]
