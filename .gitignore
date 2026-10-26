@@ -14,5 +14,3 @@ __pycache__/
 dist/
 build/
 
-# uv
-uv.lock
