@@ -139,6 +139,18 @@ def test_refresh_updates_on_modest_shrink(monkeypatch):
     assert _flags(con)["scater"] == (False, "scater")
 
 
+def test_refresh_updates_on_exact_half_shrink(monkeypatch):
+    con = _primed(monkeypatch)
+    con.execute("UPDATE dim_package SET in_elixir_rsec = TRUE, biotools_id = 'x' "
+                "WHERE package_name = 'gone'")  # store holds 4 listed / 4 ids
+    keep = {f"imports/bioconductor/{n}.bioconductor.json" for n in ("limma", "ace")}
+    monkeypatch.setattr(
+        rsec, "fetch_rsec_paths",
+        lambda: [p for p in _paths() if not p.startswith("imports/bioconductor/") or p in keep],
+    )
+    assert rsec.refresh_dim_package(con) == 2  # 2 listed is exactly half of 4: `<` updates
+
+
 def test_views_upsert_keeps_rsec_columns():
     con = _store()
     con.execute("UPDATE dim_package SET in_elixir_rsec = TRUE, biotools_id = 'limma' "

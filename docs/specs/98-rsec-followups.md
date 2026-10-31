@@ -25,7 +25,8 @@ Close the five findings in #98:
   affects every column, and a repo guard here would patch one symptom. #93's "no special-casing"
   non-goal stands.
 - No change to `parse_rsec_paths`, `fetch_rsec_paths`, `update_dim_package`, the schema, or the
-  migration. No DDL change and no new mart column.
+  migration. No DDL change and no new mart column. A comment-only edit to `schema.sql` (the
+  `in_elixir_rsec` NULL wording, #121) is allowed.
 - No "stale since" or last-fetched timestamp column. The DEFINITIONS text says values carry over.
 - No configurable floor (env var or CLI flag). It is a fixed one half.
 - `docs/specs/93-elixir-flag.md` and `docs/international-impact.md` are not edited. The first
@@ -189,7 +190,13 @@ No DEFINITIONS-text test: the acceptance check is a read of the literal.
 - **The floor can hold back a real large removal.** If RSEc genuinely drops more than half of
   the Bioconductor imports, the store keeps last month's values and each refresh prints the skip
   line until someone looks. That is the intended trade: stale-but-correct over silently wrong.
-  Clearing it means running `extract-packages` after confirming upstream, or a follow-up issue.
+  Re-running `extract-packages` does not clear it: `refresh_dim_package` returns before
+  `update_dim_package`, so the stored counts stay at last month's values and the next run skips
+  again against the same smaller listing. The code has no override. Clearing a real large
+  removal needs a code change (or a follow-up issue adding an override), or a human resetting
+  `in_elixir_rsec`/`biotools_id` to NULL in the production store (agents may not; see
+  `AGENTS.md`). Until then the published mart serves the carried-over values with no fetch
+  date. (Corrected by #121.)
 - **The floor misses a moderate reorganisation** (under half moved). Accepted: it is a sanity
   check, not a diff.
 - **Stale moved-repo rows** still read TRUE, now documented. The root fix (pruning `dim_package`

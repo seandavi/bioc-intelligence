@@ -673,6 +673,42 @@ def test_reach_outage_keeps_last_snapshot(api_store, monkeypatch):
     assert con.execute("SELECT funder_id FROM dim_funder").fetchall() == [("F4320337348",)]
 
 
+def test_reach_counts_citation_file_row_keyed_by_alias_doi(api_store, monkeypatch):
+    monkeypatch.setenv("OPENALEX_API_KEY", "k")
+    con, calls = api_store
+    con.execute(
+        "INSERT INTO bridge_package_pub (package_name, repo, work_id, role, match_method, "
+        "confidence) VALUES "
+        "('HiLDA', 'bioc', '10.1101/577452', 'primary', 'citation_file', 0.9),"
+        "('both', 'bioc', '10.1101/577452', 'primary', 'citation_file', 0.9),"
+        "('both', 'bioc', '31523512', 'primary', 'doi_alias', 1.0)"
+    )
+    con.close()
+    merged = (FIXTURES / "openalex_works_merged.json").read_text()
+
+    def fake_openalex(url, **_kw):
+        query = parse_qs(urlparse(url).query)
+        filt = query["filter"][0]
+        calls.append(filt)
+        if group_by := query.get("group_by"):
+            name = "countries" if group_by[0].startswith("authorships.countries") else "funders"
+            return (FIXTURES / f"openalex_reach_{name}.json").read_text()
+        if "10.1101/577452" in filt or "31523512" in filt:
+            return merged
+        return json.dumps({"meta": {"next_cursor": None}, "results": []})
+
+    monkeypatch.setattr(openalex, "get_text", fake_openalex)
+    counts = enrich_from_lake.run(("reach",), source="api")
+    assert counts["fact_package_reach"] == 2 * 49
+    assert calls.count("cites:W2970457274") == 2  # both packages share one pair of calls
+    con = lake.db.connect(lake.DB_PATH)
+    # the alias row alone reaches the journal work; alias + journal PMID is one work (#115)
+    assert con.execute(
+        "SELECT package_name, count(*), min(n_works), max(n_works) FROM fact_package_reach "
+        "GROUP BY 1 ORDER BY 1"
+    ).fetchall() == [("HiLDA", 49, 1, 1), ("both", 49, 1, 1)]
+
+
 def test_awards_missing_from_openalex_are_stub_rows(api_store, monkeypatch):
     con, _ = api_store
     _seed_bridge(con)
