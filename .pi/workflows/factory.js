@@ -21,7 +21,7 @@ const HAIKU = "claude-bridge/claude-haiku-5-5";
 
 // ---- Project block (bioc-intelligence) ------------------------------------------------
 const SPEC_DOCS = "bioc-intelligence-spec.md and CLAUDE.md";
-const CHECKS = "uv venv && uv pip install -e '.[dev]' (once), then uv run pytest and uv run ruff check src tests; for frontend/ changes also npm ci && npm run build && npm run lint in frontend/";
+const CHECKS = "uv sync --locked (once), then uv run pytest and uv run ruff check src tests; for frontend/ changes also npm ci && npm run build && npm run lint in frontend/";
 
 const repo = args.repo;
 const issue = args.issue;
