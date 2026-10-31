@@ -715,7 +715,8 @@ DEFINITIONS: dict[str, dict] = {
             "provenance": "OpenAlex source of the award record: a funder or grant database "
                           "(nih_exporter, cordis, gateway_to_research, ...) or a publication's "
                           "acknowledgement (crossref_work_funders, europepmc_work_funders, "
-                          "...). Empty when OpenAlex no longer returns the award.",
+                          "...). NULL when OpenAlex no longer returns the award or its record "
+                          "has no provenance.",
             "is_stub": "True when nothing is known beyond a publication's funding "
                        "acknowledgement: provenance crossref_work_funders, "
                        "europepmc_work_funders, datacite_work_funders or crossref_work.grants, "
