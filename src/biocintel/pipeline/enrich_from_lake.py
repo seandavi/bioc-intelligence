@@ -254,11 +254,14 @@ ON CONFLICT (funder_id) DO UPDATE SET ror = excluded.ror, crossref_id = excluded
 
 # Each package's confident primary works with a live OpenAlex id: this run's `linked`, never
 # a stored dim_work.openalex_id, which can be stale, and a stale id's `cites:` filter
-# returns 0, not an error (#95). Same set as the package_pubs_confident view.
+# returns 0, not an error (#95). Same set as the package_pubs_confident view. A bridge row
+# keyed by a DOI OpenAlex merged into the work (a citation_file preprint DOI) matches
+# through works_alt_dois, as in _LINKED_SQL (#117).
 _REACH_WORKS_SQL = """
 SELECT b.package_name, b.repo, list_sort(list(DISTINCT l.oa_id)) AS oa_ids
 FROM bi.bridge_package_pub b
 JOIN linked l ON b.work_id = CAST(l.pmid AS VARCHAR) OR b.work_id = l.doi
+  OR b.work_id IN (SELECT a.doi FROM works_alt_dois a WHERE a.work_id = l.oa_id)
 WHERE b.role = 'primary' AND b.match_method IN ('doi', 'doi_alias', 'citation_file')
   AND l.oa_id IS NOT NULL
 GROUP BY b.package_name, b.repo
@@ -284,8 +287,9 @@ ON CONFLICT (funder_id) DO UPDATE SET
 # Award detail (#90) for every award on bridge_work_funder, rebuilt whole. Funder and award
 # number come from the bridge (they are the award entity's own); /awards adds the detail. A
 # stub is an award known only from a publication's acknowledgement: an acknowledgement
-# provenance, no /awards record at all (merged or withdrawn id), or a record with no title,
-# dates, amount or DOI, so a provenance OpenAlex adds later still reads as a stub (#104).
+# provenance, no /awards record at all (merged or withdrawn id) or one with no provenance, or
+# a record with no title, dates, amount or DOI, so a provenance OpenAlex adds later still
+# reads as a stub (#104).
 _AWARD_DIM_SQL = """
 INSERT INTO bi.dim_award
 SELECT b.award_id, b.funder_id, b.funder_award_id, a.title, a.funder_scheme,

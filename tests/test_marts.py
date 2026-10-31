@@ -450,3 +450,14 @@ def test_definitions_explain_alias_dois_and_doi_alias():
     assert "usually the preprint" in pkg_work["match_method"]
     assert "is a preprint OpenAlex merged" not in pkg_work["match_method"]
     assert "doi_alias" in HONEST_VIEWS["package_pubs_confident"][2]
+
+
+def test_definitions_explain_stub_reach_and_biotools():
+    award = DEFINITIONS["mart_award"]["columns"]
+    reach = DEFINITIONS["mart_package_reach"]["columns"]
+    directory = DEFINITIONS["mart_package_directory"]["columns"]
+    assert "its record has no provenance" in award["is_stub"]
+    assert "any detail on them is unverified" in award["is_stub"]
+    assert "Stubs have funder and award number only" not in award["is_stub"]
+    assert "Counted as distinct OpenAlex works" in reach["n_works"]
+    assert "set independently of in_elixir_rsec" in directory["biotools_id"]

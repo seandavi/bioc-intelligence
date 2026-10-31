@@ -124,11 +124,13 @@ Issue: https://github.com/seandavi/bioc-intelligence/issues/102. These are follo
 
 - `DEFINITIONS["mart_work"]["columns"]["alias_dois"]` text:
   `"Other DOIs OpenAlex lists for this work, e.g. the bioRxiv preprint a package's CITATION cites after OpenAlex merged it into the journal version. NULL when OpenAlex lists none, and always NULL for works enriched under --source lake (the lake drops locations) or from iCite alone, so NULL does not mean the work has no preprint. A DOI OpenAlex also holds as a separate work is never listed. doi is the version the metrics describe."`
+  (Superseded by #109: see `build_marts.DEFINITIONS["mart_work"]`.)
 - `DEFINITIONS["mart_package_work"]["columns"]` becomes `{**_PKG, **_WORK, "doi": ..., ...}`
   (an override after `_WORK`, so `mart_work.doi` keeps the shared text). The `doi` text is:
   `"The work's DOI, bare and lower-case (no https://doi.org/ prefix). It may differ from the DOI the package cites: a preprint DOI OpenAlex merged into its journal version shows the journal DOI (see mart_work.alias_dois)."`
 - `match_method` text:
   `"How the link was made: doi (the package's own DOI), doi_alias (the package's DOI is a preprint OpenAlex merged into this work; doi shows the journal version), citation_file (CITATION / CITATION.cff), description_doi (a DOI in Description, sometimes a dependency's paper), title_search, manual."`
+  (Superseded by #109: see `build_marts.DEFINITIONS["mart_package_work"]`.)
 - `confidence` text:
   `"Link confidence, 0-1 (doi and doi_alias 1.0, citation_file 0.9, description_doi 0.8)."`
 - `DEFINITIONS["mart_package_reach"]["description"]`: "(match_method doi or citation_file)"
@@ -166,6 +168,7 @@ Issue: https://github.com/seandavi/bioc-intelligence/issues/102. These are follo
   - In the #95 paragraph, after "A bridge DOI then links to the journal work and is kept in
     `dim_work.alias_dois`.", add "`link_works` writes such links as `doi_alias`, and a DOI that
     is still some work's own DOI is never an alias (#102)."
+    (Superseded by #109: see CLAUDE.md.)
 - `docs/specs/95-openalex-id-drift.md`: replace the quoted `alias_dois` definition text
   ("…; empty when none. …") with the new text above, and add "(amended by #102)".
 

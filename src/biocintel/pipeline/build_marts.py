@@ -584,8 +584,10 @@ DEFINITIONS: dict[str, dict] = {
             "biotools_id": "bio.tools identifier: the RSEc data/<id>/ folder holding both this "
                            "package's Bioconductor record and a bio.tools record. When bio.tools "
                            "has two entries, the curated id without the bioconductor- prefix "
-                           "wins. NULL when there is none, or when the package has not yet been "
-                           "checked against the listing (new package, or the fetch was "
+                           "wins. Matched by package name in any repo, and set independently "
+                           "of in_elixir_rsec (it can be non-NULL when in_elixir_rsec is "
+                           "FALSE). NULL when there is none, or when the package has not yet "
+                           "been checked against the listing (new package, or the fetch was "
                            "skipped). Values carry over from the last successful fetch.",
             "biotools_url": "The package's bio.tools page (https://bio.tools/<biotools_id>).",
         },
@@ -717,8 +719,9 @@ DEFINITIONS: dict[str, dict] = {
             "is_stub": "True when nothing is known beyond a publication's funding "
                        "acknowledgement: provenance crossref_work_funders, "
                        "europepmc_work_funders, datacite_work_funders or crossref_work.grants, "
-                       "the award is missing from OpenAlex, or the record carries no title, "
-                       "dates, amount or DOI. Stubs have funder and award number only.",
+                       "the award is missing from OpenAlex or its record has no provenance, or "
+                       "the record carries no title, dates, amount or DOI. Treat stubs as "
+                       "funder and award number only; any detail on them is unverified.",
         },
     },
     "mart_region_group": {
@@ -813,8 +816,9 @@ DEFINITIONS: dict[str, dict] = {
                        "snapshot: the papers every count on the package's rows covers (the same "
                        "value on each of its rows). A confident paper OpenAlex does not resolve "
                        "is not counted, so a change in n_works between snapshots moves the counts "
-                       "for reasons other than new citing works. NULL on snapshots fetched before "
-                       "n_works was recorded.",
+                       "for reasons other than new citing works. Counted as distinct OpenAlex "
+                       "works, so two confident ids that OpenAlex merges into one work count "
+                       "once. NULL on snapshots fetched before n_works was recorded.",
             "_snapshot": "Date the counts were fetched from OpenAlex.",
         },
     },
