@@ -25,6 +25,88 @@
   ],
   "resources": [
     {
+      "name": "mart_award",
+      "path": "https://impact.bioconductor.org/data/mart_award.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 160355,
+      "description": "One row per OpenAlex award credited by a linked publication; join mart_work_funder on award_id for the publications. An award here means the paper credits that grant in its funding acknowledgement, not that the grant's money funded the software: never sum amount or amount_usd, within or across funders. Most awards are stubs (is_stub): funder and award number only. Detail completeness varies by funder, so counts of detailed awards measure funder metadata quality, not funding. For NIH awards RePORTER is authoritative: follow mart_work_funder.grant_id to mart_grant_attribution. After an OpenAlex /awards outage the detail is from the previous run, and awards credited since then are missing here.",
+      "schema": {
+        "fields": [
+          {
+            "name": "award_id",
+            "type": "string",
+            "description": "OpenAlex award id (G...); joins mart_work_funder.award_id."
+          },
+          {
+            "name": "funder_id",
+            "type": "string",
+            "description": "OpenAlex funder id (F...); joins mart_work_funder and mart_funder_region."
+          },
+          {
+            "name": "funder_name",
+            "type": "string",
+            "description": "Funder name."
+          },
+          {
+            "name": "funder_award_id",
+            "type": "string",
+            "description": "The funder's own award number as OpenAlex records it. Display text, not a join key: it can hold several numbers or a programme name ('251217 and 255847', 'HORIZON2020')."
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "description": "Award title from the funder's record; empty for stubs."
+          },
+          {
+            "name": "scheme",
+            "type": "string",
+            "description": "Funding scheme as the funder names it (OpenAlex funder_scheme), e.g. 'F31' or 'H2020 - RIA'. Not harmonized across funders."
+          },
+          {
+            "name": "start_date",
+            "type": "date",
+            "description": "Award start date, when the funder's record has one."
+          },
+          {
+            "name": "end_date",
+            "type": "date",
+            "description": "Award end date, when the funder's record has one."
+          },
+          {
+            "name": "amount",
+            "type": "number",
+            "description": "Award amount in currency as the source records it; its scope (whole award, one year, one share) varies by source. What the grant was worth, not what funded the software: never sum."
+          },
+          {
+            "name": "currency",
+            "type": "string",
+            "description": "ISO 4217 currency code of amount."
+          },
+          {
+            "name": "amount_usd",
+            "type": "number",
+            "description": "amount converted to US dollars by OpenAlex at an exchange rate it picks for that award: usually the rate on the award's start date, else a yearly average (the basis is not stored). Not inflation-adjusted. For display only: never sum, or compare across countries or years."
+          },
+          {
+            "name": "award_doi",
+            "type": "string",
+            "description": "Award DOI, bare and lower-case (e.g. 10.3030/777483 for CORDIS), when the funder registers one."
+          },
+          {
+            "name": "provenance",
+            "type": "string",
+            "description": "OpenAlex source of the award record: a funder or grant database (nih_exporter, cordis, gateway_to_research, ...) or a publication's acknowledgement (crossref_work_funders, europepmc_work_funders, ...). NULL when OpenAlex no longer returns the award or its record has no provenance."
+          },
+          {
+            "name": "is_stub",
+            "type": "boolean",
+            "description": "True when nothing is known beyond a publication's funding acknowledgement: provenance crossref_work_funders, europepmc_work_funders, datacite_work_funders or crossref_work.grants, the award is missing from OpenAlex or its record has no provenance, or the record carries no title, dates, amount or DOI. Treat stubs as funder and award number only; any detail on them is unverified."
+          }
+        ]
+      }
+    },
+    {
       "name": "mart_ecosystem_downloads_yearly",
       "path": "https://impact.bioconductor.org/data/mart_ecosystem_downloads_yearly.parquet",
       "format": "parquet",
@@ -62,6 +144,33 @@
             "name": "n_packages_with_downloads",
             "type": "integer",
             "description": "Packages with at least one download that year."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_funder_region",
+      "path": "https://impact.bioconductor.org/data/mart_funder_region.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 9342,
+      "description": "One row per funder x region grouping. A funder takes the groupings of its OpenAlex country, except supranational funders OpenAlex gives no country (European Commission, ERC, Horizon 2020, ...), which take the curated groupings in regions.yaml. Funders with neither have no rows. A grouping is where the funder is based, not where the funded researchers are: EMBL (Germany) is in eu27, WHO (Switzerland) in horizon_associated. Count DISTINCT work_id after joining: mart_work_funder has several rows per work (awards, co-funders in the same grouping). No rows means the location is unknown, not outside every grouping; for a share, use works with at least one funder that has a row here as the denominator. A work with both a known and an unknown location still counts toward the denominator, so the share is a lower bound. Grouping membership is as of mart_region_group.as_of.",
+      "schema": {
+        "fields": [
+          {
+            "name": "funder_id",
+            "type": "string",
+            "description": "OpenAlex funder id (F...); joins mart_work_funder."
+          },
+          {
+            "name": "grouping",
+            "type": "string",
+            "description": "Grouping id: eu27, horizon_associated, horizon_associated_pillar2, europe_geographic, or un_<UN M49 region or sub-region>, e.g. un_western_europe."
+          },
+          {
+            "name": "basis",
+            "type": "string",
+            "description": "country (from the funder's OpenAlex country_code) or curated (hand-mapped in regions.yaml)."
           }
         ]
       }
@@ -300,6 +409,21 @@
             "name": "bioc_url",
             "type": "string",
             "description": "Package landing page on bioconductor.org."
+          },
+          {
+            "name": "in_elixir_rsec",
+            "type": "boolean",
+            "description": "Listed in the ELIXIR Research Software Ecosystem's weekly Bioconductor import (research-software-ecosystem/content, imports/bioconductor). Matched by package name in any repo. The import covers the software (bioc) repo, so other repos normally read FALSE, but a stale row for a package that moved repos can also read TRUE. FALSE means not in that import, not absent from bio.tools. NULL means the package has not yet been checked against the listing (new package, or the fetch was skipped). Values carry over from the last successful fetch."
+          },
+          {
+            "name": "biotools_id",
+            "type": "string",
+            "description": "bio.tools identifier: the RSEc data/<id>/ folder holding both this package's Bioconductor record and a bio.tools record. When bio.tools has two entries, the curated id without the bioconductor- prefix wins. Matched by package name in any repo, and set independently of in_elixir_rsec (it can be non-NULL when in_elixir_rsec is FALSE). NULL when there is none, or when the package has not yet been checked against the listing (new package, or the fetch was skipped). Values carry over from the last successful fetch."
+          },
+          {
+            "name": "biotools_url",
+            "type": "string",
+            "description": "The package's bio.tools page (https://bio.tools/<biotools_id>)."
           }
         ]
       }
@@ -533,6 +657,68 @@
       }
     },
     {
+      "name": "mart_package_reach",
+      "path": "https://impact.bioconductor.org/data/mart_package_reach.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 292,
+      "description": "One row per package x dimension (total, country, funder) x key: works citing the package's confident primary papers (match_method doi, doi_alias or citation_file) that OpenAlex resolves (n_works of them), counted by OpenAlex at the latest snapshot. A confident paper with no live OpenAlex id is left out, so a package's total can change between snapshots because n_works did, not only because more works cite it. n_citing counts distinct citing works across all of those papers (one OR'd query), so a work citing two of them counts once. Values are not additive: not across packages (a work citing two packages counts for each) and not across keys (a work counts once for every author affiliation country and every funder), so adding countries into a region over-counts. Join key to mart_region_group or mart_funder_region to filter rows, and read each key on its own. Funder rows are the 200 largest only (the unknown, NULL-key row among them), so they do not add up to the total even before overlap. A funder with no row may still fund citing works below the top 200; a package with fewer than 200 funder rows has its full list. Not the same as mart_package_impact.n_citing_works, which counts stored citation edges over all linked papers (including description_doi).",
+      "schema": {
+        "fields": [
+          {
+            "name": "package_name",
+            "type": "string",
+            "description": "Bioconductor package name."
+          },
+          {
+            "name": "repo",
+            "type": "string",
+            "description": "Repository: bioc (software), data-experiment, data-annotation or workflows."
+          },
+          {
+            "name": "dimension",
+            "type": "string",
+            "description": "total (one row: all distinct citing works), country (a country of any author affiliation on the citing work, OpenAlex authorships.countries) or funder (a funder OpenAlex lists on the citing work; the 200 largest only)."
+          },
+          {
+            "name": "key",
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2 country code (joins mart_region_group.country_code) or OpenAlex funder id F... (joins mart_funder_region.funder_id). NULL on the total row, and on the row counting citing works with no known affiliation country or no listed funder: NULL means unknown, not elsewhere."
+          },
+          {
+            "name": "key_name",
+            "type": "string",
+            "description": "Country or funder name as OpenAlex displays it; NULL when key is NULL."
+          },
+          {
+            "name": "n_citing",
+            "type": "integer",
+            "description": "Distinct citing works with this key, across the package's n_works confident primary papers (total row: all citing works). Not additive across packages or keys."
+          },
+          {
+            "name": "n_citing_total",
+            "type": "integer",
+            "description": "The package's total: distinct citing works, the denominator of share_of_citing."
+          },
+          {
+            "name": "share_of_citing",
+            "type": "number",
+            "description": "n_citing / n_citing_total, 0-1; NULL when nothing cites the package. Shares across keys add up to more than 1."
+          },
+          {
+            "name": "n_works",
+            "type": "integer",
+            "description": "Confident primary papers OpenAlex resolves to a live work at this snapshot: the papers every count on the package's rows covers (the same value on each of its rows). A confident paper OpenAlex does not resolve is not counted, so a change in n_works between snapshots moves the counts for reasons other than new citing works. Counted as distinct OpenAlex works, so two confident ids that OpenAlex merges into one work count once. NULL on snapshots fetched before n_works was recorded."
+          },
+          {
+            "name": "_snapshot",
+            "type": "date",
+            "description": "Date the counts were fetched from OpenAlex."
+          }
+        ]
+      }
+    },
+    {
       "name": "mart_package_work",
       "path": "https://impact.bioconductor.org/data/mart_package_work.parquet",
       "format": "parquet",
@@ -687,6 +873,43 @@
             "name": "package_names",
             "type": "array",
             "description": "The packages."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_region_group",
+      "path": "https://impact.bioconductor.org/data/mart_region_group.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 3635,
+      "description": "One row per country x named region grouping, from the checked-in regions.yaml. A country can be in several groupings. Groupings are filters: join on country_code (e.g. mart_work_institution); never add counts across groupings. Count DISTINCT work_id after joining: mart_work_institution has several rows per work. No rows means the country is unknown, not outside every grouping; for a share, use works whose institution country is in some un_m49_region grouping as the denominator. A work with both a known and an unknown location still counts toward the denominator, so the share is a lower bound.",
+      "schema": {
+        "fields": [
+          {
+            "name": "country_code",
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2 code as OpenAlex writes it (GR, GB), plus XK (Kosovo), TW (Taiwan, which UN M49 does not list; placed in Eastern Asia) and EU, OpenAlex's code for EU-level bodies (in eu27, europe_geographic and un_europe only)."
+          },
+          {
+            "name": "grouping",
+            "type": "string",
+            "description": "Grouping id: eu27, horizon_associated, horizon_associated_pillar2, europe_geographic, or un_<UN M49 region or sub-region>, e.g. un_western_europe."
+          },
+          {
+            "name": "grouping_label",
+            "type": "string",
+            "description": "Human-readable grouping name."
+          },
+          {
+            "name": "grouping_kind",
+            "type": "string",
+            "description": "policy (EU or Horizon Europe membership), geographic, un_m49_region or un_m49_subregion. Policy groupings are membership on the as_of date, not membership when a paper or grant was written: the UK is never in eu27."
+          },
+          {
+            "name": "as_of",
+            "type": "date",
+            "description": "Date the membership lists were last checked against their sources (the EU's member-state list, the European Commission's list of countries associated to Horizon Europe, UN M49); the same on every row. Policy groupings change over time (the UK joined Horizon Europe in 2024), so a horizon_associated filter reflects this date. Sources and list versions: https://github.com/seandavi/bioc-intelligence/blob/main/src/biocintel/regions.yaml"
           }
         ]
       }
@@ -863,6 +1086,68 @@
             "name": "n_patent_citations",
             "type": "integer",
             "description": "Distinct patents citing the work (Reliance on Science); 0 = none found, empty = no OpenAlex id or not yet enriched."
+          },
+          {
+            "name": "alias_dois",
+            "type": "array",
+            "description": "Other DOIs OpenAlex lists for this work, e.g. the bioRxiv preprint a package's CITATION cites after OpenAlex merged it into the journal version. NULL when OpenAlex lists none, and always NULL for works enriched under --source lake (the lake drops locations) or from iCite alone, so NULL does not mean the work has no preprint. A DOI that is another loaded OpenAlex work's own DOI is never listed; a preprint OpenAlex still keeps as its own work can be listed if this run did not load it. doi is the version the metrics describe."
+          }
+        ]
+      }
+    },
+    {
+      "name": "mart_work_funder",
+      "path": "https://impact.bioconductor.org/data/mart_work_funder.parquet",
+      "format": "parquet",
+      "mediatype": "application/vnd.apache.parquet",
+      "bytes": 164833,
+      "description": "One row per linked publication x funder x award, from OpenAlex.",
+      "schema": {
+        "fields": [
+          {
+            "name": "work_id",
+            "type": "string",
+            "description": "Work identifier: PMID when known, else DOI (OpenAlex ID is an enrichment handle)."
+          },
+          {
+            "name": "funder_id",
+            "type": "string",
+            "description": "OpenAlex funder id (F...); the same id as mart_package_funder for funders in the curated alias list."
+          },
+          {
+            "name": "funder_name",
+            "type": "string",
+            "description": "Funder name."
+          },
+          {
+            "name": "ror",
+            "type": "string",
+            "description": "ROR identifier of the funder, when known."
+          },
+          {
+            "name": "crossref_id",
+            "type": "string",
+            "description": "Crossref Funder Registry id (10.13039/<id>), when known."
+          },
+          {
+            "name": "country_code",
+            "type": "string",
+            "description": "ISO country code of the funder."
+          },
+          {
+            "name": "award_id",
+            "type": "string",
+            "description": "OpenAlex award id (G...); null when no award is listed."
+          },
+          {
+            "name": "funder_award_id",
+            "type": "string",
+            "description": "The funder's own award number as OpenAlex records it."
+          },
+          {
+            "name": "grant_id",
+            "type": "string",
+            "description": "NIH core project number when the award matches RePORTER (dim_grant)."
           }
         ]
       }
