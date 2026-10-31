@@ -3,8 +3,8 @@
   "title": "Bioconductor Intelligence marts",
   "description": "Usage, publication, citation and grant metrics for Bioconductor packages. Query in DuckDB: ATTACH 'https://impact.bioconductor.org/data/bioc-intelligence.duckdb' AS bi (READ_ONLY).",
   "homepage": "https://github.com/seandavi/bioc-intelligence",
-  "version": "2026-10-07",
-  "created": "2026-10-07T00:00:00Z",
+  "version": "2026-10-31",
+  "created": "2026-10-31T00:00:00Z",
   "sources": [
     {
       "title": "Bioconductor",
@@ -29,7 +29,7 @@
       "path": "https://impact.bioconductor.org/data/mart_ecosystem_downloads_yearly.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 2368,
+      "bytes": 2367,
       "description": "Downloads per year x repo x methodology era (2015 has a row per era).",
       "schema": {
         "fields": [
@@ -71,7 +71,7 @@
       "path": "https://impact.bioconductor.org/data/mart_grant_attribution.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 54709,
+      "bytes": 54482,
       "description": "One row per NIH grant acknowledged by a paper linked to a package.",
       "schema": {
         "fields": [
@@ -133,7 +133,7 @@
       "path": "https://impact.bioconductor.org/data/mart_installer_downloads_monthly.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 3234,
+      "bytes": 3228,
       "description": "Project-level installs per month: distinct IPs of the installer package (BiocInstaller 2011-2018, then BiocVersion, which BiocManager installs). The Bioconductor convention for 'machines that installed Bioconductor'.",
       "schema": {
         "fields": [
@@ -175,7 +175,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_dependency.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 177803,
+      "bytes": 178027,
       "description": "Forward dependency edges (Depends/Imports/Suggests/LinkingTo; R excluded).",
       "schema": {
         "fields": [
@@ -207,7 +207,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_directory.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 992533,
+      "bytes": 1039096,
       "description": "One row per package: DESCRIPTION metadata from the repository VIEWS file.",
       "schema": {
         "fields": [
@@ -309,7 +309,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_downloads_monthly.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 4081096,
+      "bytes": 4067256,
       "description": "Downloads per package x month.",
       "schema": {
         "fields": [
@@ -356,7 +356,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_funder.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 10450,
+      "bytes": 10474,
       "description": "One row per package x declared funder (the Authors@R fnd role).",
       "schema": {
         "fields": [
@@ -408,7 +408,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_impact.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 149244,
+      "bytes": 147754,
       "description": "One row per package: downloads, linked publications, citations, RCR and grants.",
       "schema": {
         "fields": [
@@ -537,7 +537,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_work.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 135902,
+      "bytes": 131856,
       "description": "One row per package x linked publication, with the link's provenance.",
       "schema": {
         "fields": [
@@ -559,7 +559,7 @@
           {
             "name": "doi",
             "type": "string",
-            "description": "DOI, bare and lower-case (no https://doi.org/ prefix)."
+            "description": "The work's DOI, bare and lower-case (no https://doi.org/ prefix). It may differ from the DOI the package cites: a preprint DOI OpenAlex merged into its journal version shows the journal DOI (see mart_work.alias_dois)."
           },
           {
             "name": "pmid",
@@ -629,12 +629,12 @@
           {
             "name": "match_method",
             "type": "string",
-            "description": "How the link was made: doi (the package's own DOI), citation_file (CITATION / CITATION.cff), description_doi (a DOI in Description, sometimes a dependency's paper), title_search, manual."
+            "description": "How the link was made: doi (the package's own DOI), doi_alias (the package's DOI is another version of the paper, usually the preprint, that OpenAlex merged into this work; doi shows the version OpenAlex keeps), citation_file (CITATION / CITATION.cff), description_doi (a DOI in Description, sometimes a dependency's paper), title_search, manual."
           },
           {
             "name": "confidence",
             "type": "number",
-            "description": "Link confidence, 0-1 (doi 1.0, citation_file 0.9, description_doi 0.8)."
+            "description": "Link confidence, 0-1 (doi and doi_alias 1.0, citation_file 0.9, description_doi 0.8)."
           },
           {
             "name": "role",
@@ -785,7 +785,7 @@
       "path": "https://impact.bioconductor.org/data/mart_work.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 119085,
+      "bytes": 121824,
       "description": "One row per linked publication, with iCite metrics, citations and patent citations.",
       "schema": {
         "fields": [
@@ -872,7 +872,7 @@
       "path": "https://impact.bioconductor.org/data/mart_work_institution.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 124127,
+      "bytes": 119668,
       "description": "One row per linked publication x author institution x author position.",
       "schema": {
         "fields": [
@@ -929,8 +929,8 @@
     {
       "name": "package_pubs_confident",
       "source": "mart_package_work",
-      "description": "Package-paper links made by DOI or CITATION file only (drops description_doi and title_search). Use for grant reporting.",
-      "sql": "SELECT * FROM mart_package_work WHERE match_method IN ('doi', 'citation_file')"
+      "description": "Package-paper links made by DOI (own or merged-preprint alias) or CITATION file only (drops description_doi and title_search). Use for grant reporting.",
+      "sql": "SELECT * FROM mart_package_work WHERE match_method IN ('doi', 'doi_alias', 'citation_file')"
     },
     {
       "name": "downloads_modern_era",
