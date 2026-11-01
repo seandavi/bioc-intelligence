@@ -3,8 +3,8 @@
   "title": "Bioconductor Intelligence marts",
   "description": "Usage, publication, citation and grant metrics for Bioconductor packages. Query in DuckDB: ATTACH 'https://impact.bioconductor.org/data/bioc-intelligence.duckdb' AS bi (READ_ONLY).",
   "homepage": "https://github.com/seandavi/bioc-intelligence",
-  "version": "2026-10-31",
-  "created": "2026-10-31T00:00:00Z",
+  "version": "2026-11-01",
+  "created": "2026-11-01T00:00:00Z",
   "sources": [
     {
       "title": "Bioconductor",
@@ -29,7 +29,7 @@
       "path": "https://impact.bioconductor.org/data/mart_award.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 160355,
+      "bytes": 160159,
       "description": "One row per OpenAlex award credited by a linked publication; join mart_work_funder on award_id for the publications. An award here means the paper credits that grant in its funding acknowledgement, not that the grant's money funded the software: never sum amount or amount_usd, within or across funders. Most awards are stubs (is_stub): funder and award number only. Detail completeness varies by funder, so counts of detailed awards measure funder metadata quality, not funding. For NIH awards RePORTER is authoritative: follow mart_work_funder.grant_id to mart_grant_attribution. After an OpenAlex /awards outage the detail is from the previous run, and awards credited since then are missing here.",
       "schema": {
         "fields": [
@@ -111,7 +111,7 @@
       "path": "https://impact.bioconductor.org/data/mart_ecosystem_downloads_yearly.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 2367,
+      "bytes": 2369,
       "description": "Downloads per year x repo x methodology era (2015 has a row per era).",
       "schema": {
         "fields": [
@@ -180,7 +180,7 @@
       "path": "https://impact.bioconductor.org/data/mart_grant_attribution.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 54482,
+      "bytes": 54480,
       "description": "One row per NIH grant acknowledged by a paper linked to a package.",
       "schema": {
         "fields": [
@@ -242,7 +242,7 @@
       "path": "https://impact.bioconductor.org/data/mart_installer_downloads_monthly.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 3228,
+      "bytes": 3239,
       "description": "Project-level installs per month: distinct IPs of the installer package (BiocInstaller 2011-2018, then BiocVersion, which BiocManager installs). The Bioconductor convention for 'machines that installed Bioconductor'.",
       "schema": {
         "fields": [
@@ -433,7 +433,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_downloads_monthly.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 4067256,
+      "bytes": 4145191,
       "description": "Downloads per package x month.",
       "schema": {
         "fields": [
@@ -480,7 +480,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_funder.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 10474,
+      "bytes": 10482,
       "description": "One row per package x declared funder (the Authors@R fnd role).",
       "schema": {
         "fields": [
@@ -532,7 +532,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_impact.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 147754,
+      "bytes": 148891,
       "description": "One row per package: downloads, linked publications, citations, RCR and grants.",
       "schema": {
         "fields": [
@@ -723,7 +723,7 @@
       "path": "https://impact.bioconductor.org/data/mart_package_work.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 131856,
+      "bytes": 132559,
       "description": "One row per package x linked publication, with the link's provenance.",
       "schema": {
         "fields": [
@@ -1008,7 +1008,7 @@
       "path": "https://impact.bioconductor.org/data/mart_work.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 121824,
+      "bytes": 122180,
       "description": "One row per linked publication, with iCite metrics, citations and patent citations.",
       "schema": {
         "fields": [
@@ -1100,7 +1100,7 @@
       "path": "https://impact.bioconductor.org/data/mart_work_funder.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 164833,
+      "bytes": 165319,
       "description": "One row per linked publication x funder x award, from OpenAlex.",
       "schema": {
         "fields": [
@@ -1157,7 +1157,7 @@
       "path": "https://impact.bioconductor.org/data/mart_work_institution.parquet",
       "format": "parquet",
       "mediatype": "application/vnd.apache.parquet",
-      "bytes": 119668,
+      "bytes": 119682,
       "description": "One row per linked publication x author institution x author position.",
       "schema": {
         "fields": [
